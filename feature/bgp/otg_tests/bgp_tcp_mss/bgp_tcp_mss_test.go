@@ -18,6 +18,7 @@ package bgp_tcp_mss_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -853,15 +854,41 @@ func testPeerGroupLevel(t *testing.T, env *testEnv) {
 // level: mssPeerGroup for both peer groups, and for the four neighbors the MSS
 // in override or else the inherited mssPeerGroup. The peer groups and the
 // neighbors are checked in separate subtests, so that a DUT that cannot stream
-// one of the two paths still has the other one checked.
+// one of the two paths still has the other one checked. The peer-group state
+// is also read once with a gNMI ONCE subscription, only for the log.
 func verifyPeerGroupLevelMSS(t *testing.T, dut *ondatra.DUTDevice, override map[session]uint16) {
 	t.Helper()
 	t.Run("Peer groups", func(t *testing.T) {
-		verifyTCPMSS(t, dut, peerGroupChecks(dut, mssPeerGroup))
+		checks := peerGroupChecks(dut, mssPeerGroup)
+		logTCPMSSOnce(t, dut, checks)
+		verifyTCPMSS(t, dut, checks)
 	})
 	t.Run("Neighbors", func(t *testing.T) {
 		verifyTCPMSS(t, dut, neighborChecks(dut, mssPeerGroup, override))
 	})
+}
+
+// logTCPMSSOnce reads transport/state/tcp-mss of each check with a gNMI ONCE
+// subscription and logs the result, without failing the test. When a DUT
+// rejects the ON_CHANGE subscription that verifyTCPMSS uses, the log then
+// shows whether the DUT reports the value at all.
+func logTCPMSSOnce(t *testing.T, dut *ondatra.DUTDevice, checks []mssCheck) {
+	t.Helper()
+	client, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Logf("Cannot create a gNMI client for a ONCE subscription: %v", err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), stateTimeout)
+	defer cancel()
+	for _, c := range checks {
+		v, err := ygnmi.Lookup(ctx, client, c.query)
+		if err != nil {
+			t.Logf("gNMI ONCE subscription to transport/state/tcp-mss of the %s failed: %v", c.desc, err)
+			continue
+		}
+		t.Logf("gNMI ONCE subscription to transport/state/tcp-mss of the %s returned %s", c.desc, valueString(v))
+	}
 }
 
 // setTCPMSS replaces transport/config/tcp-mss with mss on the given neighbors
@@ -1212,10 +1239,21 @@ type bgpSegment struct {
 	s       session
 	fromDUT bool
 	syn     bool   // The segment is a SYN or a SYN-ACK.
+	ack     bool   // The segment has the ACK flag: with syn, it is a SYN-ACK.
 	mss     uint16 // MSS option of the segment, if hasMSS.
 	hasMSS  bool
 	payload int    // Number of bytes of TCP payload.
 	desc    string // Addresses, ports, and sequence number of the segment.
+}
+
+// synKind returns "SYN" for a SYN, which the DUT sends to open a connection
+// itself, and "SYN-ACK" for a SYN-ACK, which it sends when the ATE peer opens
+// the connection. Vendors may set the MSS option differently on the two.
+func (seg bgpSegment) synKind() string {
+	if seg.ack {
+		return "SYN-ACK"
+	}
+	return "SYN"
 }
 
 // verifyCapture verifies the capture of ATE port-1 and port-2 from the
@@ -1231,7 +1269,9 @@ func verifyCapture(t *testing.T, env *testEnv) {
 		segments = append(segments, readBGPSegments(t, env.otg, env.ate.Port(t, l.port).ID())...)
 	}
 
-	synMSS := map[session][]string{}
+	// synSegments are the TCP SYN and SYN-ACK segments that the DUT sends on
+	// each session, in capture order.
+	synSegments := map[session][]bgpSegment{}
 	// withPayload and largest count the segments that carry payload, and
 	// their largest payload, from the DUT (true) and to the DUT (false).
 	withPayload := map[bool]int{}
@@ -1241,11 +1281,7 @@ func verifyCapture(t *testing.T, env *testEnv) {
 	var oversized []string
 	for _, seg := range segments {
 		if seg.syn && seg.fromDUT {
-			if !seg.hasMSS {
-				synMSS[seg.s] = append(synMSS[seg.s], "none")
-			} else {
-				synMSS[seg.s] = append(synMSS[seg.s], fmt.Sprint(seg.mss))
-			}
+			synSegments[seg.s] = append(synSegments[seg.s], seg)
 		}
 		if seg.payload > 0 {
 			withPayload[seg.fromDUT]++
@@ -1259,19 +1295,25 @@ func verifyCapture(t *testing.T, env *testEnv) {
 		}
 	}
 
-	want := fmt.Sprint(mssNeighbor)
 	for _, s := range sessions {
-		got := synMSS[s]
+		got := synSegments[s]
 		if len(got) == 0 {
-			t.Errorf("Capture: no TCP SYN or SYN-ACK from the DUT to the ATE peer of the %v, want one with MSS option %s", s, want)
+			t.Errorf("Capture: no TCP SYN or SYN-ACK from the DUT to the ATE peer of the %v, want one with MSS option %d", s, mssNeighbor)
 			continue
 		}
-		for _, mss := range got {
-			if mss != want {
-				t.Errorf("Capture: TCP SYN or SYN-ACK from the DUT to the ATE peer of the %v has MSS option %s, want %s", s, mss, want)
+		var options []string
+		for _, seg := range got {
+			if !seg.hasMSS {
+				options = append(options, seg.synKind()+" without MSS option")
+				t.Errorf("Capture: TCP %s from the DUT to the ATE peer of the %v (%s) has no MSS option, want %d", seg.synKind(), s, seg.desc, mssNeighbor)
+				continue
+			}
+			options = append(options, fmt.Sprintf("%s %d", seg.synKind(), seg.mss))
+			if seg.mss != mssNeighbor {
+				t.Errorf("Capture: TCP %s from the DUT to the ATE peer of the %v (%s) has MSS option %d, want %d", seg.synKind(), s, seg.desc, seg.mss, mssNeighbor)
 			}
 		}
-		t.Logf("Capture: MSS options of the TCP SYN and SYN-ACK segments from the DUT to the ATE peer of the %v: %s", s, strings.Join(got, ", "))
+		t.Logf("Capture: MSS options of the TCP SYN and SYN-ACK segments from the DUT to the ATE peer of the %v, in capture order: %s", s, strings.Join(options, ", "))
 	}
 
 	t.Logf("Capture: %d TCP segments with payload from the DUT, the largest with %d bytes; %d to the DUT, the largest with %d bytes", withPayload[true], largest[true], withPayload[false], largest[false])
@@ -1363,6 +1405,7 @@ func bgpSegmentOf(pkt gopacket.Packet) (bgpSegment, bool) {
 			s:       s,
 			fromDUT: fromDUT,
 			syn:     tcp.SYN,
+			ack:     tcp.ACK,
 			payload: payload,
 			desc:    fmt.Sprintf("%v port %d to %v port %d, sequence number %d", src, uint16(tcp.SrcPort), dst, uint16(tcp.DstPort), tcp.Seq),
 		}
