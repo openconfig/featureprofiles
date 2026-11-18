@@ -731,6 +731,7 @@ paths:
   /interfaces/interface/ethernet/config/aggregate-id:
   /interfaces/interface/aggregation/config/lag-type:
   /lacp/interfaces/interface/config/lacp-mode:
+  /lacp/interfaces/interface/config/interval:
   /lldp/config/enabled:
   /network-instances/network-instance/config/type:
 
