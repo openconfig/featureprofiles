@@ -68,6 +68,22 @@ D8[DUT port8] <-->|Egress VRF-1| A8[ATE port8]
 
 ```json
 {
+  "interfaces": {
+    "interface": [
+      {
+        "config": { "enabled": true, "name": "port1", "type": "iana-if-type:ethernetCsmacd" },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": { "index": 0 },
+              "index": 0
+            }
+          ]
+        }
+      }
+    ]
+  },
   "network-instances": {
     "network-instance": [
       {
