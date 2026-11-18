@@ -404,6 +404,17 @@ This subtest starts from the state left by TE-8.3.4, with `SUP-A` as primary.
         }
       }
     ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "VRF-1",
+          "type": "L3VRF"
+        },
+        "name": "VRF-1"
+      }
+    ]
   }
 }
 ```
