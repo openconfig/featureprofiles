@@ -2584,3 +2584,12 @@ func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
+
+// P4rtDeviceDownRpcNotFoundUnsupported returns true if the device does not
+// return NOT_FOUND for P4RT MasterArbitrationUpdate, SetForwardingPipelineConfig,
+// Write and Read RPCs targeting a device_id whose integrated circuit/linecard is
+// powered down, nor for Write and Read RPCs targeting an unconfigured device_id.
+// Arista: https://partnerissuetracker.corp.google.com/issues/573499782
+func P4rtDeviceDownRpcNotFoundUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtDeviceDownRpcNotFoundUnsupported()
+}
