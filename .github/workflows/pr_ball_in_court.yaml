@@ -1,11 +1,27 @@
 name: 'PR Ball in Court Label'
 
+# This workflow automatically toggles 'waiting-on-author' and 'waiting-on-reviewer'
+# labels to clarify whose turn it is to act on a PR (the "ball in court").
+#
+# Toggling Rules:
+# - 'waiting-on-author' is applied to Draft PRs, fully approved PRs (with no
+#   pending review requests), or if ANY reviewer has submitted a "Request Changes"
+#   review without a subsequent re-review request.
+# - 'waiting-on-reviewer' is applied to newly opened PRs (non-draft), PRs
+#   marked ready for review, or when the author explicitly re-requests a review.
+# - IMPORTANT: Pushing commits does NOT flip the label. This prevents label
+#   flapping. Authors must use the "Re-request review" button in the GitHub UI
+#   to signal they have addressed feedback.
+#
+# Security Note: We use `pull_request_target` instead of `pull_request` so the
+# workflow has the required `write` permissions to update labels on PRs opened
+# from external forks. This is secure because the workflow only runs an inline
+# github-script and NEVER checks out or executes untrusted code from the PR itself.
 on: # zizmor: ignore[dangerous-triggers] - never checks out or executes PR code; only updates labels via GitHub REST API
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - opened
       - reopened
-      - synchronize
       - ready_for_review
       - converted_to_draft
       - review_requested
