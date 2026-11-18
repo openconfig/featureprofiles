@@ -1631,11 +1631,6 @@ func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool
 	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
-// SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
-func SkipOrigin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipOrigin()
-}
-
 // PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
@@ -1765,11 +1760,6 @@ func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 // AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
 func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
-}
-
-// DisableHardwareNexthopProxy returns true if the device requires disabling hardware nexthop proxying
-func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
 }
 
 // URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
