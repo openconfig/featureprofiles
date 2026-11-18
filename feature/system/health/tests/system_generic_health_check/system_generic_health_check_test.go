@@ -476,8 +476,7 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 			platform := helpers.AristaPlatform(t, dut)
 			if platform == "strata" {
 				// Arista Strata fixed-system does not support this path
-				t.Logf("ERROR: No card has been found.")
-				return
+				t.Skip("ERROR: No card has been found.")
 			}
 		}
 		t.Errorf("ERROR: No card has been found.")
