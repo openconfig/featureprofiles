@@ -44,6 +44,8 @@ ATE port-2 <------> DUT port-2      (gRIBI next hop / traffic egress)
       subinterface `0`.
     * DUT port-2: IPv4 `192.0.2.5/30` and IPv6 `2001:db8::5/126` on
       subinterface `0`.
+    * DUT port-1 and DUT port-2 (subinterface `0`) are in the default network
+      instance.
     * A non-default network instance `VRF-1`, with
       `/network-instances/network-instance/config/type` set to `L3VRF`. No
       interfaces are assigned to `VRF-1`. Its gRIBI entries resolve through
@@ -83,7 +85,8 @@ Traffic definition (referred to as the **traffic validation**):
   from `198.51.100.1` to `198.51.100.100` (100 values), 512-byte frames,
   1000 packets per second, fixed count of 10,000 packets.
 * `Flow-IPv6`: from ATE port-1, source `2001:db8::2`, destination incrementing
-  from `2001:db8:100::1` to `2001:db8:100::64` (100 values), 512-byte frames,
+  from `2001:db8:100::1` to `2001:db8:100::64` (the last address is
+  hexadecimal `0x64`, so the range contains 100 values), 512-byte frames,
   1000 packets per second, fixed count of 10,000 packets.
 * After starting protocols and before starting traffic, wait for ARP
   resolution (IPv4) and ND resolution (IPv6) on both ATE ports.
@@ -117,7 +120,9 @@ originate from the DUT.
         * 100 `IPv4Entry`s from `198.51.100.1/32` to `198.51.100.100/32`,
           each pointing to next-hop-group `1`.
         * 100 `IPv6Entry`s from `2001:db8:100::1/128` to
-          `2001:db8:100::64/128`, each pointing to next-hop-group `2`.
+          `2001:db8:100::64/128` (the last address is hexadecimal `0x64`, so
+          the range contains 100 entries), each pointing to next-hop-group
+          `2`.
     * In network instance `VRF-1`, program 50 `IPv4Entry`s from
       `203.0.113.1/32` to `203.0.113.50/32`, each pointing to next-hop-group
       `1` in the default network instance.
@@ -136,7 +141,9 @@ originate from the DUT.
         * the next hops `192.0.2.6` and `2001:db8::6` are present, using
           `/network-instances/network-instance/afts/next-hops/next-hop/state/ip-address`;
         * each IPv4 entry references a next-hop-group, using
-          `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group`.
+          `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group`;
+        * each IPv6 entry references a next-hop-group, using
+          `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group`.
     * Run the **traffic validation** and verify that it passes.
 
 * Step 4 - Baseline Get validation
@@ -406,6 +413,14 @@ This subtest starts from the state left by TE-8.3.4, with `SUP-A` as primary.
 ```yaml
 paths:
   ## Config paths
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
   /network-instances/network-instance/config/type:
 
   ## State paths
@@ -420,6 +435,7 @@ paths:
     platform_type: ["CONTROLLER_CARD"]
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
