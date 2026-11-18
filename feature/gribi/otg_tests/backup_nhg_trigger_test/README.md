@@ -10,7 +10,7 @@ Validate that the software-driven/external gRIBI `BACKUP_ACTIVATE` AFT operation
 
 Implementations supporting NSR must preserve and synchronize the gRIBI ownership, NHG relationship, active backup-trigger state, and resulting RIB/FIB programming status to the standby process or control-plane component. A switchover or process restart must reconcile the persisted trigger and both NHGs; it must not transiently select the primary path, lose the backup relationship, or report `FIB_PROGRAMMED` before hardware programming is complete. The restart scenario in TE-11.4.5 verifies this behavior and requires forwarding continuity and no duplicate or orphaned AFT entries.
 
-The manual activation should achieve a failover convergence that is as effective as, or faster than, the platform's existing automatic FRR.
+The software-driven activation should achieve a failover convergence that is as effective as, or faster than, the platform's existing automatic FRR.
 
 The mechanism complements physical link-down or BFD-driven FRR by handling gray failures, remote blackholes, and VIP drains detected by external probers while the local carrier remains up. Hardware forwarding must remain decoupled from the gRIBI process lifecycle, and deleting an NHG must remove the entry from operational AFT state (`/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id`) and allow immediate reuse of the deleted identifier without stale state.
 
