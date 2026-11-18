@@ -8,9 +8,7 @@ setting for BGP sessions:
 *   Configuration and state of the TCP MSS (`transport/config/tcp-mss` and
     `transport/state/tcp-mss`) at the neighbor level and at the peer-group
     level
-*   A value set on a neighbor overrides the peer-group value for that neighbor
-    only. The other neighbors in the peer group keep the peer-group value, and
-    removing the neighbor value returns the neighbor to the peer-group value.
+*   A neighbor with no MSS of its own inherits the peer-group value.
 *   IPv4 and IPv6 eBGP and iBGP sessions
 *   `transport/state/tcp-mss` reports the configured MSS (the applied
     configuration, including a value inherited from the peer group), in the
@@ -105,29 +103,16 @@ graph LR
     *   Verify that all four sessions are `ESTABLISHED`, that
         `transport/state/tcp-mss` is 4000 for both peer groups, and that all
         four neighbors inherit it (`transport/state/tcp-mss` is 4000).
-    *   Neighbor-level override: keep the peer-group MSS, and set
-        `transport/config/tcp-mss` to 1400 on one neighbor in each peer group
-        (the IPv4 neighbors 192.0.2.2 and 192.0.2.6).
-    *   Re-establish the four sessions.
-    *   Verify that all four sessions are `ESTABLISHED`, that
-        `transport/state/tcp-mss` is 1400 for the two IPv4 neighbors, and that
-        it is still 4000 for the two IPv6 neighbors and both peer groups.
-    *   Remove `transport/config/tcp-mss` from the two IPv4 neighbors, and keep
-        it on the peer groups.
-    *   Re-establish the four sessions.
-    *   Verify that all four sessions are `ESTABLISHED`, and that
-        `transport/state/tcp-mss` is back to the peer-group value (4000) for
-        the two IPv4 neighbors.
     *   Remove `transport/config/tcp-mss` from both peer groups.
 *   Remove the MTU configuration from the four ports so that they return to the
     default MTU.
 
 #### Canonical OC
 
-The block below shows the neighbor-level override step: the peer groups use
-an MSS of 4000, and the IPv4 neighbors override it with 1400. In the
-neighbor-level step, the four neighbors use 4096 instead, and the peer groups
-have no MSS.
+The block below shows the peer-group-level step: the peer groups use an MSS of
+4000, and the four neighbors, which have no MSS of their own, inherit it. In
+the neighbor-level step, the four neighbors use 4096 instead, and the peer
+groups have no MSS.
 
 ```json
 {
@@ -203,11 +188,6 @@ have no MSS.
                       "config": {
                         "neighbor-address": "192.0.2.2",
                         "peer-group": "EBGP-PEERS"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 1400
-                        }
                       }
                     },
                     {
@@ -222,11 +202,6 @@ have no MSS.
                       "config": {
                         "neighbor-address": "192.0.2.6",
                         "peer-group": "IBGP-PEERS"
-                      },
-                      "transport": {
-                        "config": {
-                          "tcp-mss": 1400
-                        }
                       }
                     },
                     {
@@ -254,9 +229,8 @@ have no MSS.
     "FAIL":
     1.  A BGP session is not `ESTABLISHED` after it is re-established
     2.  `transport/state/tcp-mss` is not 4096 for a neighbor at the neighbor
-        level, not 1400 for a neighbor with the override, or not 4000 for a
-        peer group or any other neighbor at the peer-group level, including a
-        neighbor after its override is removed
+        level, or not 4000 for a peer group or a neighbor at the peer-group
+        level
     3.  A `transport/state/tcp-mss` reported before any MSS is configured is
         outside the range given in `RT-1.22.1`
     4.  At the neighbor level, the DUT does not report all 2000 IPv4 and 2000

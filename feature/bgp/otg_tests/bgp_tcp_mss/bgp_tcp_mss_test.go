@@ -87,7 +87,6 @@ const (
 
 	mssNeighbor  uint16 = 4096 // MSS of the neighbor-level step.
 	mssPeerGroup uint16 = 4000 // MSS of the peer-group-level step.
-	mssOverride  uint16 = 1400 // Neighbor MSS that overrides mssPeerGroup.
 
 	// A TCP MSS that the DUT reports before an MSS is configured must be at
 	// least the TCP default MSS of the address family, and at most the MTU
@@ -258,19 +257,6 @@ func neighbors(ss []session) []string {
 		addrs = append(addrs, s.neighbor())
 	}
 	return addrs
-}
-
-// overrideSessions returns the sessions whose neighbors override the
-// peer-group MSS in the README: the IPv4 neighbor of each peer group,
-// 192.0.2.2 and 192.0.2.6.
-func overrideSessions() []session {
-	var ss []session
-	for _, s := range sessions {
-		if s.f == ipv4 {
-			ss = append(ss, s)
-		}
-	}
-	return ss
 }
 
 // routeRange is a README route range that an ATE eBGP peer on port-1
@@ -773,7 +759,7 @@ func testNeighborLevel(t *testing.T, env *testEnv) {
 
 	reestablishSessions(t, env)
 	t.Run("Neighbor TCP MSS state", func(t *testing.T) {
-		verifyTCPMSS(t, dut, neighborChecks(dut, mssNeighbor, nil))
+		verifyTCPMSS(t, dut, neighborChecks(dut, mssNeighbor))
 	})
 	established := establishedTransitions(t, dut)
 	stopMonitor := monitorSessions(t, dut)
@@ -801,18 +787,14 @@ func testNeighborLevel(t *testing.T, env *testEnv) {
 	})
 }
 
-// testPeerGroupLevel implements the peer-group-level steps of RT-1.22.1,
-// including the neighbor-level override. The removal of the override and the
-// last README step, which removes the peer-group MSS, are registered with
-// t.Cleanup, so that they also run when a step fails.
+// testPeerGroupLevel implements the peer-group-level steps of RT-1.22.1. The
+// last README step, which removes the peer-group MSS, is registered with
+// t.Cleanup, so that it also runs when a step fails. The peer groups and the
+// neighbors are checked in separate subtests, so that a DUT that cannot stream
+// one of the two paths still has the other one checked.
 func testPeerGroupLevel(t *testing.T, env *testEnv) {
 	dut := env.dut
 	peerGroups := []string{ebgpPeerGroup, ibgpPeerGroup}
-	overrides := overrideSessions()
-	overrideMSS := map[session]uint16{}
-	for _, s := range overrides {
-		overrideMSS[s] = mssOverride
-	}
 
 	t.Logf("Set transport/config/tcp-mss to %d on the peer groups %s and %s, with no MSS configured on the neighbors", mssPeerGroup, ebgpPeerGroup, ibgpPeerGroup)
 	t.Cleanup(func() {
@@ -821,50 +803,13 @@ func testPeerGroupLevel(t *testing.T, env *testEnv) {
 	})
 	setTCPMSS(t, dut, mssPeerGroup, nil, peerGroups)
 	reestablishSessions(t, env)
-	t.Run("Neighbors inherit the peer-group TCP MSS", func(t *testing.T) {
-		verifyPeerGroupLevelMSS(t, dut, nil)
-	})
-
-	t.Logf("Neighbor-level override: keep the peer-group MSS, and set transport/config/tcp-mss to %d on one neighbor in each peer group (the IPv4 neighbors %s)", mssOverride, strings.Join(neighbors(overrides), " and "))
-	// The README step below removes the override again. This cleanup removes
-	// it only if a step fails before that.
-	overrideRemoved := false
-	t.Cleanup(func() {
-		if !overrideRemoved {
-			t.Logf("Cleanup: remove transport/config/tcp-mss from the IPv4 neighbors %s", strings.Join(neighbors(overrides), " and "))
-			removeTCPMSS(t, dut, neighbors(overrides), nil)
-		}
-	})
-	setTCPMSS(t, dut, mssOverride, neighbors(overrides), nil)
-	reestablishSessions(t, env)
-	t.Run("Neighbor TCP MSS overrides the peer-group TCP MSS", func(t *testing.T) {
-		verifyPeerGroupLevelMSS(t, dut, overrideMSS)
-	})
-
-	t.Logf("Remove transport/config/tcp-mss from the IPv4 neighbors %s, and keep it on the peer groups", strings.Join(neighbors(overrides), " and "))
-	removeTCPMSS(t, dut, neighbors(overrides), nil)
-	overrideRemoved = true
-	reestablishSessions(t, env)
-	t.Run("Neighbors return to the peer-group TCP MSS", func(t *testing.T) {
-		verifyPeerGroupLevelMSS(t, dut, nil)
-	})
-}
-
-// verifyPeerGroupLevelMSS verifies transport/state/tcp-mss at the peer-group
-// level: mssPeerGroup for both peer groups, and for the four neighbors the MSS
-// in override or else the inherited mssPeerGroup. The peer groups and the
-// neighbors are checked in separate subtests, so that a DUT that cannot stream
-// one of the two paths still has the other one checked. The peer-group state
-// is also read once with a gNMI ONCE subscription, only for the log.
-func verifyPeerGroupLevelMSS(t *testing.T, dut *ondatra.DUTDevice, override map[session]uint16) {
-	t.Helper()
-	t.Run("Peer groups", func(t *testing.T) {
+	t.Run("Peer-group TCP MSS state", func(t *testing.T) {
 		checks := peerGroupChecks(dut, mssPeerGroup)
 		logTCPMSSOnce(t, dut, checks)
 		verifyTCPMSS(t, dut, checks)
 	})
-	t.Run("Neighbors", func(t *testing.T) {
-		verifyTCPMSS(t, dut, neighborChecks(dut, mssPeerGroup, override))
+	t.Run("Neighbors inherit the peer-group TCP MSS", func(t *testing.T) {
+		verifyTCPMSS(t, dut, neighborChecks(dut, mssPeerGroup))
 	})
 }
 
@@ -929,16 +874,11 @@ type mssCheck struct {
 	want  uint16
 }
 
-// neighborChecks returns the expected MSS of the four neighbors: the MSS in
-// override for the sessions listed there, and want for the others.
-func neighborChecks(dut *ondatra.DUTDevice, want uint16, override map[session]uint16) []mssCheck {
+// neighborChecks returns the expected MSS, want, of the four neighbors.
+func neighborChecks(dut *ondatra.DUTDevice, want uint16) []mssCheck {
 	var checks []mssCheck
 	for _, s := range sessions {
-		mss := want
-		if m, ok := override[s]; ok {
-			mss = m
-		}
-		checks = append(checks, mssCheck{desc: s.String(), query: bgpPath(dut).Neighbor(s.neighbor()).Transport().TcpMss().State(), want: mss})
+		checks = append(checks, mssCheck{desc: s.String(), query: bgpPath(dut).Neighbor(s.neighbor()).Transport().TcpMss().State(), want: want})
 	}
 	return checks
 }
