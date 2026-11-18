@@ -1849,6 +1849,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_failure_test/supervisor_failure_test.go"
 }
 test: {
+  id: "TE-8.3"
+  description: "gRIBI Get RPC Validation after Supervisor Switchover"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_switchover_gribi_get_test/README.md"
+}
+test: {
   id: "TE-9.1"
   description: "gRIBI MPLS Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"

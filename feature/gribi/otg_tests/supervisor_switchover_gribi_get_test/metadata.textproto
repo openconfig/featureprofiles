@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "5fabec97-8b25-4ff8-83fc-5ca4810a5810"
+plan_id: "TE-8.3"
+description: "gRIBI Get RPC Validation after Supervisor Switchover"
+testbed: TESTBED_DUT_ATE_2LINKS
