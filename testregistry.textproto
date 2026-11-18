@@ -545,7 +545,7 @@ test: {
 }
 test: {
   id: "P4RT-1.4"
-  description: "P4RT PacketIn Continuity across Supervisor Switchover"
+  description: "P4RT PacketIn and gRIBI Get Continuity across Supervisor Switchover"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_supervisor_switchover_test/README.md"
 }
 test: {

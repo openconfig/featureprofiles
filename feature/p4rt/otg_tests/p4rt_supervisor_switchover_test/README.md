@@ -1,27 +1,41 @@
-# P4RT-1.4: P4RT PacketIn Continuity across Supervisor Switchover
+# P4RT-1.4: P4RT PacketIn and gRIBI Get Continuity across Supervisor Switchover
 
 ## Summary
 
-Validate that P4RT packet punting keeps working after a supervisor (controller
-card) switchover on a modular DUT. A P4RT controller relies on the DUT punting
-control protocol packets, such as LLDP, Google Discovery Protocol (GDP) and
-traceroute packets, to the controller as PacketIn messages. If the DUT stops
-punting after a switchover, the controller loses neighbor discovery on every
-affected port even though the P4RT session, the forwarding pipeline and the
-table entries appear to be correctly programmed, and PacketOut still works.
+Validate that P4RT packet punting and the gRIBI `Get` RPC keep working after a
+supervisor (controller card) switchover on a modular DUT.
 
-This test verifies that after a supervisor switchover triggered with gNOI
-`System.SwitchControlProcessor`, a P4RT controller that reconnects to the DUT
-and re-programs its forwarding pipeline and punt table entries receives
-PacketIn messages for every punted packet type, on a standalone port and on
-each member of a LACP aggregate interface (LAG), with the correct ingress port
-metadata. The check is performed after a switchover in each direction between
-the two controller cards, and for a port that is enabled immediately after a
-switchover. Data plane traffic forwarded by gRIBI entries must be forwarded
-without loss throughout. The test also verifies that a controller that
-reconnects without re-pushing its pipeline is never left with entries that
-appear programmed while punting has stopped, and that a client using a
-pre-switchover election ID cannot regain control.
+A P4RT controller relies on the DUT punting control protocol packets, such as
+LLDP, Google Discovery Protocol (GDP) and traceroute packets, to the
+controller as PacketIn messages. If the DUT stops punting after a switchover,
+the controller loses neighbor discovery on every affected port even though the
+P4RT session, the forwarding pipeline and the table entries appear to be
+correctly programmed, and PacketOut still works.
+
+A gRIBI client acting as a routing controller reconciles its view of the
+forwarding state with periodic gRIBI `Get` calls that have a fixed deadline.
+After a switchover, the gRIBI session of the client connected before the
+switchover is torn down. If state left behind by the disconnected session
+slows down or pollutes the `Get` response, reconciliation breaks even though
+forwarding is healthy.
+
+This test performs 2 supervisor switchovers with gNOI
+`System.SwitchControlProcessor`, one in each direction, under continuous data
+plane traffic. After each switchover it verifies that:
+
+* reconnecting P4RT controllers receive PacketIn messages for every punted
+  packet type on a standalone port and on each member of a LACP aggregate
+  interface, with the correct ingress port metadata, including for a port
+  that comes up while the switchover is completing;
+* the DUT never reports the forwarding pipeline and punt entries as present
+  while punting has stopped;
+* a newly connected gRIBI leader can change entries, and gRIBI `Get` across
+  the default and a non-default network instance completes within a
+  configurable deadline with exactly the programmed entries, at a
+  configurable scale;
+* data plane traffic is forwarded without loss;
+* clients that reconnect with a pre-switchover election ID cannot regain
+  control.
 
 ## Testbed type
 
@@ -33,8 +47,7 @@ pre-switchover election ID cannot regain control.
 
 The DUT and ATE are connected with 4 links. DUT port-1 is a standalone port,
 DUT port-2 and DUT port-3 are the two members of a LACP aggregate interface
-`lag1`, and DUT port-4 is the egress port for data plane traffic programmed by
-gRIBI.
+`lag1`, and DUT port-4 is the egress port for all gRIBI programmed entries.
 
 ```text
 ATE port-1 <------> DUT port-1      (standalone)
@@ -44,30 +57,33 @@ ATE port-3 <------> DUT port-3 --+
 ATE port-4 <------> DUT port-4      (gRIBI egress)
 ```
 
-DUT port selection: DUT port-1 and the `lag1` members must be hosted on at
-least 2 different `INTEGRATED_CIRCUIT` components, ideally on 2 different
-linecards (for example, DUT port-1 on one integrated circuit and DUT port-2
-and DUT port-3 on another). Punting must work on every integrated circuit
-after a switchover, and a single-chip setup cannot detect a failure that
-affects only some of them.
+The test performs exactly 2 supervisor switchovers (`SUP-A` to `SUP-B`, then
+back to `SUP-A`), so the DUT ends with the same primary controller card it
+started with.
 
-* Configure the DUT interfaces as follows:
-    * DUT port-1: IPv4 `192.0.2.1/30` and IPv6 `2001:db8::1/126`. ATE port-1
-      uses `192.0.2.2/30` and `2001:db8::2/126`.
+* Configure the DUT as follows:
+    * DUT port-1: IPv4 `192.0.2.1/30` and IPv6 `2001:db8::1/126`.
     * DUT `lag1` with DUT port-2 and DUT port-3 as members
       (`/interfaces/interface/ethernet/config/aggregate-id`), LAG type `LACP`
       (`/interfaces/interface/aggregation/config/lag-type`) and LACP mode
       `ACTIVE` (`/lacp/interfaces/interface/config/lacp-mode`): IPv4
       `192.0.2.5/30` and IPv6 `2001:db8::5/126`.
-    * DUT port-4: IPv4 `192.0.2.9/30` and IPv6 `2001:db8::9/126`. ATE port-4
-      uses `192.0.2.10/30` and `2001:db8::a/126`.
+    * DUT port-4: IPv4 `192.0.2.9/30` and IPv6 `2001:db8::9/126`.
+    * DUT port-1, `lag1` and DUT port-4 (subinterface `0`) are in the default
+      network instance.
+    * A non-default network instance `VRF-1`, with
+      `/network-instances/network-instance/config/type` set to `L3VRF`. No
+      interfaces are assigned to `VRF-1`; its gRIBI entries resolve through
+      next-hop-groups in the default network instance and are validated
+      through gRIBI `Get` and AFT telemetry only.
 * Configure the ATE as follows:
-    * ATE port-1: MAC `02:00:01:01:01:01`.
+    * ATE port-1: MAC `02:00:01:01:01:01`, IPv4 `192.0.2.2/30` and IPv6
+      `2001:db8::2/126`.
     * ATE LAG on ATE port-2 and ATE port-3: MAC `02:00:02:01:01:01`, LACP mode
       `ACTIVE`, LACP interval `FAST`, LACP system ID `02:00:02:00:00:01`,
       IPv4 `192.0.2.6/30` and IPv6 `2001:db8::6/126`.
-    * ATE port-4: MAC `02:00:04:01:01:01`, answering ARP and ND for
-      `192.0.2.10` and `2001:db8::a`.
+    * ATE port-4: MAC `02:00:04:01:01:01`, IPv4 `192.0.2.10/30` and IPv6
+      `2001:db8::a/126`, answering ARP and ND for these addresses.
     * Disable LLDP and any other protocol emulation on the ATE ports, except
       LACP on the ATE LAG.
     * Every control packet generated by the test (LLDP, GDP and traceroute)
@@ -78,15 +94,18 @@ affects only some of them.
   `/interfaces/interface/config/id`: DUT port-1 = `1`, DUT port-2 = `2`, DUT
   port-3 = `3`, DUT port-4 = `4` and `lag1` = `10`. Verify that
   `/interfaces/interface/state/id` reports the same values.
-* Configure P4RT node IDs:
-    * For each DUT port, read `/interfaces/interface/state/hardware-port` and
-      follow `/components/component/state/parent` from that `PORT` component
-      up to its `INTEGRATED_CIRCUIT` component.
+* Configure P4RT node IDs on every integrated circuit that hosts a bound port:
+    * For each of DUT port-1 to DUT port-4, read
+      `/interfaces/interface/state/hardware-port` and follow
+      `/components/component/state/parent` from that `PORT` component up to
+      its `INTEGRATED_CIRCUIT` component.
     * Assign a unique node ID, starting at `1`, to each integrated circuit
       found, using `/components/component/integrated-circuit/config/node-id`,
       and verify `/components/component/integrated-circuit/state/node-id`.
-    * If fewer than 2 integrated circuits host the DUT ports, the setup does
-      not meet the port selection requirement above and the test fails.
+    * Record in the test log how many integrated circuits host the bound
+      ports. Coverage across 2 or more integrated circuits (ideally on 2
+      linecards) is preferred and depends on the physical testbed cabling;
+      the test does not fail if all bound ports share one integrated circuit.
 * Disable on-box LLDP processing by setting `/lldp/config/enabled` to `false`,
   so that LLDP packets are only handled through P4RT punting.
 * Use gNMI `Await` to wait until DUT port-1, DUT port-2, DUT port-3, DUT
@@ -96,18 +115,55 @@ affects only some of them.
   `IN_SYNC`, `/lacp/interfaces/interface/members/member/state/collecting`
   `true` and `/lacp/interfaces/interface/members/member/state/distributing`
   `true`. This is referred to as the **link and LAG check**.
-* Connect a gRIBI client to the DUT with persistence mode `PRESERVE`,
-  `SINGLE_PRIMARY` client redundancy and `FIB_ACK`, and make it leader.
-  In the default network instance, program next hop index `1` (IP
-  `192.0.2.10`) in next-hop-group ID `1`, next hop index `2` (IP
-  `2001:db8::a`) in next-hop-group ID `2`, an `IPv4Entry` for
-  `198.51.100.0/24` pointing to next-hop-group `1`, and an `IPv6Entry` for
-  `2001:db8:2::/64` pointing to next-hop-group `2`. Verify that both entries
-  are reported through AFT telemetry
+* Use gNMI Get on `/components/component/state/redundant-role` for all
+  `CONTROLLER_CARD` components. Verify that exactly one reports `PRIMARY`
+  (referred to as `SUP-A`) and exactly one reports `SECONDARY` (referred to
+  as `SUP-B`).
+
+#### gRIBI programming
+
+* Connect a gRIBI client (referred to as `gRIBI-A`) specifying persistence
+  mode `PRESERVE`, `SINGLE_PRIMARY` client redundancy and `FIB_ACK`
+  acknowledgement mode, with election ID `{high: 0, low: 1}`, and verify that
+  it becomes leader.
+* In the default network instance, program using `gRIBI.Modify`:
+    * Next hop index `1` (IP `192.0.2.10`, ATE port-4) in next-hop-group ID
+      `1`, and next hop index `2` (IP `2001:db8::a`, ATE port-4) in
+      next-hop-group ID `2`.
+    * Data plane routes: `IPv4Entry` `198.51.100.0/24` pointing to
+      next-hop-group `1`, and `IPv6Entry` `2001:db8:2::/64` pointing to
+      next-hop-group `2`.
+    * Scale routes: `gribi_scale` `IPv4Entry`s (default 10,000) of `/32`
+      prefixes starting at `198.18.0.1`, each pointing to next-hop-group `1`,
+      and 1,000 `IPv6Entry`s of `/128` prefixes from `2001:db8:100::1` to
+      `2001:db8:100::3e8` (hexadecimal `0x3e8` = 1,000 entries), each
+      pointing to next-hop-group `2`. `gribi_scale` can be increased (for
+      example to 44,000) to match production-like route counts.
+* In network instance `VRF-1`, program 1,000 `IPv4Entry`s of `/32` prefixes
+  starting at `198.19.0.1`, each pointing to next-hop-group `1` in the default
+  network instance.
+* Verify that every operation is acknowledged with `FIB_PROGRAMMED`.
+* The first 100 IPv4 scale routes (`198.18.0.1/32` to `198.18.0.100/32`) are
+  referred to as the **canary routes** and are changed after the first
+  switchover.
+* The set of entries programmed above is the **expected gRIBI state**. It is
+  updated only by the canary changes in P4RT-1.4.1.
+* Use gNMI `Await` to verify through AFT telemetry that the expected prefix
+  counts are present in the default network instance and in `VRF-1`
   (`/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix`
   and
-  `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix`)
-  and acknowledged as `FIB_PROGRAMMED`.
+  `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix`),
+  that next-hop-groups `1` and `2` are present
+  (`/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id`),
+  that next hops `192.0.2.10` and `2001:db8::a` are present
+  (`/network-instances/network-instance/afts/next-hops/next-hop/state/ip-address`),
+  and that IPv4 and IPv6 entries reference a next-hop-group
+  (`/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group`
+  and
+  `/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group`).
+
+#### P4RT programming
+
 * For each P4RT node ID, connect a primary P4RT client (election ID
   `{high: 0, low: 10}`) and a secondary P4RT client (election ID
   `{high: 0, low: 5}`) using `MasterArbitrationUpdate` on
@@ -127,64 +183,117 @@ affects only some of them.
     * IPv6 traceroute: `is_ipv6` = `1` and `ttl` (hop limit) = `1`.
 * Verify with `P4Runtime.Read` that exactly these 4 entries are installed.
 
-Test parameters (all configurable through test flags):
+#### Baseline
 
-* `packetin_timeout`: maximum time to receive all expected PacketIn messages.
-  Default `60s`.
-* `packetin_negative_window`: time during which no matching PacketIn message
-  may be received in a negative check. Default `10s`.
+* Run the PacketIn and PacketOut validation procedure on DUT port-1, DUT
+  port-2 and DUT port-3, and verify that it passes.
+* From `gRIBI-A`, run the gRIBI Get validation and verify that it passes.
+
+#### Mandatory cleanup registration
+
+Before any of the configuration above is applied, register the following
+cleanup so that it runs at the end of the test even if the test fails or is
+aborted, and no `PRESERVE` gRIBI state or P4RT state is left on the DUT:
+
+* Delete the 4 punt entries from the current primary P4RT client with
+  `P4Runtime.Write` (`DELETE`), verify with `P4Runtime.Read` that no entries
+  remain, and close all P4RT client sessions.
+* From the current gRIBI leader, issue `gRIBI.Flush` for the default network
+  instance and for `VRF-1`, use gNMI `Await` to verify through AFT telemetry
+  that no gRIBI programmed prefixes remain in either network instance, and
+  close all gRIBI client sessions.
+* Delete network instance `VRF-1`, and restore the original configuration of
+  DUT port-1, DUT port-2, DUT port-3, DUT port-4, `lag1`, the P4RT interface
+  IDs, the integrated circuit node IDs and `/lldp/config/enabled`.
+* Use gNMI Subscribe `ON_CHANGE` to wait, up to `switchover_timeout`, until
+  the standby controller card reports
+  `/components/component/state/switchover-ready` as `true`.
+
+#### Test parameters
+
+All parameters are configurable through test flags:
+
 * `switchover_timeout`: maximum time to re-establish the gNMI connection and
-  observe the new controller card roles after a switchover. Default
-  `20 minutes`.
+  observe the new controller card roles after a switchover, and to wait for
+  `switchover-ready`. Default `30 minutes`.
+* `gribi_scale`: number of IPv4 scale routes in the default network instance.
+  Default `10,000`.
+* `get_deadline`: gRPC deadline applied to each gRIBI `Get` RPC. Default
+  `10s`.
+* `gribi_reconnect_timeout`: maximum time to establish a gRIBI session with
+  the new primary controller card after a switchover. Default `10 minutes`.
 * `p4rt_reconnect_timeout`: maximum time to re-establish the P4RT
   `StreamChannel` after a switchover. Default `10 minutes`.
 * `gnmi_reconnect_timeout`: maximum time to complete a gNMI `Set` on the new
   primary controller card after a switchover. Default `10 minutes`.
+* `packetin_timeout`: maximum time to receive all expected PacketIn messages.
+  Default `60s`.
+* `packetin_negative_window`: time during which no matching PacketIn message
+  may be received in a negative check. Default `10s`.
 
-### PacketIn and PacketOut validation procedure
+### Validation procedures
 
-The following validation is referenced by each subtest below.
+#### PacketIn and PacketOut validation procedure
 
-* Record `/interfaces/interface/state/counters/in-pkts` for DUT port-1, DUT
-  port-2 and DUT port-3.
-* From each of ATE port-1, ATE port-2 and ATE port-3 (each LAG member port
-  individually), send 10 LLDP packets (destination MAC `01:80:c2:00:00:0e`,
-  EtherType `0x88cc`) and 10 GDP packets (destination MAC
-  `00:0a:da:f0:f0:f0`, EtherType `0x6007`) at 1 packet per second, so that
-  control plane policers cannot drop test packets.
+* Record `/interfaces/interface/state/counters/in-pkts` for the DUT ports
+  under test.
+* From each ATE port under test (each LAG member port individually), send 10
+  LLDP packets (destination MAC `01:80:c2:00:00:0e`, EtherType `0x88cc`) and
+  10 GDP packets (destination MAC `00:0a:da:f0:f0:f0`, EtherType `0x6007`) at
+  1 packet per second, so that control plane policers cannot drop test
+  packets.
 * From ATE port-1, send 10 IPv4 packets with TTL `1` to `198.51.100.1` and 10
   IPv6 packets with hop limit `1` to `2001:db8:2::1`, at 1 packet per second.
 * From the ATE LAG, send 16 IPv4 packets with TTL `1` to `198.51.100.1` and 16
   IPv6 packets with hop limit `1` to `2001:db8:2::1`, each with a different
   UDP source port from `49152` to `49167`, at 1 packet per second, so that
-  the packets are spread across both LAG members.
+  the packets are spread across the active LAG members.
 * Read the PacketIn stream until all expected messages are received or
   `packetin_timeout` expires. Pass criteria:
     * Counting only PacketIn messages whose payload carries source MAC
       `02:00:aa:00:00:01`, the primary P4RT client receives one PacketIn
       message for every packet sent, for each packet type and each ATE port.
-      For traceroute packets sent from the ATE LAG, the total across both LAG
+      For traceroute packets sent from the ATE LAG, the total across the LAG
       members equals the number of packets sent. A PacketIn count of `0`, or
       any count lower than the number of packets sent, is a failure. No
       manual recovery action on the DUT is allowed.
     * Every PacketIn message carries the `ingress_singleton_port` metadata,
       and its value equals the interface ID of the DUT port the packet was
-      received on (`1`, `2` or `3`). For traceroute packets received on
-      `lag1`, the value is `2` or `3`.
+      received on (`1`, `2` or `3`).
     * Every traceroute PacketIn message also carries the
       `egress_singleton_port` metadata with the interface ID of DUT port-4
-      (`4`), the egress port of the gRIBI route for the destination.
+      (`4`).
     * The secondary P4RT client receives no matching PacketIn message.
-    * `in-pkts` on DUT port-1, DUT port-2 and DUT port-3 increased by at least
-      the number of packets sent to each port, which confirms that the
-      packets reached the DUT and that any PacketIn shortfall is a punt
-      failure.
+    * `in-pkts` on each DUT port under test increased by at least the number
+      of packets sent to it, which confirms that the packets reached the DUT
+      and that any PacketIn shortfall is a punt failure.
 * Send 10 LLDP and 10 GDP PacketOut messages from the primary P4RT client
   with `egress_singleton_port` set to `1` (DUT port-1), and 10 of each with
   `egress_singleton_port` set to `2` (DUT port-2). Verify that ATE port-1 and
   ATE port-2 receive exactly 20 packets each.
 
-### Data plane traffic definition
+#### gRIBI Get validation
+
+* Issue a gRIBI `Get` RPC with `network_instance` set to all network
+  instances and `aft` set to `ALL`, using a gRPC deadline equal to
+  `get_deadline`. Measure the latency between sending the `GetRequest` and
+  receiving the end of the `GetResponse` stream, and record it in the test
+  log.
+* Pass criteria:
+    * The RPC completes with gRPC status `OK` before `get_deadline` expires. A
+      `DEADLINE_EXCEEDED` status, or any other non-`OK` status, is a failure.
+    * Across all `GetResponse` messages, the returned entries exactly match
+      the current expected gRIBI state in the default network instance and in
+      `VRF-1`: the same prefixes, next-hop-groups and next hops, with each
+      entry referencing the expected next-hop-group.
+    * Each prefix, next-hop-group and next hop is returned exactly once per
+      network instance. Any duplicate entry, any deleted entry, or any entry
+      that was not programmed by the test, is a failure.
+    * Every returned entry reports `fib_status` as `PROGRAMMED`.
+    * The prefix counts reported through AFT telemetry match the counts
+      returned by `Get`.
+
+#### Data plane traffic definition
 
 * `Flow-IPv4`: from ATE port-1 to `198.51.100.1`, 512-byte frames, 1000
   packets per second.
@@ -192,29 +301,24 @@ The following validation is referenced by each subtest below.
   packets per second.
 * After starting protocols and before starting traffic, wait for ARP (IPv4)
   and ND (IPv6) resolution on ATE port-1 and ATE port-4.
+* Pass criteria: when the traffic is stopped, for each flow the number of
+  packets received on ATE port-4 equals the number of packets transmitted
+  (0 packets lost).
 
-### P4RT-1.4.1 - PacketIn after supervisor switchover with controller reconnect
+### P4RT-1.4.1 - Switchover 1 (`SUP-A` to `SUP-B`) with all ports and lag1 up
 
-This subtest emulates a P4RT controller that reconnects to the new primary
-controller card as soon as possible after a switchover and immediately
-re-programs its pipeline and punt entries, which is the most demanding timing
-for the DUT.
+This subtest emulates a controller that reconnects to the new primary
+controller card right after a switchover, and checks that both P4RT punting
+and gRIBI `Get` work on the new primary.
 
-* Step 1 - Baseline
-    * Run the PacketIn and PacketOut validation procedure and verify that it
-      passes.
-    * Use gNMI Get on `/components/component/state/redundant-role` for all
-      `CONTROLLER_CARD` components. Verify that exactly one reports `PRIMARY`
-      (referred to as `SUP-A`) and exactly one reports `SECONDARY` (referred
-      to as `SUP-B`).
+* Step 1 - Trigger the switchover under continuous traffic
     * Use gNMI Subscribe `ON_CHANGE` to wait until
       `/components/component/state/switchover-ready` reports `true` for
       `SUP-B`.
     * Start `Flow-IPv4` and `Flow-IPv6` as continuous traffic.
-
-* Step 2 - Trigger supervisor switchover
     * Record the current time and issue gNOI `System.SwitchControlProcessor`
-      with `control_processor` set to `SUP-B`.
+      with `control_processor` set to `SUP-B`. The P4RT and gRIBI sessions
+      are expected to be terminated by the switchover.
     * The gNMI connection is expected to drop. Retry the gNMI connection until
       it succeeds or `switchover_timeout` expires, then use gNMI Subscribe
       `ON_CHANGE` to wait until `SUP-B` reports
@@ -225,142 +329,134 @@ for the DUT.
       `/components/component/state/last-switchover-reason/trigger` is
       `USER_INITIATED`.
 
-* Step 3 - Reconnect the P4RT clients and re-program punt entries
+* Step 2 - Check the P4RT pipeline before re-pushing
     * For each P4RT node ID, retry `P4Runtime.StreamChannel` with
       `MasterArbitrationUpdate` every 5 seconds until it succeeds or
       `p4rt_reconnect_timeout` expires, using election ID
       `{high: 0, low: 20}` for the primary client and `{high: 0, low: 15}`
-      for the secondary client. Both are higher than the election IDs used
-      before the switchover. Record the time taken to reconnect.
-    * Push the forwarding pipeline configuration again with
+      for the secondary client. Record the time taken to reconnect.
+    * Without calling `P4Runtime.SetForwardingPipelineConfig` or
+      `P4Runtime.Write`, issue `P4Runtime.GetForwardingPipelineConfig` and
+      `P4Runtime.Read`.
+    * Pass criteria: the DUT either reports the pipeline as set and returns
+      the 4 punt entries, or clearly reports that no pipeline is set (for
+      example `FAILED_PRECONDITION`). If the pipeline and 4 entries are
+      reported as present, run the PacketIn and PacketOut validation
+      procedure on DUT port-1; reporting the entries as present while the
+      PacketIn count is `0` or lower than the number of packets sent is a
+      failure.
+
+* Step 3 - Re-push the pipeline and punt entries and validate punting
+    * Push the forwarding pipeline configuration with
       `P4Runtime.SetForwardingPipelineConfig` (action `VERIFY_AND_COMMIT`) and
       write the 4 punt entries again. An `ALREADY_EXISTS` error for an entry
       that persisted across the switchover is acceptable.
     * Verify with `P4Runtime.Read` that exactly the 4 punt entries are
       installed.
+    * Run the link and LAG check, and verify that
+      `/interfaces/interface/state/id` still reports `1`, `2`, `3`, `4` and
+      `10`.
+    * Run the PacketIn and PacketOut validation procedure on DUT port-1 and
+      `lag1` (DUT port-2 and DUT port-3), and verify that it passes.
 
-* Step 4 - Validation with pass/fail criteria
-    * Run the PacketIn and PacketOut validation procedure and verify that it
-      passes, with the PacketIn count for every packet type on every port,
-      including both LAG members, equal to the number of packets sent.
-    * Verify that `/interfaces/interface/state/id` still reports `1`, `2`,
-      `3`, `4` and `10` for DUT port-1, DUT port-2, DUT port-3, DUT port-4 and
-      `lag1`.
+* Step 4 - Reconnect the gRIBI leader, change canary routes and validate Get
+    * Connect a new gRIBI client (referred to as `gRIBI-B`) specifying
+      persistence mode `PRESERVE`, `SINGLE_PRIMARY` client redundancy and
+      `FIB_ACK` acknowledgement mode, retrying until it succeeds or
+      `gribi_reconnect_timeout` expires. Send a `ModifyRequest` with election
+      ID `{high: 0, low: 2}` and verify that `gRIBI-B` becomes leader.
+    * From `gRIBI-B`, in the default network instance:
+        * Add next-hop-group ID `3` containing next hop `1`.
+        * Delete the canary routes `198.18.0.1/32` to `198.18.0.50/32`.
+        * Modify the canary routes `198.18.0.51/32` to `198.18.0.100/32` to
+          point to next-hop-group `3`.
+        * Verify that every operation is acknowledged with `FIB_PROGRAMMED`,
+          and update the expected gRIBI state accordingly.
+    * Use gNMI `Await` to verify through AFT telemetry that the deleted
+      canary prefixes are absent and the modified canary prefixes reference
+      next-hop-group `3`.
+    * From `gRIBI-B`, run the gRIBI Get validation and verify that it passes.
+      In particular, no deleted canary route may be returned, every modified
+      canary route must reference next-hop-group `3`, and no entry may be
+      duplicated or retained from the disconnected `gRIBI-A` session.
+
+* Step 5 - Validate the data plane
+    * Stop `Flow-IPv4` and `Flow-IPv6` and verify the data plane pass
+      criteria (0 packets lost across the entire switchover).
+
+### P4RT-1.4.2 - Switchover 2 (`SUP-B` to `SUP-A`) with port-3 bring-up
+
+This subtest repeats the checks in the reverse direction and covers an
+interface that comes up while the DUT is still completing the switchover. It
+starts from the state left by P4RT-1.4.1, including the canary changes, and
+returns the DUT to `SUP-A` as primary.
+
+* Step 1 - Prepare and trigger the reverse switchover
+    * Set `/interfaces/interface/config/enabled` to `false` on DUT port-3. Use
+      gNMI `Await` to verify that DUT port-3 reports `oper-status` `DOWN` and
+      that `lag1` stays `UP` with DUT port-2 reporting `collecting` and
+      `distributing` `true`.
+    * Use gNMI Subscribe `ON_CHANGE` to wait until `switchover-ready` reports
+      `true` for `SUP-A`.
+    * Start `Flow-IPv4` and `Flow-IPv6` as continuous traffic.
+    * Issue gNOI `System.SwitchControlProcessor` with `control_processor` set
+      to `SUP-A`, and validate the gNMI reconnection, `redundant-role`,
+      `last-switchover-time` and `last-switchover-reason/trigger` as described
+      in P4RT-1.4.1 Step 1, with `SUP-A` as the new primary controller card.
+
+* Step 2 - Bring up port-3 during the switchover window
+    * Before the P4RT clients reconnect, set
+      `/interfaces/interface/config/enabled` to `true` on DUT port-3,
+      retrying the gNMI `Set` until it succeeds or `gnmi_reconnect_timeout`
+      expires. Record in the test log whether DUT port-3 reported
+      `oper-status` `UP` before or after the P4RT clients reconnected.
+
+* Step 3 - Reconnect P4RT and validate punting on all ports
+    * Reconnect the P4RT clients as in P4RT-1.4.1 Step 2 with election IDs
+      `{high: 0, low: 30}` (primary) and `{high: 0, low: 25}` (secondary),
+      push the forwarding pipeline configuration, write the 4 punt entries
+      (`ALREADY_EXISTS` is acceptable), and verify with `P4Runtime.Read` that
+      exactly the 4 punt entries are installed.
     * Run the link and LAG check.
-    * Stop the data plane traffic and verify that, for both flows, the number
-      of packets received on ATE port-4 equals the number of packets
-      transmitted, with 0 packets lost across the entire switchover.
+    * Run the PacketIn and PacketOut validation procedure on DUT port-1, DUT
+      port-2 and DUT port-3, and verify that it passes. In particular, the
+      PacketIn count for LLDP and GDP packets sent from ATE port-3 must equal
+      the number of packets sent, with `ingress_singleton_port` set to `3`.
 
-### P4RT-1.4.2 - PacketIn after reverse supervisor switchover
+* Step 4 - Reconnect gRIBI and validate Get
+    * Connect a new gRIBI client (referred to as `gRIBI-C`) as in P4RT-1.4.1
+      Step 4 with election ID `{high: 0, low: 3}` and verify that it becomes
+      leader.
+    * From `gRIBI-C`, run the gRIBI Get validation and verify that it passes,
+      with the expected gRIBI state including the canary changes made in
+      P4RT-1.4.1.
 
-The DUT must behave the same way regardless of which controller card becomes
-primary, so the switchover is repeated in the reverse direction. This subtest
-starts from the state left by P4RT-1.4.1: the same punt entries and gRIBI
-routes are in place and are not reinstalled before the switchover.
+* Step 5 - Validate the data plane
+    * Stop `Flow-IPv4` and `Flow-IPv6` and verify the data plane pass
+      criteria (0 packets lost across the entire switchover).
 
-* Use gNMI Subscribe `ON_CHANGE` to wait until
-  `/components/component/state/switchover-ready` reports `true` for `SUP-A`.
-* Start `Flow-IPv4` and `Flow-IPv6` as continuous traffic.
-* Issue gNOI `System.SwitchControlProcessor` with `control_processor` set to
-  `SUP-A`, and validate the gNMI reconnection, `redundant-role`,
-  `last-switchover-time` and `last-switchover-reason/trigger` as described in
-  P4RT-1.4.1 Step 2, with `SUP-A` as the new primary controller card.
-* Repeat P4RT-1.4.1 Step 3 with election IDs `{high: 0, low: 30}` (primary)
-  and `{high: 0, low: 25}` (secondary).
-* Repeat P4RT-1.4.1 Step 4 with the same pass/fail criteria.
-
-### P4RT-1.4.3 - PacketIn on a port enabled immediately after switchover
-
-An interface that comes up while the DUT is still completing a switchover must
-also punt packets once the P4RT controller has re-programmed its entries. This
-subtest starts from the state left by P4RT-1.4.2.
-
-* Set `/interfaces/interface/config/enabled` to `false` on DUT port-3. Use
-  gNMI `Await` to verify that DUT port-3 reports `oper-status` `DOWN` and that
-  `lag1` stays `UP` with DUT port-2 reporting `collecting` and `distributing`
-  `true`.
-* Use gNMI Subscribe `ON_CHANGE` to wait until
-  `/components/component/state/switchover-ready` reports `true` for `SUP-B`.
-* Issue gNOI `System.SwitchControlProcessor` with `control_processor` set to
-  `SUP-B`, and validate it as described in P4RT-1.4.1 Step 2.
-* Before the P4RT clients reconnect, set
-  `/interfaces/interface/config/enabled` to `true` on DUT port-3, retrying the
-  gNMI `Set` until it succeeds or `gnmi_reconnect_timeout` expires. Record in
-  the test log whether DUT port-3 reported `oper-status` `UP` before or after
-  the P4RT clients reconnected.
-* Repeat P4RT-1.4.1 Step 3 with election IDs `{high: 0, low: 40}` (primary)
-  and `{high: 0, low: 35}` (secondary).
-* Run the link and LAG check.
-* Run the PacketIn and PacketOut validation procedure and verify that it
-  passes. In particular, the PacketIn count for LLDP and GDP packets sent from
-  ATE port-3 must equal the number of packets sent, with
-  `ingress_singleton_port` set to `3`.
-
-### P4RT-1.4.4 - Reconnect after switchover without re-pushing the pipeline
-
-A DUT that accepts a P4RT session after a switchover must either keep the
-forwarding pipeline and punt entries working, or clearly report that no
-pipeline is set. It must never report the pipeline and entries as present
-while punting has stopped. This subtest starts from the state left by
-P4RT-1.4.3, with `SUP-B` as primary.
-
-* Use gNMI Subscribe `ON_CHANGE` to wait until `switchover-ready` reports
-  `true` for `SUP-A`, issue gNOI `System.SwitchControlProcessor` with
-  `control_processor` set to `SUP-A`, and validate it as described in
-  P4RT-1.4.1 Step 2.
-* For each P4RT node ID, reconnect the primary client with election ID
-  `{high: 0, low: 50}` and the secondary client with election ID
-  `{high: 0, low: 45}`, as in P4RT-1.4.1 Step 3, but do **not** call
-  `P4Runtime.SetForwardingPipelineConfig` or `P4Runtime.Write`.
-* Issue `P4Runtime.GetForwardingPipelineConfig` and `P4Runtime.Read`.
-* Pass/fail criteria:
-    * If the DUT reports the pipeline as set and `P4Runtime.Read` returns the
-      4 punt entries, the PacketIn and PacketOut validation procedure must
-      pass.
-    * If the DUT reports that no pipeline is set (for example
-      `FAILED_PRECONDITION`), push the pipeline and write the 4 punt entries,
-      and then the PacketIn and PacketOut validation procedure must pass.
-    * Reporting the pipeline and the 4 entries as present while the PacketIn
-      count is `0` or lower than the number of packets sent is a failure.
-
-### P4RT-1.4.5 - Stale primary client is rejected after switchover
-
-A client that reconnects with the election ID used before the first
-switchover must not regain control or receive punted packets. This subtest
-starts from the state left by P4RT-1.4.4.
-
-* For each P4RT node ID, connect an additional P4RT client (referred to as
-  the stale client) with election ID `{high: 0, low: 10}`.
-* From the stale client, send a `P4Runtime.Write` that deletes the LLDP punt
-  entry.
-* Run the PacketIn and PacketOut validation procedure.
-* Pass/fail criteria:
-    * The stale client does not become primary: its `MasterArbitrationUpdate`
-      response does not report it as primary (`ALREADY_EXISTS`).
-    * The `P4Runtime.Write` from the stale client is rejected with
-      `PERMISSION_DENIED`, and `P4Runtime.Read` from the primary client still
-      returns the 4 punt entries.
-    * The stale client receives no matching PacketIn message, and the
-      PacketIn and PacketOut validation procedure passes for the primary
-      client.
-* Close the stale client sessions.
+* Step 6 - Stale election ID rejection (no additional switchover)
+    * P4RT: for each P4RT node ID, connect an additional P4RT client with
+      election ID `{high: 0, low: 10}` (the primary election ID used before
+      the first switchover), and send a `P4Runtime.Write` that deletes the
+      LLDP punt entry. Pass criteria: the client does not become primary (its
+      `MasterArbitrationUpdate` response reports `ALREADY_EXISTS`), the
+      `Write` is rejected with `PERMISSION_DENIED`, `P4Runtime.Read` from the
+      primary client still returns the 4 punt entries, and the stale client
+      receives no matching PacketIn message while the PacketIn and PacketOut
+      validation procedure on DUT port-1 passes for the primary client.
+    * gRIBI: connect a gRIBI client with election ID `{high: 0, low: 1}` (the
+      election ID used by `gRIBI-A`) and send a `ModifyRequest` that adds
+      `IPv4Entry` `198.51.100.200/32` pointing to next-hop-group `1`. Pass
+      criteria: the operation is rejected because the client is not the
+      primary client (gRPC status `FAILED_PRECONDITION` with reason
+      `NOT_PRIMARY`), AFT telemetry does not contain `198.51.100.200/32`, and
+      the gRIBI Get validation from `gRIBI-C` passes.
+    * Close the stale P4RT and gRIBI client sessions.
 
 ### Cleanup
 
-* Delete the 4 punt entries from the primary P4RT client with
-  `P4Runtime.Write` (`DELETE`), verify with `P4Runtime.Read` that no entries
-  remain, and close all P4RT client sessions.
-* Remove the gRIBI entries with `gRIBI.Flush` for the default network
-  instance, use gNMI `Await` to verify through AFT telemetry that the
-  prefixes are removed, and close the gRIBI client session.
-* Restore the original DUT configuration for DUT port-1, DUT port-2, DUT
-  port-3, DUT port-4, `lag1`, the P4RT interface IDs, the integrated circuit
-  node IDs and `/lldp/config/enabled`, and use gNMI `Await` to verify that all
-  DUT ports report `oper-status` `UP`.
-* Use gNMI Subscribe `ON_CHANGE` to wait until the standby controller card
-  reports `switchover-ready` as `true`, leaving the DUT with fully redundant
-  controller cards. Either controller card may be primary at the end of the
-  test.
+Run the mandatory cleanup registered in the test environment setup.
 
 ## Canonical OC
 
@@ -608,6 +704,17 @@ starts from the state left by P4RT-1.4.4.
     "config": {
       "enabled": false
     }
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "VRF-1",
+          "type": "L3VRF"
+        },
+        "name": "VRF-1"
+      }
+    ]
   }
 }
 ```
@@ -625,6 +732,7 @@ paths:
   /interfaces/interface/aggregation/config/lag-type:
   /lacp/interfaces/interface/config/lacp-mode:
   /lldp/config/enabled:
+  /network-instances/network-instance/config/type:
 
   ## State paths
   /components/component/integrated-circuit/state/node-id:
@@ -647,7 +755,11 @@ paths:
   /components/component/state/last-switchover-reason/trigger:
     platform_type: ["CONTROLLER_CARD"]
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
 
 rpcs:
   gnmi:
@@ -658,6 +770,7 @@ rpcs:
     system.System.SwitchControlProcessor:
   gribi:
     gRIBI.Flush:
+    gRIBI.Get:
     gRIBI.Modify:
   # p4runtime:
   #   p4runtime.P4Runtime.Write:
