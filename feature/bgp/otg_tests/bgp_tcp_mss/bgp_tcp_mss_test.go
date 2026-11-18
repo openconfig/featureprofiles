@@ -23,7 +23,6 @@ import (
 	"io"
 	"math/big"
 	"net/netip"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -322,6 +321,9 @@ func TestBGPTCPMSS(t *testing.T) {
 
 	t.Run("RT-1.22.1: TCP MSS at the neighbor and peer-group levels", func(t *testing.T) {
 		t.Run("Default TCP MSS", func(t *testing.T) {
+			if deviations.SkipTCPNegotiatedMSSCheck(env.dut) {
+				t.Skip("The DUT does not report the TCP MSS in use before an MSS is configured (deviation skip_tcp_negotiated_mss_check)")
+			}
 			verifyDefaultTCPMSS(t, env)
 		})
 
@@ -500,7 +502,6 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		cfgplugins.BGPClearConfig(t, dut)
 	})
 	batch.Set(t, dut)
-	gnmi.Await(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(allowPolicy).Name().State(), stateTimeout, allowPolicy)
 }
 
 // withPGAfiSafiPolicy applies the import and export policy to an AFI-SAFI of
@@ -800,9 +801,9 @@ func testNeighborLevel(t *testing.T, env *testEnv) {
 }
 
 // testPeerGroupLevel implements the peer-group-level steps of RT-1.22.1,
-// including the neighbor-level override. The last README step, which removes
-// the peer-group MSS, is registered with t.Cleanup, so that it also runs when
-// a step fails.
+// including the neighbor-level override. The removal of the override and the
+// last README step, which removes the peer-group MSS, are registered with
+// t.Cleanup, so that they also run when a step fails.
 func testPeerGroupLevel(t *testing.T, env *testEnv) {
 	dut := env.dut
 	peerGroups := []string{ebgpPeerGroup, ibgpPeerGroup}
@@ -820,21 +821,46 @@ func testPeerGroupLevel(t *testing.T, env *testEnv) {
 	setTCPMSS(t, dut, mssPeerGroup, nil, peerGroups)
 	reestablishSessions(t, env)
 	t.Run("Neighbors inherit the peer-group TCP MSS", func(t *testing.T) {
-		verifyTCPMSS(t, dut, slices.Concat(peerGroupChecks(dut, mssPeerGroup), neighborChecks(dut, mssPeerGroup, nil)))
+		verifyPeerGroupLevelMSS(t, dut, nil)
 	})
 
 	t.Logf("Neighbor-level override: keep the peer-group MSS, and set transport/config/tcp-mss to %d on one neighbor in each peer group (the IPv4 neighbors %s)", mssOverride, strings.Join(neighbors(overrides), " and "))
+	// The README step below removes the override again. This cleanup removes
+	// it only if a step fails before that.
+	overrideRemoved := false
+	t.Cleanup(func() {
+		if !overrideRemoved {
+			t.Logf("Cleanup: remove transport/config/tcp-mss from the IPv4 neighbors %s", strings.Join(neighbors(overrides), " and "))
+			removeTCPMSS(t, dut, neighbors(overrides), nil)
+		}
+	})
 	setTCPMSS(t, dut, mssOverride, neighbors(overrides), nil)
 	reestablishSessions(t, env)
 	t.Run("Neighbor TCP MSS overrides the peer-group TCP MSS", func(t *testing.T) {
-		verifyTCPMSS(t, dut, slices.Concat(peerGroupChecks(dut, mssPeerGroup), neighborChecks(dut, mssPeerGroup, overrideMSS)))
+		verifyPeerGroupLevelMSS(t, dut, overrideMSS)
 	})
 
 	t.Logf("Remove transport/config/tcp-mss from the IPv4 neighbors %s, and keep it on the peer groups", strings.Join(neighbors(overrides), " and "))
 	removeTCPMSS(t, dut, neighbors(overrides), nil)
+	overrideRemoved = true
 	reestablishSessions(t, env)
 	t.Run("Neighbors return to the peer-group TCP MSS", func(t *testing.T) {
-		verifyTCPMSS(t, dut, slices.Concat(peerGroupChecks(dut, mssPeerGroup), neighborChecks(dut, mssPeerGroup, nil)))
+		verifyPeerGroupLevelMSS(t, dut, nil)
+	})
+}
+
+// verifyPeerGroupLevelMSS verifies transport/state/tcp-mss at the peer-group
+// level: mssPeerGroup for both peer groups, and for the four neighbors the MSS
+// in override or else the inherited mssPeerGroup. The peer groups and the
+// neighbors are checked in separate subtests, so that a DUT that cannot stream
+// one of the two paths still has the other one checked.
+func verifyPeerGroupLevelMSS(t *testing.T, dut *ondatra.DUTDevice, override map[session]uint16) {
+	t.Helper()
+	t.Run("Peer groups", func(t *testing.T) {
+		verifyTCPMSS(t, dut, peerGroupChecks(dut, mssPeerGroup))
+	})
+	t.Run("Neighbors", func(t *testing.T) {
+		verifyTCPMSS(t, dut, neighborChecks(dut, mssPeerGroup, override))
 	})
 }
 
