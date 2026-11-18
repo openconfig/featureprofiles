@@ -2402,14 +2402,6 @@ func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
 }
 
-// AftsNextHopsStreamOnlyInDefaultNetworkInstance returns true when AFT routes in a non-default
-// network instance reference next-hop objects reported in the default network
-// instance.
-// Arista: https://partnerissuetracker.corp.google.com/issues/586592778
-func AftsNextHopsStreamOnlyInDefaultNetworkInstance(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAftsNextHopsStreamOnlyInDefaultNetworkInstance()
-}
-
 // AigpMetricIncrement returns true if AIGP metric increment is not supported.
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
