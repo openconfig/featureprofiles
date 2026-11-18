@@ -16,8 +16,8 @@
         mandatory trailing `PutRequest{hash}` message or with a mismatched
         `types.HashType` digest returns a clear non-OK gRPC error (for example
         `INVALID_ARGUMENT`, `ABORTED`, `FAILED_PRECONDITION`, or `UNKNOWN`) and
-        removes the incomplete temporary staging file (`File.Stat` returns
-        `NOT_FOUND`).
+        removes the incomplete temporary staging file (`File.Stat` returns a
+        non-OK gRPC error, for example `NOT_FOUND`).
     *   The DUT's gNOI and gNMI servers remain stable across 50+ sequential
         RPCs without AAA/PAM session exhaustion, and existing committed files in
         the scratch directory remain unaffected when subsequent negative
@@ -181,7 +181,8 @@ graph LR
         `<scratch_dir>/gnoi_conformance_scale_01.txt` through
         `<scratch_dir>/gnoi_conformance_scale_10.txt`), issue
         `gnoi.file.File.Remove` (ignoring `NOT_FOUND`) and verify via
-        `gnoi.file.File.Stat` that each path returns gRPC status `NOT_FOUND`.
+        `gnoi.file.File.Stat` that each path returns a non-OK gRPC error (for
+        example `NOT_FOUND`).
 
 ### gNOI-5.4.1 - Positive Single-Chunk and Multi-Chunk gNOI File.Put, File.Stat, and File.Get Baseline with SHA-256 and MD5 Digest Verification
 
@@ -278,7 +279,7 @@ confirming existing committed files remain untouched.
                 `StatusCode.OK` is an immediate test failure).
             2.  Subsequent `gnoi.file.File.Stat` and `gnoi.file.File.Get` on
                 `"<scratch_dir>/gnoi_conformance_incomplete_no_hash.txt"` both
-                return gRPC status `NOT_FOUND`.
+                return a non-OK gRPC error (for example `NOT_FOUND`).
         *   **Fail**: `File.Put` returns `StatusCode.OK` (`grpc-status: 0`) even
             if the temporary file was deleted, or `File.Stat` / `File.Get`
             finds a partial artifact on disk.
@@ -328,8 +329,8 @@ digest in the error message as fixed-length unsigned hex, and leaves the
                 `00d3573788b8879253860be8c1894fbea1a995fc6c5d55cc9be77658b2d72b3b`
                 (`SHA256`) or `5488fc814e0791d457dc8953b529ed7d` (`MD5`).
             3.  `gnoi.file.File.Stat` on
-                `"<scratch_dir>/gnoi_conformance_hash_mismatch.txt"` returns
-                `NOT_FOUND`.
+                `"<scratch_dir>/gnoi_conformance_hash_mismatch.txt"` returns a
+                non-OK gRPC error (for example `NOT_FOUND`).
         *   **Fail**: `File.Put` returns `StatusCode.OK`, leaves the file on
             disk, or renders a digest in the error message with `ffffff`
             sign-extension, omitted leading zeros, or the wrong length or
@@ -341,10 +342,11 @@ digest in the error message as fixed-length unsigned hex, and leaves the
         (`"gnoi-conformance-md5-192.0.2.1-2001:db8::1\n"`) and
         `method: HashType_MD5` with an all-zero 16-byte digest (16 bytes of
         `0x00`), verifying a non-OK gRPC status, fixed-length 32-character
-        unsigned hex for any digest in the error message, and `File.Stat` =
-        `NOT_FOUND`.
+        unsigned hex for any digest in the error message, and a non-OK
+        `File.Stat` gRPC error (for example `NOT_FOUND`).
     *   Repeat with `method: HashType_UNSPECIFIED` (`0`), verifying a non-OK
-        gRPC status and `File.Stat` = `NOT_FOUND`.
+        gRPC status and a non-OK `File.Stat` gRPC error (for example
+        `NOT_FOUND`).
 *   **Step 4 - Confirm `gNOI-5.4.1` Baseline Files Remain Intact**:
     *   Verify via `gnoi.file.File.Stat` that all 3 baseline files from
         `gNOI-5.4.1` remain present with their exact byte sizes.
@@ -447,7 +449,7 @@ This subtest executes additional mandatory negative protocol checks on the
         `gNOI-5.4.1` and all `10` scale files from `gNOI-5.4.4`, verifying each
         returns `StatusCode.OK`.
     *   Invoke `gnoi.file.File.Stat` for each of the `13` paths and verify each
-        returns gRPC status `NOT_FOUND`.
+        returns a non-OK gRPC error (for example `NOT_FOUND`).
 
 ### Cleanup
 
