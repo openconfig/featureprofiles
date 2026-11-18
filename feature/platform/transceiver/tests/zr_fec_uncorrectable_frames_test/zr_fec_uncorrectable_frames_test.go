@@ -18,19 +18,16 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"reflect"
 	"testing"
 	"time"
 
 	"flag"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
-	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -41,127 +38,118 @@ import (
 )
 
 const (
+	// sampleInterval is the host Performance Monitoring (PM) interval used for gNMI SAMPLE
+	// subscriptions to the FEC uncorrectable blocks leaves.
 	sampleInterval = 10 * time.Second
+	sampleTimeout  = 60 * time.Second
 	intUpdateTime  = 10 * time.Minute
-	otnIndexBase   = uint32(4000)
-	ethIndexBase   = uint32(40000)
+	linkUpTimeout  = 5 * time.Minute
+	ipStateTimeout = 30 * time.Second
 
 	targetOutputPowerdBm          = -10.0
 	targetOutputPowerTolerancedBm = 1.0
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000.0
-	samplingInterval              = 10 * time.Second
-	sampleTimeout                 = 60 * time.Second
-	linkUpTimeout                 = 5 * time.Minute
 
-	otnIndex1 = uint32(4000)
-	otnIndex2 = uint32(4001)
-	ethIndex1 = uint32(40000)
-	ethIndex2 = uint32(40001)
+	// Both ports are on the same DUT in the default network-instance, so each port uses its own
+	// /30 and /126 documentation subnet.
+	port1IPv4     = "192.0.2.1"
+	port2IPv4     = "192.0.2.5"
+	ipv4PrefixLen = uint8(30)
+	port1IPv6     = "2001:db8::1"
+	port2IPv6     = "2001:db8::5"
+	ipv6PrefixLen = uint8(126)
 
-	port1IPv4      = "192.0.2.1"
-	port2IPv4      = "192.0.2.2"
-	ipv4PrefixLen  = uint8(30)
-	destIPv4Prefix = "198.51.100.0/24"
-	port1IPv6      = "2001:db8::1"
-	port2IPv6      = "2001:db8::2"
-	ipv6PrefixLen  = uint8(126)
-	destIPv6Prefix = "2001:db8:1::/64"
-
-	nearEndQualID    = "qual-400zr-near"
-	farEndQualID     = "qual-400zr-far"
-	plqMinBps        = uint64(100_000_000_000)
-	plqPacketRate    = uint64(138888)
-	plqPacketSize    = uint32(8184)
-	plqSetupDuration = 30 * time.Second
-	plqPreSync       = 10 * time.Second
-	plqDuration      = 30 * time.Second
-	plqPostSync      = 30 * time.Second
-	plqTeardown      = 30 * time.Second
+	// gNOI Packet Link Qualification parameters defined in TRANSCEIVER-10.1.2.
+	nearEndQualID  = "qual-400zr-near"
+	farEndQualID   = "qual-400zr-far"
+	plqLineRateBps = uint64(400_000_000_000)
+	// plqMinGeneratorBps matches the generator max_bps required by gNOI-2.1.
+	plqMinGeneratorBps = uint64(100_000_000_000)
+	plqPacketSize      = uint32(8184)
+	plqFrameOverhead   = uint64(20) // Preamble, start-of-frame delimiter and inter-frame gap.
+	// plqLineRatePercent leaves headroom for clock (ppm) offset and control-plane frames.
+	plqLineRatePercent   = uint64(99)
+	plqMinSetup          = 30 * time.Second
+	plqMinTeardown       = 30 * time.Second
+	plqGeneratorPreSync  = 10 * time.Second
+	plqDuration          = 60 * time.Second
+	plqReflectorPostSync = 30 * time.Second
+	plqStatePollInterval = 2 * time.Second
+	plqDeleteTimeout     = 30 * time.Second
 )
 
 var (
 	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
+
+	otnIndexes = map[string]uint32{"port1": 4000, "port2": 4001}
+	ethIndexes = map[string]uint32{"port1": 40000, "port2": 40001}
+	ipv4Addrs  = map[string]string{"port1": port1IPv4, "port2": port2IPv4}
+	ipv6Addrs  = map[string]string{"port1": port1IPv6, "port2": port2IPv6}
 )
 
-type portFECStreams struct {
-	otnUncorrectable  *samplestream.SampleStream[uint64]
-	ethUncorrectable  *samplestream.SampleStream[uint64]
-	ochUncorrectable  *samplestream.SampleStream[uint64]
-	intfUncorrectable *samplestream.SampleStream[uint64]
-	intfCorrected     *samplestream.SampleStream[uint64]
-	inFcsErrors       *samplestream.SampleStream[uint64]
+// zrPort holds the DUT port and the 400ZR components and logical channels associated with it.
+type zrPort struct {
+	port   *ondatra.Port
+	name   string
+	tr     string
+	och    string
+	otnIdx uint32
+	ethIdx uint32
+	ipv4   string
+	ipv6   string
 }
 
-func (s *portFECStreams) closeAll() {
-	for _, st := range []*samplestream.SampleStream[uint64]{
-		s.otnUncorrectable, s.ethUncorrectable, s.ochUncorrectable,
-		s.intfUncorrectable, s.intfCorrected, s.inFcsErrors,
-	} {
+// fecStreams holds the gNMI SAMPLE subscriptions to the FEC uncorrectable blocks leaves of a port.
+// eth and och are nil only when the corresponding "unsupported" deviation is set.
+type fecStreams struct {
+	otn *samplestream.SampleStream[uint64]
+	eth *samplestream.SampleStream[uint64]
+	och *samplestream.SampleStream[uint64]
+}
+
+func (s *fecStreams) close() {
+	for _, st := range []*samplestream.SampleStream[uint64]{s.otn, s.eth, s.och} {
 		if st != nil {
 			st.Close()
 		}
 	}
 }
 
-func (s *portFECStreams) primaryUncorrectableStream(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, otnIdx uint32) *samplestream.SampleStream[uint64] {
-	t.Helper()
-	if dp.PMD() != ondatra.PMD400GBASEZR && dp.PMD() != ondatra.PMD400GBASEZRP {
-		if _, ok := gnmi.Lookup(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks().State()).Val(); !ok && s.inFcsErrors != nil {
-			return s.inFcsErrors
-		}
-	}
-	if s.otnUncorrectable != nil && len(s.otnUncorrectable.All()) > 0 {
-		return s.otnUncorrectable
-	}
-	if _, ok := gnmi.Lookup(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks().State()).Val(); ok {
-		return s.otnUncorrectable
-	}
-	for _, candidate := range []*samplestream.SampleStream[uint64]{s.ochUncorrectable, s.ethUncorrectable, s.intfUncorrectable, s.inFcsErrors} {
-		if candidate != nil && len(candidate.All()) > 0 {
-			return candidate
-		}
-	}
-	return s.otnUncorrectable
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
 }
 
-func (s *portFECStreams) getPrimaryUncorrectableBlocks(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, otnIdx uint32) uint64 {
+func zrPorts(t *testing.T, dut *ondatra.DUTDevice) []*zrPort {
 	t.Helper()
-	if val, ok := gnmi.Lookup(t, dut, gnmi.OC().TerminalDevice().Channel(otnIdx).Otn().FecUncorrectableBlocks().State()).Val(); ok {
-		return val
+	var ports []*zrPort
+	for _, id := range []string{"port1", "port2"} {
+		dp := dut.Port(t, id)
+		ports = append(ports, &zrPort{
+			port:   dp,
+			name:   dp.Name(),
+			tr:     gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State()),
+			och:    components.OpticalChannelComponentFromPort(t, dut, dp),
+			otnIdx: otnIndexes[id],
+			ethIdx: ethIndexes[id],
+			ipv4:   ipv4Addrs[id],
+			ipv6:   ipv6Addrs[id],
+		})
 	}
-	if s.otnUncorrectable != nil {
-		if all := s.otnUncorrectable.All(); len(all) > 0 {
-			if val, ok := all[len(all)-1].Val(); ok {
-				return val
-			}
-		}
-	}
-	if val, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Counters().InFcsErrors().State()).Val(); ok {
-		return val
-	}
-	return 0
+	return ports
 }
 
-func isTelemetryPathPresent[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T]) bool {
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
-	if err != nil {
-		return false
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	val, err := ygnmi.Lookup(ctx, c, q)
-	return err == nil && val != nil && val.IsPresent()
-}
-
-func configureInterfaceAndOptics(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, och, tr string, otnIdx, ethIdx uint32) {
+// newZRInterface returns the interface configuration shared by every helper in this test.
+func newZRInterface(t *testing.T, dut *ondatra.DUTDevice, name string) *oc.Interface {
 	t.Helper()
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp.Name())
-	i.Enabled = ygot.Bool(true)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if dut.Vendor() == ondatra.JUNIPER && !deviations.OmitL2MTU(dut) {
+	i := &oc.Interface{
+		Name:    ygot.String(name),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if !deviations.OmitL2MTU(dut) {
+		// PLQ uses 8184-byte frames.
 		i.Mtu = ygot.Uint16(9000)
 	}
 	if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) && (dut.Vendor() == ondatra.ARISTA || deviations.ExplicitPortSpeed(dut)) {
@@ -173,33 +161,49 @@ func configureInterfaceAndOptics(t *testing.T, dut *ondatra.DUTDevice, dp *ondat
 			eth.DuplexMode = oc.Ethernet_DuplexMode_FULL
 		}
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-	if deviations.ExplicitDcoConfig(dut) {
-		gnmi.Replace(t, dut, gnmi.OC().Component(tr).Config(), &oc.Component{
-			Name: ygot.String(tr),
-			Transceiver: &oc.Component_Transceiver{
-				ModuleFunctionalType: oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC,
-			},
-		})
+	return i
+}
+
+// opticalChannelAtTarget reports whether the optical channel state already matches the target
+// configuration, so that an unnecessary REPLACE (which re-initializes the coherent DSP) is avoided.
+func opticalChannelAtTarget(t *testing.T, dut *ondatra.DUTDevice, och string) bool {
+	t.Helper()
+	path := gnmi.OC().Component(och).OpticalChannel()
+	freq, okFreq := gnmi.Lookup(t, dut, path.Frequency().State()).Val()
+	pwr, okPwr := gnmi.Lookup(t, dut, path.TargetOutputPower().State()).Val()
+	if !okFreq || !okPwr || freq != targetFrequencyMHz || math.Abs(pwr-targetOutputPowerdBm) > 0.01 {
+		return false
 	}
-	if dp.PMD() != ondatra.PMD400GBASEZR && dp.PMD() != ondatra.PMD400GBASEZRP && dut.Vendor() == ondatra.CISCO {
-		return
+	if deviations.OperationalModeUnsupported(dut) {
+		return true
 	}
-	if dut.Vendor() == ondatra.CISCO {
-		curFreq, okFreq := gnmi.Lookup(t, dut, gnmi.OC().Component(och).OpticalChannel().Frequency().State()).Val()
-		curMode, okMode := gnmi.Lookup(t, dut, gnmi.OC().Component(och).OpticalChannel().OperationalMode().State()).Val()
-		curPwr, okPwr := gnmi.Lookup(t, dut, gnmi.OC().Component(och).OpticalChannel().TargetOutputPower().State()).Val()
-		if okFreq && okMode && okPwr && curFreq == uint64(targetFrequencyMHz) && curMode == operationalMode && math.Abs(curPwr-targetOutputPowerdBm) <= 0.5 {
-			return
+	mode, okMode := gnmi.Lookup(t, dut, path.OperationalMode().State()).Val()
+	return okMode && mode == operationalMode
+}
+
+// logicalChannelAtTarget reports whether a logical channel already exists in state with the given
+// type and an assignment to the given optical channel or logical channel.
+func logicalChannelAtTarget(t *testing.T, dut *ondatra.DUTDevice, index uint32, lcType oc.E_TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE, och string, lc uint32) bool {
+	t.Helper()
+	ch, ok := gnmi.Lookup(t, dut, gnmi.OC().TerminalDevice().Channel(index).State()).Val()
+	if !ok || ch.GetLogicalChannelType() != lcType {
+		return false
+	}
+	for _, a := range ch.Assignment {
+		if (och != "" && a.GetOpticalChannel() == och) || (lc != 0 && a.GetLogicalChannel() == lc) {
+			return true
 		}
 	}
-	cfgplugins.ConfigOpticalChannel(t, dut, och, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
-	cfgplugins.ConfigOTNChannel(t, dut, och, otnIdx, ethIdx)
+	return false
+}
+
+func configureETHChannel(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) {
+	t.Helper()
 	var ingress *oc.TerminalDevice_Channel_Ingress
 	if !deviations.EthChannelIngressParametersUnsupported(dut) {
 		ingress = &oc.TerminalDevice_Channel_Ingress{
-			Interface:   ygot.String(dp.Name()),
-			Transceiver: ygot.String(tr),
+			Interface:   ygot.String(p.name),
+			Transceiver: ygot.String(p.tr),
 		}
 	}
 	assignIdx := uint32(0)
@@ -208,14 +212,14 @@ func configureInterfaceAndOptics(t *testing.T, dut *ondatra.DUTDevice, dp *ondat
 	}
 	ch := &oc.TerminalDevice_Channel{
 		Description:        ygot.String("ETH Logical Channel"),
-		Index:              ygot.Uint32(ethIdx),
+		Index:              ygot.Uint32(p.ethIdx),
 		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			0: {
+			assignIdx: {
 				Index:          ygot.Uint32(assignIdx),
-				LogicalChannel: ygot.Uint32(otnIdx),
+				LogicalChannel: ygot.Uint32(p.otnIdx),
 				Description:    ygot.String("ETH to OTN"),
 				Allocation:     ygot.Float64(400),
 				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
@@ -228,907 +232,591 @@ func configureInterfaceAndOptics(t *testing.T, dut *ondatra.DUTDevice, dp *ondat
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		ch.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
 	}
-	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIdx).Config(), ch)
+	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(p.ethIdx).Config(), ch)
 }
 
-func toggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnabled bool) {
+// configureLink applies the 400ZR interface, transceiver, optical channel and logical channel
+// configuration described in the Procedure. Optical and logical channels are only replaced when
+// their state does not already match the target configuration.
+func configureLink(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) {
 	t.Helper()
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(intf)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	i.Enabled = ygot.Bool(isEnabled)
-	if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) && (dut.Vendor() == ondatra.ARISTA || deviations.ExplicitPortSpeed(dut)) {
-		eth := i.GetOrCreateEthernet()
-		if !deviations.PortSpeedUnsupported(dut) {
-			eth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
-		}
-		if !deviations.DuplexModeUnsupported(dut) {
-			eth.DuplexMode = oc.Ethernet_DuplexMode_FULL
-		}
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p.name).Config(), newZRInterface(t, dut, p.name))
+	if deviations.ExplicitDcoConfig(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().Component(p.tr).Config(), &oc.Component{
+			Name: ygot.String(p.tr),
+			Transceiver: &oc.Component_Transceiver{
+				ModuleFunctionalType: oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC,
+			},
+		})
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Interface(intf).Config(), i)
+	setTransceiverEnabled(t, dut, p.tr, true)
+	if opticalChannelAtTarget(t, dut, p.och) {
+		t.Logf("Optical channel %s already matches the target configuration", p.och)
+	} else {
+		cfgplugins.ConfigOpticalChannel(t, dut, p.och, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	}
+	if logicalChannelAtTarget(t, dut, p.otnIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN, p.och, 0) {
+		t.Logf("OTN logical channel %d already matches the target configuration", p.otnIdx)
+	} else {
+		cfgplugins.ConfigOTNChannel(t, dut, p.och, p.otnIdx, p.ethIdx)
+	}
+	if logicalChannelAtTarget(t, dut, p.ethIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET, "", p.otnIdx) {
+		t.Logf("Ethernet logical channel %d already matches the target configuration", p.ethIdx)
+	} else {
+		configureETHChannel(t, dut, p)
+	}
 }
 
-func toggleTransceiver(t *testing.T, dut *ondatra.DUTDevice, trName string, isEnabled bool) {
+// configureL3 configures the dual-stack subinterface 0 addresses on the port.
+func configureL3(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) {
 	t.Helper()
-	if deviations.TransceiverConfigEnableUnsupported(dut) {
-		return
-	}
-	gnmi.Update(t, dut, gnmi.OC().Component(trName).Name().Config(), trName)
-	gnmi.Update(t, dut, gnmi.OC().Component(trName).Transceiver().Enabled().Config(), isEnabled)
-}
-
-func configureL3Subinterface(t *testing.T, dut *ondatra.DUTDevice, portName, ipv4Addr, ipv6Addr string) {
-	t.Helper()
-	intf := &oc.Interface{
-		Name:    ygot.String(portName),
-		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-		Enabled: ygot.Bool(true),
-	}
-	if dut.Vendor() == ondatra.JUNIPER && !deviations.OmitL2MTU(dut) {
-		intf.Mtu = ygot.Uint16(9000)
-	}
-	if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) && (dut.Vendor() == ondatra.ARISTA || deviations.ExplicitPortSpeed(dut)) {
-		eth := intf.GetOrCreateEthernet()
-		if !deviations.PortSpeedUnsupported(dut) {
-			eth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
-		}
-		if !deviations.DuplexModeUnsupported(dut) {
-			eth.DuplexMode = oc.Ethernet_DuplexMode_FULL
-		}
-		if dut.Vendor() == ondatra.ARISTA {
-			if hwMac, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Ethernet().HwMacAddress().State()).Val(); ok && hwMac != "" {
-				eth.MacAddress = ygot.String(hwMac)
-			}
-		}
+	intf := newZRInterface(t, dut, p.name)
+	if deviations.InterfaceMacAddressFromHardwareRequired(dut) {
+		intf.GetOrCreateEthernet().MacAddress = ygot.String(gnmi.Get(t, dut, gnmi.OC().Interface(p.name).Ethernet().HwMacAddress().State()))
 	}
 	sub := intf.GetOrCreateSubinterface(0)
 	if deviations.InterfaceEnabled(dut) {
 		sub.Enabled = ygot.Bool(true)
 	}
-	cfgplugins.ConfigureSubinterfaceIPs(sub, dut, ipv4Addr, ipv4PrefixLen, ipv6Addr, ipv6PrefixLen)
+	cfgplugins.ConfigureSubinterfaceIPs(sub, dut, p.ipv4, ipv4PrefixLen, p.ipv6, ipv6PrefixLen)
 	if deviations.InterfaceEnabled(dut) {
-		if ipv4Addr != "" && !deviations.IPv4MissingEnabled(dut) {
+		if !deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().Enabled = ygot.Bool(true)
 		}
-		if ipv6Addr != "" {
-			sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
-		}
+		sub.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 	}
-	gnmi.Update(t, dut, gnmi.OC().Interface(portName).Config(), intf)
+	gnmi.Update(t, dut, gnmi.OC().Interface(p.name).Config(), intf)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p.name, deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
-func await400ZROpticalLinkUp(t *testing.T, dut *ondatra.DUTDevice, portName, ochName string, timeout time.Duration) {
+// setInterfaceEnabled performs an administrative flap using only
+// /interfaces/interface/config/enabled, leaving the rest of the interface configuration intact.
+func setInterfaceEnabled(t *testing.T, dut *ondatra.DUTDevice, name string, enabled bool) {
 	t.Helper()
-	if st, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).OperStatus().State()).Val(); !ok || st != oc.Interface_OperStatus_UP {
-		gnmi.Await(t, dut, gnmi.OC().Interface(portName).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-	}
-	ochPath := gnmi.OC().Component(ochName).OpticalChannel()
-	if _, ok := gnmi.Lookup(t, dut, ochPath.LaserBiasCurrent().Instant().State()).Val(); !ok && dut.Vendor() == ondatra.CISCO {
+	gnmi.Update(t, dut, gnmi.OC().Interface(name).Enabled().Config(), enabled)
+}
+
+func setTransceiverEnabled(t *testing.T, dut *ondatra.DUTDevice, tr string, enabled bool) {
+	t.Helper()
+	if deviations.TransceiverConfigEnableUnsupported(dut) {
 		return
 	}
-	if cur, ok := gnmi.Lookup(t, dut, ochPath.LaserBiasCurrent().Instant().State()).Val(); !ok || cur <= 0.0 {
-		if val, ok := gnmi.Watch(t, dut, ochPath.LaserBiasCurrent().Instant().State(), timeout, func(v *ygnmi.Value[float64]) bool {
-			cur, present := v.Val()
-			return present && cur > 0.0
-		}).Await(t); !ok {
-			t.Fatalf("Optical channel %s laser-bias-current/instant did not exceed 0.0 mA within %v (last: %v)", ochName, timeout, val)
+	gnmi.Update(t, dut, gnmi.OC().Component(tr).Name().Config(), tr)
+	gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), enabled)
+}
+
+func awaitOperStatus(t *testing.T, dut *ondatra.DUTDevice, name string, want oc.E_Interface_OperStatus, timeout time.Duration) {
+	t.Helper()
+	gnmi.Await(t, dut, gnmi.OC().Interface(name).OperStatus().State(), timeout, want)
+}
+
+// restorePorts brings any port that is not UP back to the baseline configuration.
+func restorePorts(t *testing.T, dut *ondatra.DUTDevice, ports []*zrPort, withL3 bool) {
+	t.Helper()
+	for _, p := range ports {
+		if st, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.name).OperStatus().State()).Val(); ok && st == oc.Interface_OperStatus_UP {
+			continue
 		}
-	}
-	if pwr, ok := gnmi.Lookup(t, dut, ochPath.OutputPower().Instant().State()).Val(); !ok || pwr <= -20.0 {
-		if val, ok := gnmi.Watch(t, dut, ochPath.OutputPower().Instant().State(), timeout, func(v *ygnmi.Value[float64]) bool {
-			pwr, present := v.Val()
-			return present && pwr > -20.0
-		}).Await(t); !ok {
-			t.Fatalf("Optical channel %s output-power/instant did not exceed -20.0 dBm within %v (last: %v)", ochName, timeout, val)
+		configureLink(t, dut, p)
+		if withL3 {
+			configureL3(t, dut, p)
 		}
-	}
-	if inPwr, ok := gnmi.Lookup(t, dut, ochPath.InputPower().Instant().State()).Val(); ok && inPwr > -20.0 {
-		return
-	}
-	if _, ok := gnmi.Lookup(t, dut, ochPath.InputPower().Instant().State()).Val(); !ok {
-		if trName, trOK := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).Transceiver().State()).Val(); trOK {
-			chPath := gnmi.OC().Component(trName).Transceiver().Channel(0).InputPower().Instant().State()
-			if chPwr, chOK := gnmi.Lookup(t, dut, chPath).Val(); chOK {
-				if chPwr <= -20.0 {
-					gnmi.Watch(t, dut, chPath, timeout, func(v *ygnmi.Value[float64]) bool {
-						pwr, present := v.Val()
-						return present && pwr > -20.0
-					}).Await(t)
-				}
-				return
-			}
-		}
-	}
-	if val, ok := gnmi.Watch(t, dut, ochPath.InputPower().Instant().State(), timeout, func(v *ygnmi.Value[float64]) bool {
-		pwr, present := v.Val()
-		return present && pwr > -20.0
-	}).Await(t); !ok {
-		t.Fatalf("Optical channel %s input-power/instant did not exceed -20.0 dBm within %v (last: %v)", ochName, timeout, val)
+		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
 	}
 }
 
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+// openFECStreams subscribes to every FEC uncorrectable blocks leaf that TRANSCEIVER-10.1.1
+// requires. A leaf is skipped only when the matching "unsupported" deviation is set.
+func openFECStreams(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) *fecStreams {
+	t.Helper()
+	s := &fecStreams{
+		otn: samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(p.otnIdx).Otn().FecUncorrectableBlocks().State(), sampleInterval),
+	}
+	if !deviations.TerminalDeviceEthFecUncorrectableBlocksUnsupported(dut) {
+		s.eth = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(p.ethIdx).Ethernet().FecUncorrectableBlocks().State(), sampleInterval)
+	}
+	if !deviations.OpticalChannelFecUncorrectableBlocksUnsupported(dut) {
+		s.och = samplestream.New(t, dut, gnmi.OC().Component(p.och).OpticalChannel().FecUncorrectableBlocks().State(), sampleInterval)
+	}
+	t.Cleanup(s.close)
+	return s
 }
 
-func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64], baselineValue uint64) {
-	dut := ondatra.DUT(t, "dut")
-	fecStream, ok := stream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-		_, present := v.Val()
-		return present
+// awaitFECSample waits for the next PM interval sample. Only a sample received after the call
+// starts counts, so a leaf that stops streaming cannot pass on a stale value. It reports an error
+// and returns false if no new sample arrives.
+func awaitFECSample(t *testing.T, s *samplestream.SampleStream[uint64], desc string) (uint64, bool) {
+	t.Helper()
+	received := len(s.All())
+	v, ok := s.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
+		return v.IsPresent() && len(s.All()) > received
 	})
-	if !ok || fecStream == nil {
-		t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
+	if !ok || v == nil {
+		t.Errorf("%s: no new sample was streamed within %v", desc, sampleTimeout)
+		return 0, false
 	}
-	currentFec, ok := fecStream.Val()
+	val, _ := v.Val()
+	return val, true
+}
+
+// settleAndValidateFEC discards one full PM interval sample, which may still cover an optical
+// lock transition, and then verifies count consecutive PM interval samples. Each sample must be 0,
+// or must not exceed the settling sample when deviations.NonIntervalFecErrorCounter is set.
+func settleAndValidateFEC(t *testing.T, dut *ondatra.DUTDevice, s *samplestream.SampleStream[uint64], desc string, count int) {
+	t.Helper()
+	settled, ok := awaitFECSample(t, s, desc+" (settling interval)")
 	if !ok {
-		t.Fatalf("Error capturing streaming Fec value")
+		return
 	}
-	if reflect.TypeOf(currentFec).Kind() != reflect.Uint64 {
-		t.Fatalf("fec value is not type uint64")
-	}
-	if deviations.NonIntervalFecErrorCounter(dut) {
-		if currentFec > baselineValue {
-			t.Fatalf("FecUncorrectableBlocks increased after flap: baseline=%d, current=%d, diff=%d",
-				baselineValue, currentFec, currentFec-baselineValue)
+	t.Logf("%s: settling interval sample = %d (discarded)", desc, settled)
+	nonInterval := deviations.NonIntervalFecErrorCounter(dut)
+	for i := 1; i <= count; i++ {
+		got, ok := awaitFECSample(t, s, desc)
+		if !ok {
+			return
 		}
-		t.Logf("FecUncorrectableBlocks not increasing: baseline=%d, current=%d", baselineValue, currentFec)
-	} else if currentFec != 0 {
-		t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", currentFec)
+		t.Logf("%s [PM interval %d/%d]: got %d", desc, i, count, got)
+		switch {
+		case nonInterval && got > settled:
+			t.Errorf("%s [PM interval %d/%d]: cumulative counter increased on a stable link: got %d, want <= %d", desc, i, count, got, settled)
+		case !nonInterval && got != 0:
+			t.Errorf("%s [PM interval %d/%d]: got %d, want 0", desc, i, count, got)
+		}
+	}
+}
+
+// validateAllFEC runs settleAndValidateFEC on every subscribed FEC leaf of every port.
+func validateAllFEC(t *testing.T, dut *ondatra.DUTDevice, ports []*zrPort, streams map[string]*fecStreams, step string, count int) {
+	t.Helper()
+	for _, p := range ports {
+		s := streams[p.name]
+		settleAndValidateFEC(t, dut, s.otn, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", step, p.name), count)
+		if s.eth != nil {
+			settleAndValidateFEC(t, dut, s.eth, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks", step, p.name), count)
+		}
+		if s.och != nil {
+			settleAndValidateFEC(t, dut, s.och, fmt.Sprintf("%s %s /components/component/optical-channel/state/fec-uncorrectable-blocks", step, p.name), count)
+		}
 	}
 }
 
 // TestZrUncorrectableFrames validates the baseline TRANSCEIVER-10.1 Procedure.
 func TestZrUncorrectableFrames(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	var (
-		trs        = make(map[string]string)
-		ochs       = make(map[string]string)
-		otnIndexes = make(map[string]uint32)
-		ethIndexes = make(map[string]uint32)
-	)
-
-	ports := []string{"port1", "port2"}
-	operationalMode = uint16(*operationalModeFlag)
-	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
-
-	for i, port := range ports {
-		dp := dut.Port(t, port)
-		trs[dp.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-		ochs[dp.Name()] = components.OpticalChannelComponentFromPort(t, dut, dp)
-		otnIndexes[dp.Name()] = otnIndexBase + uint32(i)
-		ethIndexes[dp.Name()] = ethIndexBase + uint32(i)
-		configureInterfaceAndOptics(t, dut, dp, ochs[dp.Name()], trs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()])
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, uint16(*operationalModeFlag))
+	ports := zrPorts(t, dut)
+	t.Cleanup(func() { restorePorts(t, dut, ports, false) })
+	for _, p := range ports {
+		configureLink(t, dut, p)
 	}
 
-	for _, port := range ports {
-		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
-			dp := dut.Port(t, port)
-			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-			s := &portFECStreams{
-				otnUncorrectable: samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval),
-			}
-			if dp.PMD() != ondatra.PMD400GBASEZR && dp.PMD() != ondatra.PMD400GBASEZRP {
-				s.inFcsErrors = samplestream.New(t, dut, gnmi.OC().Interface(dp.Name()).Counters().InFcsErrors().State(), sampleInterval)
-			}
-			t.Cleanup(s.closeAll)
-			streamFecOtn := s.primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
+	for _, p := range ports {
+		t.Run(fmt.Sprintf("Port:%s", p.port.ID()), func(t *testing.T) {
+			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, intUpdateTime)
+			stream := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(p.otnIdx).Otn().FecUncorrectableBlocks().State(), sampleInterval)
+			t.Cleanup(stream.Close)
+			desc := p.name + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks"
+			settleAndValidateFEC(t, dut, stream, desc+" (before flap)", 1)
 
-			baselineFecStream, ok := streamFecOtn.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-				_, present := v.Val()
-				return present
-			})
-			if !ok || baselineFecStream == nil {
-				t.Fatalf("Baseline Fec Uncorrectable Blocks was not streamed")
-			}
-			baselineFec, ok := baselineFecStream.Val()
-			if !ok {
-				t.Fatalf("Error capturing baseline Fec value")
-			}
+			setInterfaceEnabled(t, dut, p.name, false)
+			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_DOWN, intUpdateTime)
+			setInterfaceEnabled(t, dut, p.name, true)
+			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, intUpdateTime)
 
-			validateFecUncorrectableBlocks(t, streamFecOtn, baselineFec)
-
-			// Toggle the interface, registering a cleanup to re-enable it if the
-			// test ends while it is disabled.
-			togglePort := transceiver.ToggleWithCleanup(t, func(enabled bool) {
-				t.Helper()
-				if enabled && (dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.JUNIPER) {
-					configureInterfaceAndOptics(t, dut, dp, ochs[dp.Name()], trs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()])
-					return
-				}
-				toggleInterface(t, dut, dp.Name(), enabled)
-			})
-
-			// Disable interface
-			togglePort(false)
-			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
-
-			// Enable interface
-			togglePort(true)
-			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-
-			baselineFecStream1, ok := streamFecOtn.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-				_, present := v.Val()
-				return present
-			})
-			if !ok || baselineFecStream1 == nil {
-				t.Fatalf("Baseline Fec Uncorrectable Blocks was not streamed")
-			}
-			baselineFec1, ok := baselineFecStream1.Val()
-			if !ok {
-				t.Fatalf("Error capturing baseline Fec value")
-			}
-
-			validateFecUncorrectableBlocks(t, streamFecOtn, baselineFec1)
+			settleAndValidateFEC(t, dut, stream, desc+" (after flap)", 1)
 		})
 	}
 }
 
-func validateFECSampleStream(t *testing.T, dut *ondatra.DUTDevice, stream *samplestream.SampleStream[uint64], pathDesc string, count int, baseline uint64) uint64 {
-	t.Helper()
-	wantVal := uint64(0)
-	if deviations.NonIntervalFecErrorCounter(dut) {
-		wantVal = baseline
-	}
-	var lastGot uint64
-	for idx := 0; idx < count; idx++ {
-		sample, ok := stream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-			_, present := v.Val()
-			return present
-		})
-		if !ok || sample == nil {
-			t.Fatalf("%s: failed to receive PM interval sample %d/%d", pathDesc, idx+1, count)
-		}
-		val, ok := sample.Val()
-		if !ok {
-			t.Fatalf("%s [sample %d/%d]: telemetry value is empty", pathDesc, idx+1, count)
-		}
-		lastGot = val
-		t.Logf("%s [PM interval %d/%d]: got=%d, want=%d (NonIntervalFecErrorCounter=%v)", pathDesc, idx+1, count, val, wantVal, deviations.NonIntervalFecErrorCounter(dut))
-		if val != wantVal {
-			t.Errorf("%s [PM interval %d/%d]: got %d, want %d", pathDesc, idx+1, count, val, wantVal)
-		}
-	}
-	return lastGot
-}
-
-func verifySecondaryFECStreams(t *testing.T, dut *ondatra.DUTDevice, portName string, streams *portFECStreams) {
-	t.Helper()
-	aux := []struct {
-		desc          string
-		stream        *samplestream.SampleStream[uint64]
-		uncorrectable bool
-		cumulative    bool
-	}{
-		{desc: portName + " /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks", stream: streams.ethUncorrectable, uncorrectable: true},
-		{desc: portName + " /components/component/optical-channel/state/fec-uncorrectable-blocks", stream: streams.ochUncorrectable, uncorrectable: true},
-		{desc: portName + " /interfaces/interface/ethernet/state/counters/fec-uncorrectable-blocks", stream: streams.intfUncorrectable, uncorrectable: true, cumulative: true},
-		{desc: portName + " /interfaces/interface/ethernet/state/counters/fec-corrected-blocks", stream: streams.intfCorrected, uncorrectable: false, cumulative: true},
-	}
-	for _, item := range aux {
-		if item.stream == nil {
-			continue
-		}
-		if all := item.stream.All(); len(all) > 0 {
-			if val, ok := all[len(all)-1].Val(); ok {
-				t.Logf("%s: latest streamed value = %d", item.desc, val)
-				if item.uncorrectable {
-					if item.cumulative || deviations.NonIntervalFecErrorCounter(dut) {
-						if len(all) >= 2 {
-							if prev, ok := all[len(all)-2].Val(); ok && val > prev {
-								t.Errorf("%s: counter increased over steady-state interval: prev=%d, latest=%d", item.desc, prev, val)
-							}
-						}
-					} else if val != 0 {
-						t.Errorf("%s: got %d, want 0", item.desc, val)
-					}
-				}
-			}
-		}
-	}
-}
-
-func configurePortL3AndOptical(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, trName, ochName string, otnIdx, ethIdx uint32, ipv4Addr, ipv6Addr string) {
-	t.Helper()
-	configureInterfaceAndOptics(t, dut, dp, ochName, trName, otnIdx, ethIdx)
-	toggleTransceiver(t, dut, trName, true)
-	configureL3Subinterface(t, dut, dp.Name(), ipv4Addr, ipv6Addr)
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
-	}
-}
-
-// TestZrFecPMIntervalSemantics validates TRANSCEIVER-10.1.1: Validate 400ZR FEC PM Interval Semantics.
+// TestZrFecPMIntervalSemantics validates TRANSCEIVER-10.1.1: Validate 400ZR FEC PM Interval
+// Semantics.
 func TestZrFecPMIntervalSemantics(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, uint16(*operationalModeFlag))
+	ports := zrPorts(t, dut)
+	t.Cleanup(func() { restorePorts(t, dut, ports, true) })
 
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	ports := []*ondatra.Port{dp1, dp2}
-
-	otnIndexes := map[string]uint32{dp1.Name(): otnIndex1, dp2.Name(): otnIndex2}
-	ethIndexes := map[string]uint32{dp1.Name(): ethIndex1, dp2.Name(): ethIndex2}
-	ipv4Addrs := map[string]string{dp1.Name(): port1IPv4, dp2.Name(): port2IPv4}
-	ipv6Addrs := map[string]string{dp1.Name(): port1IPv6, dp2.Name(): port2IPv6}
-	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.JUNIPER || dut.Vendor() == ondatra.CISCO {
-		ipv4Addrs[dp2.Name()] = "192.0.2.5"
-		ipv6Addrs[dp2.Name()] = "2001:db8::5"
-	}
-
-	trs := make(map[string]string, len(ports))
-	ochs := make(map[string]string, len(ports))
-	for _, dp := range ports {
-		trs[dp.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-		ochs[dp.Name()] = components.OpticalChannelComponentFromPort(t, dut, dp)
-	}
-
-	operationalMode = uint16(*operationalModeFlag)
-	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
-
-	t.Cleanup(func() {
-		for _, dp := range ports {
-			if st, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State()).Val(); !ok || st != oc.Interface_OperStatus_UP {
-				configurePortL3AndOptical(t, dut, dp, trs[dp.Name()], ochs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()], ipv4Addrs[dp.Name()], ipv6Addrs[dp.Name()])
-				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), linkUpTimeout, oc.Interface_OperStatus_UP)
-			}
-		}
-	})
-
+	// Step 1: Configuration.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	// Step 1: Configuration
-	for _, dp := range ports {
-		configurePortL3AndOptical(t, dut, dp, trs[dp.Name()], ochs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()], ipv4Addrs[dp.Name()], ipv6Addrs[dp.Name()])
+	for _, p := range ports {
+		configureLink(t, dut, p)
+		configureL3(t, dut, p)
 	}
 
-	// Step 2: Baseline Operational State and PM Interval Telemetry
-	for _, dp := range ports {
-		await400ZROpticalLinkUp(t, dut, dp.Name(), ochs[dp.Name()], linkUpTimeout)
-		if dp.PMD() == ondatra.PMD400GBASEZR || dp.PMD() == ondatra.PMD400GBASEZRP {
-			cfgplugins.ValidateInterfaceConfig(t, dut, dp, targetOutputPowerdBm, targetFrequencyMHz, targetOutputPowerTolerancedBm, targetFrequencyToleranceMHz)
-		}
+	// Step 2: Baseline operational state and PM interval telemetry.
+	streams := make(map[string]*fecStreams, len(ports))
+	for _, p := range ports {
+		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
+		cfgplugins.ValidateInterfaceConfig(t, dut, p.port, targetOutputPowerdBm, targetFrequencyMHz, targetOutputPowerTolerancedBm, targetFrequencyToleranceMHz)
 		if !deviations.OperationalModeUnsupported(dut) {
-			if gotOpMode, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(ochs[dp.Name()]).OpticalChannel().OperationalMode().State()).Val(); ok && gotOpMode != operationalMode {
-				t.Errorf("Port %s optical-channel operational-mode: got %d, want %d", dp.Name(), gotOpMode, operationalMode)
+			if got := gnmi.Get(t, dut, gnmi.OC().Component(p.och).OpticalChannel().OperationalMode().State()); got != operationalMode {
+				t.Errorf("Port %s optical-channel operational-mode: got %d, want %d", p.name, got, operationalMode)
 			}
 		}
+		streams[p.name] = openFECStreams(t, dut, p)
 	}
+	validateAllFEC(t, dut, ports, streams, "Step 2 (baseline)", 3)
 
-	fecStreams := make(map[string]*portFECStreams, len(ports))
-	for _, dp := range ports {
-		s := &portFECStreams{
-			otnUncorrectable: samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), samplingInterval),
-		}
-		if isTelemetryPathPresent(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndexes[dp.Name()]).Ethernet().FecUncorrectableBlocks().State()) {
-			s.ethUncorrectable = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndexes[dp.Name()]).Ethernet().FecUncorrectableBlocks().State(), samplingInterval)
-		}
-		if isTelemetryPathPresent(t, dut, gnmi.OC().Component(ochs[dp.Name()]).OpticalChannel().FecUncorrectableBlocks().State()) {
-			s.ochUncorrectable = samplestream.New(t, dut, gnmi.OC().Component(ochs[dp.Name()]).OpticalChannel().FecUncorrectableBlocks().State(), samplingInterval)
-		}
-		if isTelemetryPathPresent(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().Counters().FecUncorrectableBlocks().State()) {
-			s.intfUncorrectable = samplestream.New(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().Counters().FecUncorrectableBlocks().State(), samplingInterval)
-		}
-		if isTelemetryPathPresent(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().Counters().FecCorrectedBlocks().State()) {
-			s.intfCorrected = samplestream.New(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().Counters().FecCorrectedBlocks().State(), samplingInterval)
-		}
-		if dp.PMD() != ondatra.PMD400GBASEZR && dp.PMD() != ondatra.PMD400GBASEZRP {
-			s.inFcsErrors = samplestream.New(t, dut, gnmi.OC().Interface(dp.Name()).Counters().InFcsErrors().State(), samplingInterval)
-		}
-		fecStreams[dp.Name()] = s
-		t.Cleanup(s.closeAll)
+	// Step 3a: Transient link disturbance via an administrative interface flap on port1.
+	p1 := ports[0]
+	setInterfaceEnabled(t, dut, p1.name, false)
+	awaitOperStatus(t, dut, p1.name, oc.Interface_OperStatus_DOWN, linkUpTimeout)
+	// The README requires port1 to stay DOWN for one PM interval before it is re-enabled.
+	time.Sleep(sampleInterval)
+	setInterfaceEnabled(t, dut, p1.name, true)
+	for _, p := range ports {
+		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
 	}
+	validateAllFEC(t, dut, ports, streams, "Step 3a (after interface flap)", 2)
 
-	baselineOTNUncorrectable := make(map[string]uint64, len(ports))
-	for _, dp := range ports {
-		stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-		if deviations.NonIntervalFecErrorCounter(dut) {
-			initSample, ok := stream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-				_, present := v.Val()
-				return present
-			})
-			if !ok || initSample == nil {
-				t.Fatalf("Port %s: failed to read initial OTN fec-uncorrectable-blocks sample", dp.Name())
-			}
-			baselineOTNUncorrectable[dp.Name()], _ = initSample.Val()
-		}
-		pathDesc := dp.Name() + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks (Step 2 Baseline)"
-		baselineOTNUncorrectable[dp.Name()] = validateFECSampleStream(t, dut, stream, pathDesc, 3, baselineOTNUncorrectable[dp.Name()])
-		verifySecondaryFECStreams(t, dut, dp.Name(), fecStreams[dp.Name()])
+	// Step 3b: Transient link disturbance via a transceiver power toggle on port1.
+	if deviations.TransceiverConfigEnableUnsupported(dut) {
+		t.Logf("Skipping the transceiver toggle: deviation TransceiverConfigEnableUnsupported is set")
+		return
 	}
-
-	// Step 3a: Transient Link Disturbance via Interface Flap
-	toggleInterface(t, dut, dp1.Name(), false)
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), linkUpTimeout, oc.Interface_OperStatus_DOWN)
-	fecStreams[dp1.Name()].primaryUncorrectableStream(t, dut, dp1, otnIndexes[dp1.Name()]).AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-		_, present := v.Val()
-		return present
-	})
-	if dut.Vendor() == ondatra.CISCO {
-		configureL3Subinterface(t, dut, dp1.Name(), ipv4Addrs[dp1.Name()], ipv6Addrs[dp1.Name()])
-	} else {
-		configurePortL3AndOptical(t, dut, dp1, trs[dp1.Name()], ochs[dp1.Name()], otnIndexes[dp1.Name()], ethIndexes[dp1.Name()], ipv4Addrs[dp1.Name()], ipv6Addrs[dp1.Name()])
+	setTransceiverEnabled(t, dut, p1.tr, false)
+	awaitOperStatus(t, dut, p1.name, oc.Interface_OperStatus_DOWN, linkUpTimeout)
+	setTransceiverEnabled(t, dut, p1.tr, true)
+	for _, p := range ports {
+		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
 	}
-	for _, dp := range ports {
-		await400ZROpticalLinkUp(t, dut, dp.Name(), ochs[dp.Name()], linkUpTimeout)
-	}
-	for _, dp := range ports {
-		stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-		if deviations.NonIntervalFecErrorCounter(dut) {
-			if postFlapSample, ok := stream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-				_, present := v.Val()
-				return present
-			}); ok && postFlapSample != nil {
-				baselineOTNUncorrectable[dp.Name()], _ = postFlapSample.Val()
-			}
-		}
-		pathDesc := dp.Name() + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks (Step 3a Post-Interface-Flap)"
-		baselineOTNUncorrectable[dp.Name()] = validateFECSampleStream(t, dut, stream, pathDesc, 2, baselineOTNUncorrectable[dp.Name()])
-		verifySecondaryFECStreams(t, dut, dp.Name(), fecStreams[dp.Name()])
-	}
-
-	// Step 3b: Transient Link Disturbance via Transceiver Toggle
-	if !deviations.TransceiverConfigEnableUnsupported(dut) {
-		toggleTransceiver(t, dut, trs[dp1.Name()], false)
-		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), linkUpTimeout, oc.Interface_OperStatus_DOWN)
-		toggleTransceiver(t, dut, trs[dp1.Name()], true)
-		for _, dp := range ports {
-			await400ZROpticalLinkUp(t, dut, dp.Name(), ochs[dp.Name()], linkUpTimeout)
-		}
-		for _, dp := range ports {
-			stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-			if deviations.NonIntervalFecErrorCounter(dut) {
-				if postToggleSample, ok := stream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-					_, present := v.Val()
-					return present
-				}); ok && postToggleSample != nil {
-					baselineOTNUncorrectable[dp.Name()], _ = postToggleSample.Val()
-				}
-			}
-			pathDesc := dp.Name() + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks (Step 3b Post-Transceiver-Toggle)"
-			baselineOTNUncorrectable[dp.Name()] = validateFECSampleStream(t, dut, stream, pathDesc, 2, baselineOTNUncorrectable[dp.Name()])
-			verifySecondaryFECStreams(t, dut, dp.Name(), fecStreams[dp.Name()])
-		}
-	}
+	validateAllFEC(t, dut, ports, streams, "Step 3b (after transceiver toggle)", 2)
 }
 
-func verifyPLQCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	plqClient := dut.RawAPIs().GNOI(t).LinkQualification()
-	minBps, minMTU, minPPS := plqMinBps, plqPacketSize, plqPacketRate
-	if devMTU := deviations.PLQGeneratorCapabilitiesMaxMTU(dut); devMTU != 0 && devMTU < minMTU {
-		minBps = minBps * uint64(devMTU) / uint64(minMTU)
-		minMTU = devMTU
-	}
-	if devPPS := deviations.PLQGeneratorCapabilitiesMaxPPS(dut); devPPS != 0 && devPPS < minPPS {
-		minPPS = devPPS
-	}
+// plqPlan holds the PLQ parameters derived from the DUT capabilities.
+type plqPlan struct {
+	packetSize  uint32
+	packetRate  uint64
+	usePMD      bool
+	setup       time.Duration
+	teardown    time.Duration
+	completedBy time.Duration
+}
 
-	resp, err := plqClient.Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+func maxDuration(ds ...time.Duration) time.Duration {
+	m := ds[0]
+	for _, d := range ds[1:] {
+		if d > m {
+			m = d
+		}
+	}
+	return m
+}
+
+// planPLQ verifies the gNOI LinkQualification capabilities required by TRANSCEIVER-10.1.2 and
+// derives the generator rate, reflector type and timers.
+func planPLQ(t *testing.T, dut *ondatra.DUTDevice) *plqPlan {
+	t.Helper()
+	resp, err := dut.RawAPIs().GNOI(t).LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 	if err != nil {
 		t.Fatalf("LinkQualification.Capabilities() failed: %v", err)
 	}
-	genCap := resp.GetGenerator().GetPacketGenerator()
-	if genCap == nil {
-		t.Fatalf("DUT %s does not report PacketGenerator capabilities", dut.Name())
-	}
-	if got := genCap.GetMaxBps(); got < minBps {
-		t.Errorf("PacketGenerator MaxBps: got %d, want >= %d", got, minBps)
-	}
-	if got := genCap.GetMaxMtu(); got < minMTU {
-		t.Errorf("PacketGenerator MaxMtu: got %d, want >= %d", got, minMTU)
-	}
-	if got := genCap.GetMaxPps(); got < minPPS {
-		t.Errorf("PacketGenerator MaxPps: got %d, want >= %d", got, minPPS)
-	}
-	refCap := resp.GetReflector()
-	if refCap == nil || (refCap.GetAsicLoopback() == nil && refCap.GetPmdLoopback() == nil) {
-		t.Fatalf("DUT %s does not report AsicLoopback or PmdLoopback reflector capabilities", dut.Name())
-	}
-}
+	t.Logf("LinkQualification.Capabilities(): %v", resp)
 
-func runAndVerifyPLQ(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, ports []*ondatra.Port, fecStreams map[string]*portFECStreams, otnIndexes map[string]uint32, baselineOTN map[string]uint64) {
-	t.Helper()
-	plqClient := dut.RawAPIs().GNOI(t).LinkQualification()
-	cleanupPLQ(t, dut, []string{nearEndQualID, farEndQualID})
-
-	resp, err := plqClient.Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-	if err != nil {
-		t.Fatalf("LinkQualification.Capabilities() failed: %v", err)
+	gen := resp.GetGenerator().GetPacketGenerator()
+	if gen == nil {
+		t.Fatalf("DUT %s does not report packet generator capabilities", dut.Name())
 	}
-	genCap := resp.GetGenerator().GetPacketGenerator()
-	refCap := resp.GetReflector()
-
-	reflectorCfg := &plqpb.QualificationConfiguration{
-		Id:            farEndQualID,
-		InterfaceName: dp2.Name(),
-	}
-	if refCap.GetPmdLoopback() != nil && (dut.Vendor() == ondatra.NOKIA || refCap.GetAsicLoopback() == nil) {
-		reflectorCfg.EndpointType = &plqpb.QualificationConfiguration_PmdLoopback{PmdLoopback: &plqpb.PmdLoopbackConfiguration{}}
-	} else {
-		reflectorCfg.EndpointType = &plqpb.QualificationConfiguration_AsicLoopback{AsicLoopback: &plqpb.AsicLoopbackConfiguration{}}
-	}
-
 	packetSize := plqPacketSize
-	if devMTU := deviations.PLQGeneratorCapabilitiesMaxMTU(dut); devMTU != 0 && devMTU < packetSize {
-		packetSize = devMTU
+	if dev := deviations.PLQGeneratorCapabilitiesMaxMTU(dut); dev != 0 && dev < packetSize {
+		packetSize = dev
 	}
-	if maxMTU := genCap.GetMaxMtu(); maxMTU > 0 && maxMTU < packetSize {
-		packetSize = maxMTU
+	if got := gen.GetMaxMtu(); got < packetSize {
+		t.Errorf("Generator max_mtu: got %d, want >= %d", got, packetSize)
 	}
-	packetRate := plqPacketRate
-	if devPPS := deviations.PLQGeneratorCapabilitiesMaxPPS(dut); devPPS != 0 && devPPS < packetRate {
-		packetRate = devPPS
+	minBps := plqMinGeneratorBps
+	if dev := deviations.PLQGeneratorCapabilitiesMaxBPS(dut); dev != 0 && dev < minBps {
+		minBps = dev
 	}
-
-	genSetup, genTeardown := plqSetupDuration, plqTeardown
-	if minSetup := genCap.GetMinSetupDuration().AsDuration(); minSetup > genSetup {
-		genSetup = minSetup
-	}
-	if minTd := genCap.GetMinTeardownDuration().AsDuration(); minTd > genTeardown {
-		genTeardown = minTd
-	}
-	refSetup, refTeardown := plqSetupDuration, plqTeardown
-	if lb := refCap.GetAsicLoopback(); lb != nil {
-		if minSetup := lb.GetMinSetupDuration().AsDuration(); minSetup > refSetup {
-			refSetup = minSetup
-		}
-		if minTd := lb.GetMinTeardownDuration().AsDuration(); minTd > refTeardown {
-			refTeardown = minTd
-		}
-	}
-	if genSetup != refSetup {
-		if genSetup > refSetup {
-			refSetup = genSetup
-		} else {
-			genSetup = refSetup
-		}
-	}
-	if genTeardown != refTeardown {
-		if genTeardown > refTeardown {
-			refTeardown = genTeardown
-		} else {
-			genTeardown = refTeardown
-		}
+	if got := gen.GetMaxBps(); got < minBps {
+		t.Errorf("Generator max_bps: got %d, want >= %d", got, minBps)
 	}
 
-	reflectorCfg.Timing = &plqpb.QualificationConfiguration_Rpc{
-		Rpc: &plqpb.RPCSyncedTiming{
-			PreSyncDuration:  durationpb.New(0),
-			SetupDuration:    durationpb.New(refSetup),
-			Duration:         durationpb.New(plqDuration),
-			PostSyncDuration: durationpb.New(plqPostSync),
-			TeardownDuration: durationpb.New(refTeardown),
-		},
+	// Run at 99% of the 400ZR line rate, capped by what the generator supports. A zero capability
+	// value means the generator reports no limit.
+	packetRate := plqLineRateBps * plqLineRatePercent / 100 / (8 * (uint64(packetSize) + plqFrameOverhead))
+	if r := gen.GetMaxBps() / (8 * uint64(packetSize)); r != 0 && r < packetRate {
+		packetRate = r
 	}
+	if r := gen.GetMaxPps(); r != 0 && r < packetRate {
+		packetRate = r
+	}
+	if r := deviations.PLQGeneratorCapabilitiesMaxPPS(dut); r != 0 && r < packetRate {
+		packetRate = r
+	}
+	t.Logf("PLQ generator: packet_size=%d bytes, packet_rate=%d pps (%.2f Gbps)", packetSize, packetRate, float64(packetRate*uint64(packetSize)*8)/1e9)
 
-	createResp, err := plqClient.Create(context.Background(), &plqpb.CreateRequest{
-		Interfaces: []*plqpb.QualificationConfiguration{
-			{
-				Id:            nearEndQualID,
-				InterfaceName: dp1.Name(),
-				Timing: &plqpb.QualificationConfiguration_Rpc{
-					Rpc: &plqpb.RPCSyncedTiming{
-						PreSyncDuration:  durationpb.New(plqPreSync),
-						SetupDuration:    durationpb.New(genSetup),
-						Duration:         durationpb.New(plqDuration),
-						PostSyncDuration: durationpb.New(0),
-						TeardownDuration: durationpb.New(genTeardown),
-					},
-				},
-				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
-					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
-						PacketRate: packetRate,
-						PacketSize: packetSize,
-					},
-				},
+	ref := resp.GetReflector()
+	var refSetup, refTeardown time.Duration
+	usePMD := false
+	switch {
+	case ref.GetAsicLoopback().GetMinSetupDuration().AsDuration() > 0:
+		refSetup = ref.GetAsicLoopback().GetMinSetupDuration().AsDuration()
+		refTeardown = ref.GetAsicLoopback().GetMinTeardownDuration().AsDuration()
+	case ref.GetPmdLoopback().GetMinSetupDuration().AsDuration() > 0:
+		usePMD = true
+		refSetup = ref.GetPmdLoopback().GetMinSetupDuration().AsDuration()
+		refTeardown = ref.GetPmdLoopback().GetMinTeardownDuration().AsDuration()
+	default:
+		t.Fatalf("DUT %s does not report ASIC or PMD loopback reflector capabilities: %v", dut.Name(), ref)
+	}
+	setup := maxDuration(plqMinSetup, gen.GetMinSetupDuration().AsDuration(), refSetup)
+	teardown := maxDuration(plqMinTeardown, gen.GetMinTeardownDuration().AsDuration(), refTeardown)
+	return &plqPlan{
+		packetSize:  packetSize,
+		packetRate:  packetRate,
+		usePMD:      usePMD,
+		setup:       setup,
+		teardown:    teardown,
+		completedBy: plqGeneratorPreSync + setup + plqDuration + plqReflectorPostSync + teardown + 2*time.Minute,
+	}
+}
+
+func createPLQ(t *testing.T, dut *ondatra.DUTDevice, gen, ref *zrPort, plan *plqPlan) {
+	t.Helper()
+	reflector := &plqpb.QualificationConfiguration{
+		Id:            farEndQualID,
+		InterfaceName: ref.name,
+		Timing: &plqpb.QualificationConfiguration_Rpc{
+			Rpc: &plqpb.RPCSyncedTiming{
+				PreSyncDuration:  durationpb.New(0),
+				SetupDuration:    durationpb.New(plan.setup),
+				Duration:         durationpb.New(plqDuration),
+				PostSyncDuration: durationpb.New(plqReflectorPostSync),
+				TeardownDuration: durationpb.New(plan.teardown),
 			},
-			reflectorCfg,
 		},
+	}
+	if plan.usePMD {
+		reflector.EndpointType = &plqpb.QualificationConfiguration_PmdLoopback{PmdLoopback: &plqpb.PmdLoopbackConfiguration{}}
+	} else {
+		reflector.EndpointType = &plqpb.QualificationConfiguration_AsicLoopback{AsicLoopback: &plqpb.AsicLoopbackConfiguration{}}
+	}
+	generator := &plqpb.QualificationConfiguration{
+		Id:            nearEndQualID,
+		InterfaceName: gen.name,
+		Timing: &plqpb.QualificationConfiguration_Rpc{
+			Rpc: &plqpb.RPCSyncedTiming{
+				PreSyncDuration:  durationpb.New(plqGeneratorPreSync),
+				SetupDuration:    durationpb.New(plan.setup),
+				Duration:         durationpb.New(plqDuration),
+				PostSyncDuration: durationpb.New(0),
+				TeardownDuration: durationpb.New(plan.teardown),
+			},
+		},
+		EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
+			PacketGenerator: &plqpb.PacketGeneratorConfiguration{
+				PacketRate: plan.packetRate,
+				PacketSize: plan.packetSize,
+			},
+		},
+	}
+	resp, err := dut.RawAPIs().GNOI(t).LinkQualification().Create(context.Background(), &plqpb.CreateRequest{
+		Interfaces: []*plqpb.QualificationConfiguration{generator, reflector},
 	})
 	if err != nil {
 		t.Fatalf("LinkQualification.Create() failed: %v", err)
 	}
-	for id, st := range createResp.GetStatus() {
+	for id, st := range resp.GetStatus() {
 		if st.GetCode() != 0 {
-			t.Fatalf("LinkQualification.Create() returned non-OK status for %s: %v", id, st)
+			t.Fatalf("LinkQualification.Create() returned status %v for %s", st, id)
 		}
 	}
-	if !deviations.SkipPlqInterfaceOperStatusCheck(dut) {
-		for _, p := range []*ondatra.Port{dp1, dp2} {
-			gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_TESTING)
-		}
-	}
+}
 
-	// Verify FEC uncorrectable blocks remain 0 during the active qualification window.
-	for _, dp := range ports {
-		gotOTN := fecStreams[dp.Name()].getPrimaryUncorrectableBlocks(t, dut, dp, otnIndexes[dp.Name()])
-		wantOTN := uint64(0)
-		if deviations.NonIntervalFecErrorCounter(dut) {
-			wantOTN = baselineOTN[dp.Name()]
-		}
-		if gotOTN != wantOTN {
-			t.Errorf("Port %s during-PLQ gNMI.Get fec-uncorrectable-blocks: got %d, want %d", dp.Name(), gotOTN, wantOTN)
-		}
-		pathDesc := dp.Name() + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks (Step 2 During PLQ)"
-		stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-		baselineOTN[dp.Name()] = validateFECSampleStream(t, dut, stream, pathDesc, 1, baselineOTN[dp.Name()])
-	}
-
-	deadline := time.Now().Add(5 * time.Minute)
+// awaitPLQStates polls LinkQualification.List until every qualification ID reaches want. The gNOI
+// LinkQualification service has no streaming RPC, so polling is required.
+func awaitPLQStates(t *testing.T, dut *ondatra.DUTDevice, want plqpb.QualificationState, timeout time.Duration, ids ...string) {
+	t.Helper()
+	client := dut.RawAPIs().GNOI(t).LinkQualification()
+	deadline := time.Now().Add(timeout)
 	for {
-		listResp, err := plqClient.List(context.Background(), &plqpb.ListRequest{})
+		resp, err := client.List(context.Background(), &plqpb.ListRequest{})
 		if err != nil {
 			t.Fatalf("LinkQualification.List() failed: %v", err)
 		}
-		allCompleted := len(listResp.GetResults()) >= 2
-		for _, res := range listResp.GetResults() {
-			if res.GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
-				allCompleted = false
+		reached := 0
+		for _, res := range resp.GetResults() {
+			for _, id := range ids {
+				if res.GetId() != id {
+					continue
+				}
+				if res.GetState() == plqpb.QualificationState_QUALIFICATION_STATE_ERROR {
+					details, _ := client.Get(context.Background(), &plqpb.GetRequest{Ids: ids})
+					t.Fatalf("PLQ session %s on %s entered QUALIFICATION_STATE_ERROR: %v", id, res.GetInterfaceName(), details)
+				}
+				if res.GetState() == want || (want == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING && res.GetState() == plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED) {
+					reached++
+				}
 			}
-			if res.GetState() == plqpb.QualificationState_QUALIFICATION_STATE_ERROR {
-				errGetResp, _ := plqClient.Get(context.Background(), &plqpb.GetRequest{Ids: []string{nearEndQualID, farEndQualID}})
-				t.Fatalf("PLQ session %s on %s entered QUALIFICATION_STATE_ERROR (details: %v)", res.GetId(), res.GetInterfaceName(), errGetResp)
-			}
 		}
-		if allCompleted {
-			break
+		if reached == len(ids) {
+			return
 		}
-		if time.Until(deadline) <= 0 {
-			t.Fatalf("PLQ sessions (%s, %s) did not reach QUALIFICATION_STATE_COMPLETED within 5m", nearEndQualID, farEndQualID)
+		if time.Now().After(deadline) {
+			t.Fatalf("PLQ sessions %v did not reach %v within %v: %v", ids, want, timeout, resp.GetResults())
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(plqStatePollInterval)
 	}
+}
 
-	getResp, err := plqClient.Get(context.Background(), &plqpb.GetRequest{Ids: []string{nearEndQualID, farEndQualID}})
+func verifyPLQResults(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	ids := []string{nearEndQualID, farEndQualID}
+	resp, err := dut.RawAPIs().GNOI(t).LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: ids})
 	if err != nil {
 		t.Fatalf("LinkQualification.Get() failed: %v", err)
 	}
-	for _, id := range []string{nearEndQualID, farEndQualID} {
-		res, ok := getResp.GetResults()[id]
+	for _, id := range ids {
+		res, ok := resp.GetResults()[id]
 		if !ok {
-			t.Errorf("LinkQualification.Get() missing result for ID %q", id)
+			t.Errorf("LinkQualification.Get() has no result for %q", id)
 			continue
 		}
-		if res.GetStatus().GetCode() != 0 {
-			t.Errorf("Result[%s] status code: got %d, want 0", id, res.GetStatus().GetCode())
+		t.Logf("LinkQualification.Get() result for %s: %v", id, res)
+		if got := res.GetStatus().GetCode(); got != 0 {
+			t.Errorf("Result[%s] status code: got %d, want 0", id, got)
 		}
-		if res.GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
-			t.Errorf("Result[%s] state: got %v, want QUALIFICATION_STATE_COMPLETED", id, res.GetState())
+		if got := res.GetState(); got != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
+			t.Errorf("Result[%s] state: got %v, want QUALIFICATION_STATE_COMPLETED", id, got)
 		}
-		if res.GetPacketsError() != 0 {
-			t.Errorf("Result[%s] packets_error: got %d, want 0", id, res.GetPacketsError())
+		if got := res.GetPacketsError(); got != 0 {
+			t.Errorf("Result[%s] packets_error: got %d, want 0", id, got)
 		}
-		if res.GetPacketsDropped() != 0 {
-			t.Errorf("Result[%s] packets_dropped: got %d, want 0", id, res.GetPacketsDropped())
+		if got := res.GetPacketsDropped(); got != 0 {
+			t.Errorf("Result[%s] packets_dropped: got %d, want 0", id, got)
 		}
 		if id == farEndQualID && deviations.PLQReflectorStatsUnsupported(dut) {
 			continue
 		}
-		sent, rxed := res.GetPacketsSent(), res.GetPacketsReceived()
-		if sent == 0 || rxed == 0 {
-			t.Errorf("Result[%s] packets sent/received must be > 0: sent=%d, received=%d", id, sent, rxed)
-		}
-		const tolerancePct = 0.0001
-		if sent > 0 && (math.Abs(float64(sent)-float64(rxed))/float64(sent))*100.0 > tolerancePct {
-			if diff := cmp.Diff(sent, rxed); diff != "" {
-				t.Errorf("Result[%s] packets_sent != packets_received (-sent +received):\n%s", id, diff)
-			}
+		sent, received := res.GetPacketsSent(), res.GetPacketsReceived()
+		if sent == 0 || sent != received {
+			t.Errorf("Result[%s]: packets_sent=%d, packets_received=%d, want equal and non-zero", id, sent, received)
 		}
 	}
-	cleanupPLQ(t, dut, []string{nearEndQualID, farEndQualID})
 }
 
-func cleanupPLQ(t *testing.T, dut *ondatra.DUTDevice, ids []string) {
+// cleanupPLQ deletes every qualification session on the given ports and waits until none remain.
+func cleanupPLQ(t *testing.T, dut *ondatra.DUTDevice, ports []*zrPort) {
 	t.Helper()
-	plqClient := dut.RawAPIs().GNOI(t).LinkQualification()
-	listResp, err := plqClient.List(context.Background(), &plqpb.ListRequest{})
-	if err != nil || len(listResp.GetResults()) == 0 {
+	client := dut.RawAPIs().GNOI(t).LinkQualification()
+	onPorts := func() ([]string, error) {
+		resp, err := client.List(context.Background(), &plqpb.ListRequest{})
+		if err != nil {
+			return nil, err
+		}
+		var ids []string
+		for _, res := range resp.GetResults() {
+			for _, p := range ports {
+				if res.GetInterfaceName() == p.name {
+					ids = append(ids, res.GetId())
+				}
+			}
+		}
+		return ids, nil
+	}
+	ids, err := onPorts()
+	if err != nil {
+		t.Errorf("LinkQualification.List() failed: %v", err)
 		return
 	}
-	if _, err := plqClient.Delete(context.Background(), &plqpb.DeleteRequest{Ids: ids}); err != nil {
-		t.Logf("LinkQualification.Delete(%v) returned error: %v", ids, err)
+	if len(ids) == 0 {
+		return
 	}
-	for i := 0; i < 6; i++ {
-		if lr, err := plqClient.List(context.Background(), &plqpb.ListRequest{}); err == nil && len(lr.GetResults()) == 0 {
+	if _, err := client.Delete(context.Background(), &plqpb.DeleteRequest{Ids: ids}); err != nil {
+		t.Errorf("LinkQualification.Delete(%v) failed: %v", ids, err)
+		return
+	}
+	deadline := time.Now().Add(plqDeleteTimeout)
+	for {
+		remaining, err := onPorts()
+		if err == nil && len(remaining) == 0 {
 			return
 		}
-		time.Sleep(5 * time.Second)
+		if time.Now().After(deadline) {
+			t.Errorf("LinkQualification.List() still has sessions %v (err: %v) after Delete", remaining, err)
+			return
+		}
+		time.Sleep(plqStatePollInterval)
 	}
 }
 
-// TestZrLinkQualificationAndDualStackTraffic validates TRANSCEIVER-10.1.2: Validate 400ZR Link
-// Qualification and Dual-Stack Traffic.
-func TestZrLinkQualificationAndDualStackTraffic(t *testing.T) {
+// verifyIPState fails the test if the configured IPv4 or IPv6 address is missing from state.
+func verifyIPState(t *testing.T, dut *ondatra.DUTDevice, p *zrPort, phase string) {
+	t.Helper()
+	sub := gnmi.OC().Interface(p.name).Subinterface(0)
+	if _, ok := gnmi.Watch(t, dut, sub.Ipv4().Address(p.ipv4).Ip().State(), ipStateTimeout, func(v *ygnmi.Value[string]) bool {
+		ip, present := v.Val()
+		return present && ip == p.ipv4
+	}).Await(t); !ok {
+		t.Errorf("%s: port %s IPv4 address %s is not present in state", phase, p.name, p.ipv4)
+	}
+	if _, ok := gnmi.Watch(t, dut, sub.Ipv6().Address(p.ipv6).Ip().State(), ipStateTimeout, func(v *ygnmi.Value[string]) bool {
+		ip, present := v.Val()
+		return present && ip == p.ipv6
+	}).Await(t); !ok {
+		t.Errorf("%s: port %s IPv6 address %s is not present in state", phase, p.name, p.ipv6)
+	}
+}
+
+// TestZrLinkQualification validates TRANSCEIVER-10.1.2: Validate 400ZR Link Qualification and
+// Post-Qualification Link Health.
+func TestZrLinkQualification(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	ports := []*ondatra.Port{dp1, dp2}
-
-	otnIndexes := map[string]uint32{dp1.Name(): otnIndex1, dp2.Name(): otnIndex2}
-	ethIndexes := map[string]uint32{dp1.Name(): ethIndex1, dp2.Name(): ethIndex2}
-	ipv4Addrs := map[string]string{dp1.Name(): port1IPv4, dp2.Name(): port2IPv4}
-	ipv6Addrs := map[string]string{dp1.Name(): port1IPv6, dp2.Name(): port2IPv6}
-	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.JUNIPER || dut.Vendor() == ondatra.CISCO {
-		ipv4Addrs[dp2.Name()] = "192.0.2.5"
-		ipv6Addrs[dp2.Name()] = "2001:db8::5"
-	}
-
-	trs := make(map[string]string, len(ports))
-	ochs := make(map[string]string, len(ports))
-	for _, dp := range ports {
-		trs[dp.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-		ochs[dp.Name()] = components.OpticalChannelComponentFromPort(t, dut, dp)
-	}
-
-	operationalMode = uint16(*operationalModeFlag)
-	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
-
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, uint16(*operationalModeFlag))
+	ports := zrPorts(t, dut)
 	t.Cleanup(func() {
-		cleanupPLQ(t, dut, []string{nearEndQualID, farEndQualID})
-		cleanupBatch := &gnmi.SetBatch{}
-		_, _ = cfgplugins.NewStaticRouteCfg(cleanupBatch, &cfgplugins.StaticRouteCfg{
-			NetworkInstance:   deviations.DefaultNetworkInstance(dut),
-			Prefix:            destIPv4Prefix,
-			RemoveStaticRoute: true,
-		}, dut)
-		_, _ = cfgplugins.NewStaticRouteCfg(cleanupBatch, &cfgplugins.StaticRouteCfg{
-			NetworkInstance:   deviations.DefaultNetworkInstance(dut),
-			Prefix:            destIPv6Prefix,
-			RemoveStaticRoute: true,
-		}, dut)
-		cleanupBatch.Set(t, dut)
-
-		for _, dp := range ports {
-			if st, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State()).Val(); !ok || st != oc.Interface_OperStatus_UP {
-				configurePortL3AndOptical(t, dut, dp, trs[dp.Name()], ochs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()], ipv4Addrs[dp.Name()], ipv6Addrs[dp.Name()])
-				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), linkUpTimeout, oc.Interface_OperStatus_UP)
-			}
-		}
+		cleanupPLQ(t, dut, ports)
+		restorePorts(t, dut, ports, true)
 	})
 
+	// Step 1: Link configuration and capabilities check.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	// Step 1: Independent Link Configuration & Pre-Qualification Capabilities Check
-	for _, dp := range ports {
-		configurePortL3AndOptical(t, dut, dp, trs[dp.Name()], ochs[dp.Name()], otnIndexes[dp.Name()], ethIndexes[dp.Name()], ipv4Addrs[dp.Name()], ipv6Addrs[dp.Name()])
+	for _, p := range ports {
+		configureLink(t, dut, p)
+		configureL3(t, dut, p)
 	}
-
-	routeBatch := &gnmi.SetBatch{}
-	cfgplugins.ConfigureStaticRoute(t, dut, routeBatch, cfgplugins.ConfigureStaticRouteParams{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          destIPv4Prefix,
-		Index:           "0",
-		NextHop:         port2IPv4,
-	})
-	cfgplugins.ConfigureStaticRoute(t, dut, routeBatch, cfgplugins.ConfigureStaticRouteParams{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          destIPv6Prefix,
-		Index:           "0",
-		NextHop:         port2IPv6,
-	})
-	routeBatch.Set(t, dut)
-
-	for _, dp := range ports {
-		await400ZROpticalLinkUp(t, dut, dp.Name(), ochs[dp.Name()], linkUpTimeout)
-	}
-
-	fecStreams := make(map[string]*portFECStreams, len(ports))
-	for _, dp := range ports {
-		s := &portFECStreams{
-			otnUncorrectable: samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), samplingInterval),
-		}
-		if dp.PMD() != ondatra.PMD400GBASEZR && dp.PMD() != ondatra.PMD400GBASEZRP {
-			s.inFcsErrors = samplestream.New(t, dut, gnmi.OC().Interface(dp.Name()).Counters().InFcsErrors().State(), samplingInterval)
-		}
-		fecStreams[dp.Name()] = s
-		t.Cleanup(s.closeAll)
-	}
-
-	baselineOTNUncorrectable := make(map[string]uint64, len(ports))
-	for _, dp := range ports {
-		if deviations.NonIntervalFecErrorCounter(dut) {
-			stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-			initSample, ok := stream.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-				_, present := v.Val()
-				return present
-			})
-			if !ok || initSample == nil {
-				t.Fatalf("Port %s: failed to read initial OTN fec-uncorrectable-blocks sample", dp.Name())
-			}
-			baselineOTNUncorrectable[dp.Name()], _ = initSample.Val()
-		}
-	}
-
-	verifyPLQCapabilities(t, dut)
-
-	// Step 2: Packet Link Qualification Execution
-	runAndVerifyPLQ(t, dut, dp1, dp2, ports, fecStreams, otnIndexes, baselineOTNUncorrectable)
-
-	for _, dp := range ports {
-		gotOTN := fecStreams[dp.Name()].getPrimaryUncorrectableBlocks(t, dut, dp, otnIndexes[dp.Name()])
-		wantOTN := uint64(0)
-		if deviations.NonIntervalFecErrorCounter(dut) {
-			wantOTN = baselineOTNUncorrectable[dp.Name()]
-		}
-		if gotOTN != wantOTN {
-			t.Errorf("Port %s post-PLQ gNMI.Get fec-uncorrectable-blocks: got %d, want %d", dp.Name(), gotOTN, wantOTN)
-		}
-		pathDesc := dp.Name() + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks (Step 2 Post-PLQ)"
-		stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-		baselineOTNUncorrectable[dp.Name()] = validateFECSampleStream(t, dut, stream, pathDesc, 1, baselineOTNUncorrectable[dp.Name()])
-	}
-
-	// Step 3: Post-Qualification Dual-Stack Traffic and Counter Verification
-	for _, dp := range ports {
-		gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), linkUpTimeout, oc.Interface_OperStatus_UP)
-
-		var baselineInFcs uint64
+	otnStreams := make(map[string]*samplestream.SampleStream[uint64], len(ports))
+	inFcsBaseline := make(map[string]uint64, len(ports))
+	for _, p := range ports {
+		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
+		verifyIPState(t, dut, p, "Before PLQ")
+		otnStreams[p.name] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(p.otnIdx).Otn().FecUncorrectableBlocks().State(), sampleInterval)
+		t.Cleanup(otnStreams[p.name].Close)
 		if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-			baselineInFcs, _ = gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Counters().InFcsErrors().State()).Val()
+			inFcsBaseline[p.name] = gnmi.Get(t, dut, gnmi.OC().Interface(p.name).Counters().InFcsErrors().State())
 		}
+	}
+	plan := planPLQ(t, dut)
 
-		v4AddrPath := gnmi.OC().Interface(dp.Name()).Subinterface(0).Ipv4().Address(ipv4Addrs[dp.Name()])
-		if _, ok := gnmi.Watch(t, dut, v4AddrPath.Ip().State(), 15*time.Second, func(v *ygnmi.Value[string]) bool {
-			ip, present := v.Val()
-			return present && ip == ipv4Addrs[dp.Name()]
-		}).Await(t); !ok {
-			configureL3Subinterface(t, dut, dp.Name(), ipv4Addrs[dp.Name()], ipv6Addrs[dp.Name()])
-			if got, ok := gnmi.Lookup(t, dut, v4AddrPath.Ip().Config()).Val(); !ok || got != ipv4Addrs[dp.Name()] {
-				t.Errorf("Port %s IPv4 address config/state mismatch: got (%q, %v), want %q", dp.Name(), got, ok, ipv4Addrs[dp.Name()])
-			}
+	// Step 2: Packet Link Qualification.
+	cleanupPLQ(t, dut, ports)
+	createPLQ(t, dut, ports[0], ports[1], plan)
+	if !deviations.SkipPlqInterfaceOperStatusCheck(dut) {
+		for _, p := range ports {
+			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_TESTING, plqGeneratorPreSync+plan.setup+time.Minute)
 		}
+	}
+	// Check FEC only once the generator is sending packets.
+	awaitPLQStates(t, dut, plqpb.QualificationState_QUALIFICATION_STATE_RUNNING, plqGeneratorPreSync+plan.setup+time.Minute, nearEndQualID)
+	for _, p := range ports {
+		settleAndValidateFEC(t, dut, otnStreams[p.name], "Step 2 (during PLQ) "+p.name+" /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", 1)
+	}
+	awaitPLQStates(t, dut, plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED, plan.completedBy, nearEndQualID, farEndQualID)
+	verifyPLQResults(t, dut)
+	cleanupPLQ(t, dut, ports)
 
-		v6AddrPath := gnmi.OC().Interface(dp.Name()).Subinterface(0).Ipv6().Address(ipv6Addrs[dp.Name()])
-		if _, ok := gnmi.Watch(t, dut, v6AddrPath.Ip().State(), 15*time.Second, func(v *ygnmi.Value[string]) bool {
-			ip, present := v.Val()
-			return present && ip == ipv6Addrs[dp.Name()]
-		}).Await(t); !ok {
-			configureL3Subinterface(t, dut, dp.Name(), ipv4Addrs[dp.Name()], ipv6Addrs[dp.Name()])
-			if got, ok := gnmi.Lookup(t, dut, v6AddrPath.Ip().Config()).Val(); !ok || got != ipv6Addrs[dp.Name()] {
-				t.Errorf("Port %s IPv6 address config/state mismatch: got (%q, %v), want %q", dp.Name(), got, ok, ipv6Addrs[dp.Name()])
-			}
-		}
-
-		countersPath := gnmi.OC().Interface(dp.Name()).Counters()
-		if pkts, ok := gnmi.Lookup(t, dut, countersPath.OutPkts().State()).Val(); !ok || pkts == 0 {
-			if val, ok := gnmi.Watch(t, dut, countersPath.OutPkts().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
-				pkts, present := v.Val()
-				return present && pkts > 0
-			}).Await(t); !ok {
-				t.Errorf("Port %s out-pkts did not exceed 0 (last: %v)", dp.Name(), val)
-			}
-		}
-		if pkts, ok := gnmi.Lookup(t, dut, countersPath.InPkts().State()).Val(); !ok || pkts == 0 {
-			if val, ok := gnmi.Watch(t, dut, countersPath.InPkts().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
-				pkts, present := v.Val()
-				return present && pkts > 0
-			}).Await(t); !ok {
-				t.Errorf("Port %s in-pkts did not exceed 0 (last: %v)", dp.Name(), val)
-			}
-		}
-
+	// Step 3: Post-qualification link health.
+	for _, p := range ports {
+		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
+		verifyIPState(t, dut, p, "After PLQ")
 		if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
-			if got, ok := gnmi.Lookup(t, dut, countersPath.InFcsErrors().State()).Val(); ok && got > baselineInFcs {
-				t.Errorf("Port %s in-fcs-errors increased post-qualification: baseline=%d, current=%d", dp.Name(), baselineInFcs, got)
+			if got := gnmi.Get(t, dut, gnmi.OC().Interface(p.name).Counters().InFcsErrors().State()); got != inFcsBaseline[p.name] {
+				t.Errorf("Port %s in-fcs-errors changed across PLQ: before=%d, after=%d", p.name, inFcsBaseline[p.name], got)
 			}
 		}
-
-		gotOTN := fecStreams[dp.Name()].getPrimaryUncorrectableBlocks(t, dut, dp, otnIndexes[dp.Name()])
-		wantOTN := uint64(0)
-		if deviations.NonIntervalFecErrorCounter(dut) {
-			wantOTN = baselineOTNUncorrectable[dp.Name()]
-		}
-		if gotOTN != wantOTN {
-			t.Errorf("Port %s post-traffic gNMI.Get fec-uncorrectable-blocks: got %d, want %d", dp.Name(), gotOTN, wantOTN)
-		}
-
-		pathDesc := dp.Name() + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks (Step 3 Post-Traffic)"
-		stream := fecStreams[dp.Name()].primaryUncorrectableStream(t, dut, dp, otnIndexes[dp.Name()])
-		baselineOTNUncorrectable[dp.Name()] = validateFECSampleStream(t, dut, stream, pathDesc, 1, baselineOTNUncorrectable[dp.Name()])
-
-		t.Logf("Port %s counters: out-pkts=%d, in-pkts=%d", dp.Name(), gnmi.Get(t, dut, countersPath.OutPkts().State()), gnmi.Get(t, dut, countersPath.InPkts().State()))
+		settleAndValidateFEC(t, dut, otnStreams[p.name], "Step 3 (after PLQ) "+p.name+" /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", 1)
 	}
 }

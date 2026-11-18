@@ -2584,3 +2584,28 @@ func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
+
+// TerminalDeviceEthFecUncorrectableBlocksUnsupported returns true for devices that do not report
+// /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks.
+func TerminalDeviceEthFecUncorrectableBlocksUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTerminalDeviceEthFecUncorrectableBlocksUnsupported()
+}
+
+// OpticalChannelFecUncorrectableBlocksUnsupported returns true for devices that do not report
+// /components/component/optical-channel/state/fec-uncorrectable-blocks.
+func OpticalChannelFecUncorrectableBlocksUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOpticalChannelFecUncorrectableBlocksUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxBPS returns the minimum PLQ generator max_bps expected from devices
+// whose generator cannot reach 100 Gbps. Zero means no deviation.
+func PLQGeneratorCapabilitiesMaxBPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxBps()
+}
+
+// InterfaceMacAddressFromHardwareRequired returns true for devices that need the interface MAC
+// address set to the port's hardware MAC address so that two ports looped back on the same device
+// do not fail IPv6 duplicate address detection.
+func InterfaceMacAddressFromHardwareRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceMacAddressFromHardwareRequired()
+}
