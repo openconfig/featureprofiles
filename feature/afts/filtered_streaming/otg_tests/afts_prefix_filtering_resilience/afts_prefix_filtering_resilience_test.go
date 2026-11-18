@@ -1317,7 +1317,7 @@ func newAFTStreamSessionForIPv4Route(ctx context.Context, t *testing.T, dut *ond
 	routeEntry, _ := route.Val()
 	nextHopNetworkInstance := routeEntry.GetNextHopGroupNetworkInstance()
 	if nextHopNetworkInstance == "" {
-		// An omitted next-hop-group-network-instance refers to the default network instance.
+		// An omitted next-hop-group-network-instance falls back to the default network instance.
 		nextHopNetworkInstance = deviations.DefaultNetworkInstance(dut)
 	}
 	client := aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx})
