@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	baseScenario "github.com/openconfig/featureprofiles/internal/encapfrr"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -426,6 +427,9 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice, portIDx uint32) *oc.I
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
+	if deviations.VendorPreConfigRequired(dut) {
+		cfgplugins.ConfigureDecapVrfSelection(t, dut)
+	}
 	dc := gnmi.OC()
 	for idx, dp := range dutPortList {
 		portIDx := portID + uint32(idx)
@@ -1211,6 +1215,9 @@ func TestTraceRoute(t *testing.T) {
 	client := fluent.NewClient()
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
+	t.Cleanup(func() {
+		client.Stop(t)
+	})
 	client.Start(ctx, t)
 
 	client.StartSending(ctx, t)
@@ -1218,6 +1225,11 @@ func TestTraceRoute(t *testing.T) {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
 	eID := gribi.BecomeLeader(t, client)
+	t.Cleanup(func() {
+		if err := gribi.FlushAll(client); err != nil {
+			t.Error(err)
+		}
+	})
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
