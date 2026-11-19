@@ -17,6 +17,7 @@ platform_exceptions: {
     isis_mpls_unsupported: true
     ipv4_missing_enabled: true
     isis_lsp_tlvs_oc_unsupported: true
+    isis_interface_authentication_container_unsupported: true
   }
 }
 platform_exceptions: {

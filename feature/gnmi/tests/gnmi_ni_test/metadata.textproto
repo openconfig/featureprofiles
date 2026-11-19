@@ -17,14 +17,6 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    default_ni_gnmi_server_name: "gnxi-default"
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: NOKIA
   }
   deviations: {

@@ -1,4 +1,4 @@
-# Pathz: Path-level Authorization (1-4) tests
+# Pathz-1: Path-level Authorization (1-4) tests
 
 ## Summary
 
@@ -96,7 +96,7 @@ The policy used for enforcement tests is defined below.
 }
 ```
 
-### Pathz-1: Policy Rotation and Freshness Verification
+### Pathz-1.1: Policy Rotation and Freshness Verification
 
 This test verifies the rotation mechanism of the Pathz policy and the
 correctness of the telemetry reporting the policy status.
@@ -125,7 +125,7 @@ correctness of the telemetry reporting the policy status.
     *   Attempt to push the same policy version `v1` without changing the version string. The rotation should fail with an error.
     *   Push the policy again with the same version string `v1` but set `force_overwrite` to `true`. The rotation should succeed and can be finalized.
 
-### Pathz-2: Path-level Authorization Enforcement
+### Pathz-1.2: Path-level Authorization Enforcement
 
 This test verifies that the DUT enforces the Pathz policy correctly using the
 "Best Match" algorithm.
@@ -150,7 +150,7 @@ This test verifies that the DUT enforces the Pathz policy correctly using the
     *   Use `gnmi_unauthorized` to perform any `gNMI.Get` or `gNMI.Set`.
         *   Expect: **Permission Denied** (implicit deny).
 
-### Pathz-3: Pathz Policy Verification via Probe RPC
+### Pathz-1.3: Pathz Policy Verification via Probe RPC
 
 This test verifies the `gNSI.Pathz.Probe` RPC functionality.
 
@@ -169,7 +169,7 @@ This test verifies the `gNSI.Pathz.Probe` RPC functionality.
         *   Expect: `action: ACTION_PERMIT` (still using active `v1` policy).
     *   Abort the rotation.
 
-### Pathz-4: Policy Removal via CLI
+### Pathz-1.4: Policy Removal via CLI
 
 This test verifies that a Pathz policy can be removed from the device using vendor-native CLI commands, and that this removal is correctly reflected in the gNSI Pathz service.
 
