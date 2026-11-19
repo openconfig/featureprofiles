@@ -45,6 +45,7 @@ platform_exceptions: {
     isis_counter_part_changes_unsupported: true
     isis_interface_level_passive_unsupported: true
     missing_isis_interface_afi_safi_enable: true
+    isis_interface_authentication_container_unsupported: true
   }
 }
 platform_exceptions: {

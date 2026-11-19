@@ -575,12 +575,13 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	configPush(t, otgConfig, config)
 	validateATEPkts(t, otgConfig, flow)
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 	otgConfig.StartTraffic(t)
 	time.Sleep(trafficDuration)
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	verifyTrafficFlow(t, ate, config, flow)
 	if protoType == "ipv4" {
 		// TODO: We cannot add an error return here because the GenerateIPs method is already merged into main. To fix this, we’ll need to raise a new PR and update it.
@@ -726,23 +727,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
 		fcap.SetPortNames([]string{portName})
 		fcap.SetFormat(gosnappi.CaptureFormat.PCAP)
 	}
-}
-
-// startCapture initiates packet capture on all OTG ports defined in the config and returns the ControlState used to manage the capture session.
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-// stopCapture stops packet capture on all OTG ports using the provided ControlState from startCapture.
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
 }
 
 // processCapture fetches captured traffic bytes from the specified OTG port, writes them to a temporary PCAP file, and returns the file path for analysis.
