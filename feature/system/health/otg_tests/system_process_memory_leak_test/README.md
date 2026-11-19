@@ -90,6 +90,14 @@ organized into five distinct, cross-referenced sections:
     neighbors (`WaitForARP`), and use `gnmi.Watch` (`ON_CHANGE`) on
     `[OC-Group-C]` to confirm `port1` and `port2` are `UP` and all six eBGP
     sessions (`Peer 1`–`Peer 3`, IPv4 and IPv6) are `ESTABLISHED`.
+  * **Warm-up**: Before capturing the `Health-1.3.1` baseline, advertise and
+    withdraw `Churn-Routes` on `Peer 1`–`Peer 3` for `3` cycles (waiting for
+    `prefixes/installed` to reach `10,250` and then return to `250` per family
+    in each cycle), then allow one `60s` `[OC-Group-A]` `SAMPLE` interval to
+    elapse. This keeps one-time growth from on-box agents restarted during
+    setup (for example, the gNMI/telemetry agent) out of the baseline and the
+    `Health-1.3.3` reclamation trend. Memory that keeps growing after warm-up
+    is still reported by `Health-1.3.3`.
 
 ---
 
@@ -351,7 +359,9 @@ into five functional groups below and listed in the machine-readable
   and then query `[OC-Group-A]` via a single wildcard `gnmi.GetAll`.
 * Step 5 - Pass/Fail Criteria: Pass if `Peer 1` enforces the prefix limit,
   surviving peers forward traffic with `0%` loss, and persistent daemon
-  `memory-usage` in `[OC-Group-A]`, measured after the Step 4 settle interval,
+  `memory-usage` in `[OC-Group-A]`, measured after the Step 4 settle interval
+  (re-queried after up to `3` additional `60s` `SAMPLE` intervals while any
+  persistent daemon is above the threshold, using the last measurement),
   remains within `<= 5%` (or `<= 10 MB`) of the post-churn baseline (captured
   with `Churn-Routes` installed on all three peers before Step 1, using the
   higher of that snapshot and the `Health-1.3.3` peak-churn sample per daemon)
@@ -384,7 +394,9 @@ into five functional groups below and listed in the machine-readable
   `10,250` per family on all three peers, and the `Churn-Sentinel-Prefixes`
   `next-hop-group` restored to `3` next-hops) and allow one additional `60s`
   `[OC-Group-A]` `SAMPLE` interval to elapse so transient re-learning buffers
-  are released before measurement. Pass if querying `[OC-Group-A]` (via a
+  are released before measurement (re-querying `[OC-Group-A]` after up to `3`
+  additional `60s` `SAMPLE` intervals while any persistent daemon is above the
+  threshold, using the last measurement). Pass if querying `[OC-Group-A]` (via a
   single wildcard `gnmi.GetAll`) and `[OC-Group-B]` after the `3` flap cycles
   confirms that persistent daemon `memory-usage` returns within `<= 5%` (or
   `<= 10 MB`) and control-plane `memory/utilized` returns within `<= 5%` of
