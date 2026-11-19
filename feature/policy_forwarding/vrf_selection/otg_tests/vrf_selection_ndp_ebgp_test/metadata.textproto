@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8f4b2c91-6e3a-4d7b-9c1e-2a5f8b3d4e60"
+plan_id: "RT-3.5"
+description: "Dual-Stack eBGP Session Establishment and IPv6 NDP Resolution over LAG with Active VRF Selection Policy"
+testbed: TESTBED_DUT_ATE_4LINKS
