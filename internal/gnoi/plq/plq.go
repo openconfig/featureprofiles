@@ -856,19 +856,20 @@ func waitForIDsInList(t *testing.T, dut *ondatra.DUTDevice, ids []string, wantPr
 		target[id] = true
 	}
 
+	var lastErr error
 	for {
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, rpcTimeout)
 		listResp, err := dut.RawAPIs().GNOI(t).LinkQualification().List(rpcCtx, &plqpb.ListRequest{})
 		rpcCancel()
-		if err != nil {
-			t.Logf("DUT %s List() during wait (wantPresent=%v) returned: %v", dut.Name(), wantPresent, err)
+		if err == nil && idsMatchListState(listResp, target, wantPresent) {
 			return
 		}
-		if idsMatchListState(listResp, target, wantPresent) {
-			return
-		}
+		lastErr = err
 		select {
 		case <-ctx.Done():
+			if lastErr != nil {
+				t.Logf("DUT %s List() wait (wantPresent=%v) timed out; last error: %v", dut.Name(), wantPresent, lastErr)
+			}
 			return
 		case <-ticker.C:
 		}
