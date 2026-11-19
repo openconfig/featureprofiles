@@ -22,7 +22,7 @@ platform_exceptions: {
   deviations: {
     interface_ref_interface_id_format: true
     ecn_profile_required_definition: true
-    no_zero_suppression: true
+    skip_sampling_qos_counters: true
   }
 }
 platform_exceptions: {
