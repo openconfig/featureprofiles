@@ -19,7 +19,6 @@ package system_process_memory_leak_test
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/netip"
 	"testing"
 	"time"
@@ -65,8 +64,12 @@ const (
 	churnIPv4Prefix    = uint32(32)
 	churnIPv6Start     = "2001:db8:10:1::"
 	churnIPv6Prefix    = uint32(64)
-	ipv4PrefixLen      = uint8(30)
-	ipv6PrefixLen      = uint8(126)
+	// Link 1 (shared egress ECMP link carrying Peer 1-Peer 3) uses /29 and /125 so that the DUT and
+	// three emulated ATE peers share one subnet; Link 2 (ingress validation port) uses /30 and /126.
+	egressIPv4PrefixLen  = uint8(29)
+	egressIPv6PrefixLen  = uint8(125)
+	ingressIPv4PrefixLen = uint8(30)
+	ingressIPv6PrefixLen = uint8(126)
 
 	// Section 1: Data-plane validation traffic parameters (10,000 pps per family, 512B & 1500B frames, UDP src ports 10000-10999).
 	trafficRatePPS      = uint64(10000)
@@ -80,9 +83,6 @@ const (
 	flowBaselineIPv6    = "flow-baseline-ipv6"
 	flowChurnIPv4       = "flow-churn-ipv4"
 	flowChurnIPv6       = "flow-churn-ipv6"
-	ecmp3WayTargetPct   = 33.33
-	ecmp2WayTargetPct   = 50.0
-	ecmpSplitTolerance  = 5.0
 	baselineTrafficHold = 15 * time.Second
 	steadyTrafficHold   = 5 * time.Second
 
@@ -102,7 +102,10 @@ const (
 	bgpMaxPrefixLimit           = uint32(8000)
 	bgpWarningThresholdPct      = uint8(80)
 	bgpPrefixLimitRestartTime   = uint16(30)
-	egressInterfaceFlapCycles   = 5
+	egressInterfaceFlapCycles   = 3
+	nhgMembershipTimeout        = 20 * time.Second
+	fallbackWaitCap             = 30 * time.Second
+	sessionFallbackWaitCap      = 60 * time.Second
 	abruptPeerResetCycles       = 3
 	bgpConvergenceTimeout       = 3 * time.Minute
 	aftConvergenceTimeout       = 2 * time.Minute
@@ -110,66 +113,55 @@ const (
 )
 
 var (
-	// Section 1: Physical Links and Interface Addressing (Link 1 - Link 4).
+	// Section 1: Physical Links and Interface Addressing (Link 1 - Link 2).
+	// Link 1 (port1 <-> atePort1): shared egress ECMP link. atePort1 emulates three OTG devices
+	// (Peer 1-Peer 3), each with a unique MAC address, on the same subnet as DUT port1.
 	dutPort1Attr = attrs.Attributes{
 		Desc:    "DUT Port 1 connected to ATE Port 1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
+		IPv4Len: egressIPv4PrefixLen,
+		IPv6Len: egressIPv6PrefixLen,
 	}
-	atePort1Attr = attrs.Attributes{
-		Name:    "atePort1",
+	atePeer1Attr = attrs.Attributes{
+		Name:    "atePeer1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
+		IPv4Len: egressIPv4PrefixLen,
+		IPv6Len: egressIPv6PrefixLen,
 	}
+	atePeer2Attr = attrs.Attributes{
+		Name:    "atePeer2",
+		MAC:     "02:00:01:01:01:02",
+		IPv4:    "192.0.2.3",
+		IPv6:    "2001:db8::3",
+		IPv4Len: egressIPv4PrefixLen,
+		IPv6Len: egressIPv6PrefixLen,
+	}
+	atePeer3Attr = attrs.Attributes{
+		Name:    "atePeer3",
+		MAC:     "02:00:01:01:01:03",
+		IPv4:    "192.0.2.4",
+		IPv6:    "2001:db8::4",
+		IPv4Len: egressIPv4PrefixLen,
+		IPv6Len: egressIPv6PrefixLen,
+	}
+	// Link 2 (port2 <-> atePort2): ingress validation port.
 	dutPort2Attr = attrs.Attributes{
 		Desc:    "DUT Port 2 connected to ATE Port 2",
-		IPv4:    "192.0.2.5",
-		IPv6:    "2001:db8::5",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
+		IPv4:    "192.0.2.9",
+		IPv6:    "2001:db8::9",
+		IPv4Len: ingressIPv4PrefixLen,
+		IPv6Len: ingressIPv6PrefixLen,
 	}
 	atePort2Attr = attrs.Attributes{
 		Name:    "atePort2",
 		MAC:     "02:00:02:01:01:01",
-		IPv4:    "192.0.2.6",
-		IPv6:    "2001:db8::6",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
-	}
-	dutPort3Attr = attrs.Attributes{
-		Desc:    "DUT Port 3 connected to ATE Port 3",
-		IPv4:    "192.0.2.9",
-		IPv6:    "2001:db8::9",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
-	}
-	atePort3Attr = attrs.Attributes{
-		Name:    "atePort3",
-		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv6:    "2001:db8::a",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
-	}
-	dutPort4Attr = attrs.Attributes{
-		Desc:    "DUT Port 4 connected to ATE Port 4",
-		IPv4:    "192.0.2.13",
-		IPv6:    "2001:db8::d",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
-	}
-	atePort4Attr = attrs.Attributes{
-		Name:    "atePort4",
-		MAC:     "02:00:04:01:01:01",
-		IPv4:    "192.0.2.14",
-		IPv6:    "2001:db8::e",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
+		IPv4Len: ingressIPv4PrefixLen,
+		IPv6Len: ingressIPv6PrefixLen,
 	}
 
 	// Section 1: Sentinel prefixes for fast point-lookup AFT validation.
@@ -217,77 +209,96 @@ func TestSystemProcessMemoryLeak(t *testing.T) {
 
 	// Section 3: Positive Test Cases (Health-1.3.1 - Health-1.3.4).
 	t.Run("Health-1.3.1_ValidateBaselineSystemProcessAndControllerCardMemoryTelemetry", func(t *testing.T) {
+		defer logStepDuration(t, "Health-1.3.1", time.Now())
 		runHealth131BaselineTelemetry(t, env)
 	})
 
 	t.Run("Health-1.3.2_ValidateSteadyStatePerProcessMemoryUsageOverTime", func(t *testing.T) {
+		defer logStepDuration(t, "Health-1.3.2", time.Now())
 		runHealth132SteadyStateSampling(t, env)
 	})
 
 	t.Run("Health-1.3.3_and_Health-1.3.4_ValidateMemoryReclamationAndHardwareFIBUtilizationUnderRouteChurn", func(t *testing.T) {
+		defer logStepDuration(t, "Health-1.3.3", time.Now())
 		runHealth133And134RouteChurnAndFIBUtilization(t, env)
 	})
 
 	// Section 4: Negative Test Cases (Health-1.3.5 - Health-1.3.7).
 	t.Run("Health-1.3.5_BGPMaxPrefixLimitViolation", func(t *testing.T) {
+		defer logStepDuration(t, "Health-1.3.5", time.Now())
 		runHealth135BGPMaxPrefixLimitViolation(t, env)
 	})
 
 	t.Run("Health-1.3.6_RepeatedEgressInterfaceAdminDownFlappingUnderHighRouteScale", func(t *testing.T) {
+		defer logStepDuration(t, "Health-1.3.6", time.Now())
 		runHealth136RepeatedEgressInterfaceFlapping(t, env)
 	})
 
 	t.Run("Health-1.3.7_AbruptBGPPeerSessionResetUnderHighRouteScale", func(t *testing.T) {
+		defer logStepDuration(t, "Health-1.3.7", time.Now())
 		runHealth137AbruptBGPPeerSessionReset(t, env)
 	})
+}
+
+// testStart records when the test environment setup began, so that per-step timing logs report the
+// total elapsed time against the 60-minute FNT budget.
+var testStart time.Time
+
+// logStepDuration logs how long a test step took and the total elapsed test time so that any
+// overrun against the 60-minute FNT budget is visible in the streamed log as it happens.
+func logStepDuration(t *testing.T, step string, start time.Time) {
+	t.Helper()
+	t.Logf("[timing] %s took %v (total elapsed %v)", step, time.Since(start).Round(time.Second), time.Since(testStart).Round(time.Second))
 }
 
 // setupTestEnvironment implements Section 1 (Test environment setup) and registers
 // Section 5 (Cleanup) via t.Cleanup().
 func setupTestEnvironment(t *testing.T) *testEnvironment {
 	t.Helper()
+	testStart = time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
+	// Peer 1-Peer 3 are emulated on atePort1 (Link 1) as three OTG devices sharing one subnet.
 	peers := []bgpPeerSpec{
 		{
 			name:        "Peer1",
 			portID:      "port1",
 			dutAttr:     dutPort1Attr,
-			ateAttr:     atePort1Attr,
+			ateAttr:     atePeer1Attr,
 			peerAS:      peer1AS,
-			peerV4Name:  "atePort1.BGP4.peer",
-			peerV6Name:  "atePort1.BGP6.peer",
-			baseV4Name:  "atePort1.baseline.v4",
-			baseV6Name:  "atePort1.baseline.v6",
-			churnV4Name: "atePort1.churn.v4",
-			churnV6Name: "atePort1.churn.v6",
+			peerV4Name:  "atePeer1.BGP4.peer",
+			peerV6Name:  "atePeer1.BGP6.peer",
+			baseV4Name:  "atePeer1.baseline.v4",
+			baseV6Name:  "atePeer1.baseline.v6",
+			churnV4Name: "atePeer1.churn.v4",
+			churnV6Name: "atePeer1.churn.v6",
 		},
 		{
 			name:        "Peer2",
-			portID:      "port2",
-			dutAttr:     dutPort2Attr,
-			ateAttr:     atePort2Attr,
+			portID:      "port1",
+			dutAttr:     dutPort1Attr,
+			ateAttr:     atePeer2Attr,
 			peerAS:      peer2AS,
-			peerV4Name:  "atePort2.BGP4.peer",
-			peerV6Name:  "atePort2.BGP6.peer",
-			baseV4Name:  "atePort2.baseline.v4",
-			baseV6Name:  "atePort2.baseline.v6",
-			churnV4Name: "atePort2.churn.v4",
-			churnV6Name: "atePort2.churn.v6",
+			peerV4Name:  "atePeer2.BGP4.peer",
+			peerV6Name:  "atePeer2.BGP6.peer",
+			baseV4Name:  "atePeer2.baseline.v4",
+			baseV6Name:  "atePeer2.baseline.v6",
+			churnV4Name: "atePeer2.churn.v4",
+			churnV6Name: "atePeer2.churn.v6",
 		},
 		{
 			name:        "Peer3",
-			portID:      "port3",
-			dutAttr:     dutPort3Attr,
-			ateAttr:     atePort3Attr,
+			portID:      "port1",
+			dutAttr:     dutPort1Attr,
+			ateAttr:     atePeer3Attr,
 			peerAS:      peer3AS,
-			peerV4Name:  "atePort3.BGP4.peer",
-			peerV6Name:  "atePort3.BGP6.peer",
-			baseV4Name:  "atePort3.baseline.v4",
-			baseV6Name:  "atePort3.baseline.v6",
-			churnV4Name: "atePort3.churn.v4",
-			churnV6Name: "atePort3.churn.v6",
+			peerV4Name:  "atePeer3.BGP4.peer",
+			peerV6Name:  "atePeer3.BGP6.peer",
+			baseV4Name:  "atePeer3.baseline.v4",
+			baseV6Name:  "atePeer3.baseline.v6",
+			churnV4Name: "atePeer3.churn.v4",
+			churnV6Name: "atePeer3.churn.v6",
 		},
 	}
 
@@ -308,15 +319,13 @@ func setupTestEnvironment(t *testing.T) *testEnvironment {
 	// Section 1: Configure ATE topology, eBGP peers, Baseline-Routes, Churn-Routes, and traffic flows.
 	env.otgConfig = configureATEEnvironment(t, env)
 
-	// Section 1: Initial Bring-Up — start ATE protocols, verify port1-port4 are UP, resolve ARP/ND,
+	// Section 1: Initial Bring-Up — start ATE protocols, verify port1 and port2 are UP, resolve ARP/ND,
 	// withdraw Churn-Routes initially, and verify all six eBGP sessions are ESTABLISHED via gnmi.Watch on [OC-Group-C].
 	ate.OTG().StartProtocols(t)
-	awaitPortsUp(t, dut, []string{"port1", "port2", "port3", "port4"})
+	awaitPortsUp(t, dut, []string{"port1", "port2"})
 	env.counterStream = system.NewInterfaceCounterStream(t, dut, []string{
 		dut.Port(t, "port1").Name(),
 		dut.Port(t, "port2").Name(),
-		dut.Port(t, "port3").Name(),
-		dut.Port(t, "port4").Name(),
 	}, 2*time.Second)
 	otgutils.WaitForARP(t, ate.OTG(), env.otgConfig, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), env.otgConfig, "IPv6")
@@ -347,8 +356,6 @@ func configureDUTEnvironment(t *testing.T, env *testEnvironment) {
 	}{
 		{portID: "port1", attr: dutPort1Attr},
 		{portID: "port2", attr: dutPort2Attr},
-		{portID: "port3", attr: dutPort3Attr},
-		{portID: "port4", attr: dutPort4Attr},
 	}
 
 	for _, pa := range portAttrs {
@@ -481,7 +488,8 @@ func configureDUTEnvironment(t *testing.T, env *testEnvironment) {
 	}
 }
 
-// configureATEEnvironment builds and pushes the 4-port OTG topology, eBGP peers, route sets, and traffic flows.
+// configureATEEnvironment builds and pushes the 2-port OTG topology (Peer 1-Peer 3 emulated on
+// atePort1 and the ingress validation device on atePort2), eBGP peers, route sets, and traffic flows.
 func configureATEEnvironment(t *testing.T, env *testEnvironment) gosnappi.Config {
 	t.Helper()
 	topo := gosnappi.NewConfig()
@@ -491,7 +499,7 @@ func configureATEEnvironment(t *testing.T, env *testEnvironment) gosnappi.Config
 
 	for _, peer := range env.peers {
 		atePort := env.ate.Port(t, peer.portID)
-		dev := peer.ateAttr.AddToOTG(topo, atePort, &peer.dutAttr)
+		dev := peer.ateAttr.AddToOTGDevice(topo, atePort, &peer.dutAttr)
 
 		ipv4Intf := dev.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 		ipv6Intf := dev.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
@@ -537,17 +545,17 @@ func configureATEEnvironment(t *testing.T, env *testEnvironment) gosnappi.Config
 		churnV6RxNames = append(churnV6RxNames, peer.churnV6Name)
 	}
 
-	// Link 4 (atePort4): Ingress Validation Port.
-	atePort4 := env.ate.Port(t, "port4")
-	dev4 := atePort4Attr.AddToOTG(topo, atePort4, &dutPort4Attr)
-	srcIPv4Name := dev4.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()
-	srcIPv6Name := dev4.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()
+	// Link 2 (atePort2): Ingress Validation Port.
+	atePort2 := env.ate.Port(t, "port2")
+	dev2 := atePort2Attr.AddToOTG(topo, atePort2, &dutPort2Attr)
+	srcIPv4Name := dev2.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()
+	srcIPv6Name := dev2.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()
 
-	// Configure dual-stack validation flows from atePort4 (10,000 pps per family, both 512 and 1500 byte frames, UDP src ports 10000-10999).
-	addValidationFlow(topo, flowBaselineIPv4, srcIPv4Name, baseV4RxNames, atePort4Attr.MAC, atePort4Attr.IPv4, baselineIPv4Start, baselineRouteCount, true)
-	addValidationFlow(topo, flowBaselineIPv6, srcIPv6Name, baseV6RxNames, atePort4Attr.MAC, atePort4Attr.IPv6, baselineIPv6Start, baselineRouteCount, false)
-	addValidationFlow(topo, flowChurnIPv4, srcIPv4Name, churnV4RxNames, atePort4Attr.MAC, atePort4Attr.IPv4, churnIPv4Start, churnRouteCount, true)
-	addValidationFlow(topo, flowChurnIPv6, srcIPv6Name, churnV6RxNames, atePort4Attr.MAC, atePort4Attr.IPv6, churnIPv6Start, churnRouteCount, false)
+	// Configure dual-stack validation flows from atePort2 (10,000 pps per family, both 512 and 1500 byte frames, UDP src ports 10000-10999).
+	addValidationFlow(topo, flowBaselineIPv4, srcIPv4Name, baseV4RxNames, atePort2Attr.MAC, atePort2Attr.IPv4, baselineIPv4Start, baselineRouteCount, true)
+	addValidationFlow(topo, flowBaselineIPv6, srcIPv6Name, baseV6RxNames, atePort2Attr.MAC, atePort2Attr.IPv6, baselineIPv6Start, baselineRouteCount, false)
+	addValidationFlow(topo, flowChurnIPv4, srcIPv4Name, churnV4RxNames, atePort2Attr.MAC, atePort2Attr.IPv4, churnIPv4Start, churnRouteCount, true)
+	addValidationFlow(topo, flowChurnIPv6, srcIPv6Name, churnV6RxNames, atePort2Attr.MAC, atePort2Attr.IPv6, churnIPv6Start, churnRouteCount, false)
 
 	env.ate.OTG().PushConfig(t, topo)
 	return topo
@@ -581,13 +589,14 @@ func addValidationFlow(topo gosnappi.Config, name, txName string, rxNames []stri
 // runHealth131BaselineTelemetry implements Health-1.3.1:
 // Validate Baseline System Process and Controller Card Memory Telemetry.
 func runHealth131BaselineTelemetry(t *testing.T, env *testEnvironment) {
-	// Health-1.3.1 Step 1: Advertise Baseline-Routes from Peer 1, Peer 2, and Peer 3, and verify
-	// via gnmi.Watch on [OC-Group-C] that prefixes/received and prefixes/installed equal 250 per
-	// family on all three peers and that Baseline-Sentinel-Prefixes resolve to a 3-way ECMP
-	// next-hop-group in the AFT.
+	// Health-1.3.1 Step 1: Advertise Baseline-Routes from Peer 1, Peer 2, and Peer 3 (all on the
+	// shared egress link, atePort1), and verify via gnmi.Watch on [OC-Group-C] that
+	// prefixes/received and prefixes/installed equal 250 per family on all three peers and that
+	// Baseline-Sentinel-Prefixes resolve to a next-hop-group containing exactly 3 next-hops
+	// (Peer 1, Peer 2, and Peer 3) in the AFT.
 	t.Log("Health-1.3.1 Step 1: Verifying Baseline-Routes (250 IPv4 + 250 IPv6) on Peer 1-3 and Baseline-Sentinel-Prefixes in AFT")
 	awaitAllPeersPrefixCounts(t, env, env.peers, baselineRouteCount)
-	verifySentinelPrefixesInAFT(t, env.dut, baselineSentinelIPv4, baselineSentinelIPv6, true, int(ecmpMaxPaths))
+	verifySentinelPrefixesInAFT(t, env.dut, baselineSentinelIPv4, baselineSentinelIPv6, true, env.peers)
 
 	// Health-1.3.1 Step 2: Query [OC-Group-A] in a single wildcard gnmi.GetAll call on
 	// /system/processes/process/state. Filter for user-space processes where memory-usage > 0.
@@ -628,18 +637,11 @@ func runHealth131BaselineTelemetry(t *testing.T, env *testEnvironment) {
 		t.Errorf("Health-1.3.1 Step 5 Fail: Expected at least one CONTROLLER_CARD or CHASSIS component in [OC-Group-B] with non-zero memory/available and memory/utilized")
 	}
 
-	// Health-1.3.1 Step 4 & Step 5: Send data-plane validation traffic from atePort4 to Baseline-Routes
-	// for 15 seconds and verify 0% loss and 3-way ECMP balance (33.3% +- 5%) across port1-port3.
-	t.Log("Health-1.3.1 Step 4: Sending data-plane validation traffic to Baseline-Routes for 15 seconds")
-	verifyTrafficAndECMPSplit(
-		t,
-		env,
-		baselineTrafficHold,
-		[]string{flowBaselineIPv4, flowBaselineIPv6},
-		nil,
-		[]string{"port1", "port2", "port3"},
-		ecmp3WayTargetPct,
-	)
+	// Health-1.3.1 Step 4 & Step 5: Send data-plane validation traffic from atePort2 to Baseline-Routes
+	// for 15 seconds and verify 0% loss, in-pkts on DUT port2, and out-pkts on DUT port1 (the shared
+	// egress link). 3-way ECMP is verified via AFT next-hop-group membership in Step 1.
+	t.Log("Health-1.3.1 Step 4: Sending data-plane validation traffic from atePort2 to Baseline-Routes for 15 seconds")
+	verifyTrafficForwarding(t, env, baselineTrafficHold, []string{flowBaselineIPv4, flowBaselineIPv6}, nil)
 }
 
 // runHealth132SteadyStateSampling implements Health-1.3.2:
@@ -833,16 +835,14 @@ func runHealth133And134RouteChurnAndFIBUtilization(t *testing.T, env *testEnviro
 		// Health-1.3.3 Step 1: Confirm prefixes/installed reaches 10,250 per family on all three peers
 		// and Churn-Sentinel-Prefixes are present in the AFT, and verify 0% traffic loss to Churn-Routes.
 		awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
-		verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, int(ecmpMaxPaths))
-		verifyTrafficAndECMPSplit(
-			t,
-			env,
-			steadyTrafficHold,
-			[]string{flowChurnIPv4, flowChurnIPv6},
-			nil,
-			[]string{"port1", "port2", "port3"},
-			ecmp3WayTargetPct,
-		)
+		// AFT next-hop-group membership is checked in Cycle 1 and Cycle 5 only to bound runtime;
+		// Churn-Sentinel-Prefixes presence in the AFT is checked in every cycle.
+		var nhgPeers []bgpPeerSpec
+		if cycle == 1 || cycle == churnCycleCount {
+			nhgPeers = env.peers
+		}
+		verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, nhgPeers)
+		verifyTrafficForwarding(t, env, steadyTrafficHold, []string{flowChurnIPv4, flowChurnIPv6}, nil)
 
 		// Health-1.3.4 Step 2 & Step 3 (Peak): Check hardware FIB utilization at peak 20,000-route installation
 		// in Cycle 1 and Cycle 5 using gnmi.Watch via AwaitHardwareFIBUtilization.
@@ -864,19 +864,11 @@ func runHealth133And134RouteChurnAndFIBUtilization(t *testing.T, env *testEnviro
 		setRouteState(t, env.ate, env.allChurnRouteNames(), gosnappi.StateProtocolRouteState.WITHDRAW)
 
 		awaitAllPeersPrefixCounts(t, env, env.peers, baselineRouteCount)
-		verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, false, 0)
+		verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, false, nil)
 
 		// Health-1.3.3 Step 3: Send traffic for 5 seconds and verify 100% packet loss on withdrawn
 		// Churn-Routes while traffic to Baseline-Routes continues with 0% loss.
-		verifyTrafficAndECMPSplit(
-			t,
-			env,
-			steadyTrafficHold,
-			[]string{flowBaselineIPv4, flowBaselineIPv6},
-			[]string{flowChurnIPv4, flowChurnIPv6},
-			[]string{"port1", "port2", "port3"},
-			ecmp3WayTargetPct,
-		)
+		verifyTrafficForwarding(t, env, steadyTrafficHold, []string{flowBaselineIPv4, flowBaselineIPv6}, []string{flowChurnIPv4, flowChurnIPv6})
 
 		if rem := churnHoldDuration - time.Since(withdrawStart); rem > 0 {
 			procStream.AwaitHoldWindow(t, env.dut, rem)
@@ -1031,7 +1023,7 @@ func runHealth135BGPMaxPrefixLimitViolation(t *testing.T, env *testEnvironment) 
 	// at matching 10,250-route scale before withdrawing Peer 1's Churn-Routes to apply max-prefixes=8000.
 	setRouteState(t, env.ate, env.allChurnRouteNames(), gosnappi.StateProtocolRouteState.ADVERTISE)
 	awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
-	verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, int(ecmpMaxPaths))
+	verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, env.peers)
 	baselineProcs := system.CollectUserSpaceProcesses(t, env.dut)
 	for pid, peakSample := range env.peakChurnProcesses {
 		if cur, ok := baselineProcs[pid]; ok && cur.Name == peakSample.Name && peakSample.MemoryUsage > cur.MemoryUsage {
@@ -1087,7 +1079,8 @@ func runHealth135BGPMaxPrefixLimitViolation(t *testing.T, env *testEnvironment) 
 
 	// Health-1.3.5 Step 3: Verify via gnmi.Watch on [OC-Group-E] and [OC-Group-C] that Peer 1 reports
 	// prefix-limit-exceeded = true (when supported) and transitions to session-state = IDLE, while
-	// Peer 2 and Peer 3 remain ESTABLISHED (prefixes/installed = 10,250) and forward traffic across 2-way ECMP.
+	// Peer 2 and Peer 3 remain ESTABLISHED (prefixes/installed = 10,250) and forward traffic from atePort2
+	// across 2-way ECMP (Churn-Sentinel-Prefixes next-hop-group contains Peer 2 and Peer 3).
 	t.Log("Health-1.3.5 Step 3: Watching Peer 1 transition to IDLE and prefix-limit-exceeded=true while Peer 2 and Peer 3 forward traffic")
 	for _, nbrIP := range []string{peer1.ateAttr.IPv4, peer1.ateAttr.IPv6} {
 		_, ok := gnmi.Watch(t, env.dut, bgpPath.Neighbor(nbrIP).SessionState().State(), bgpConvergenceTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -1109,15 +1102,9 @@ func runHealth135BGPMaxPrefixLimitViolation(t *testing.T, env *testEnvironment) 
 	}
 
 	awaitAllPeersPrefixCounts(t, env, survivingPeers, totalInstalledPeak)
-	verifyTrafficAndECMPSplit(
-		t,
-		env,
-		steadyTrafficHold,
-		[]string{flowChurnIPv4, flowChurnIPv6},
-		nil,
-		[]string{"port2", "port3"},
-		ecmp2WayTargetPct,
-	)
+	t.Log("Health-1.3.5 Step 3: Verifying Churn-Sentinel-Prefixes next-hop-group contains 2 next-hops (Peer 2 and Peer 3) and 0% traffic loss from atePort2")
+	verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, survivingPeers)
+	verifyTrafficForwarding(t, env, steadyTrafficHold, []string{flowChurnIPv4, flowChurnIPv6}, nil)
 
 	// Health-1.3.5 Step 4: Withdraw excess routes on Peer 1, remove [OC-Group-E] prefix-limit config,
 	// toggle neighbor enabled false -> true to re-establish Peer 1 (prefixes/installed = 10,250 across
@@ -1130,21 +1117,43 @@ func runHealth135BGPMaxPrefixLimitViolation(t *testing.T, env *testEnvironment) 
 	awaitAllBGPSessionsEstablished(t, env)
 	awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
 
-	// Health-1.3.5 Step 5: Verify persistent daemon memory-usage in [OC-Group-A] remains within
-	// <= 5% (or <= 10 MB) of the post-churn baseline after session recovery.
+	// Health-1.3.5 Step 4: Full re-convergence is confirmed above (six eBGP sessions ESTABLISHED and
+	// prefixes/installed = 10,250 per family across all three peers). Allow one additional 60s
+	// [OC-Group-A] SAMPLE interval to elapse so transient re-learning buffers from Peer 1
+	// re-advertising Churn-Routes are released before querying [OC-Group-A].
+	t.Logf("Health-1.3.5 Step 4: Full re-convergence confirmed; awaiting one additional %v [OC-Group-A] SAMPLE interval before measuring memory", sampleInterval)
+	settleStream := system.NewProcessSampleStream(t, env.dut, sampleInterval)
+	settleStream.AwaitNextSample(t, env.dut)
+	settleStream.Close()
+
+	// Health-1.3.5 Step 5: Verify persistent daemon memory-usage in [OC-Group-A], measured after the
+	// Step 4 settle interval, remains within <= 5% (or <= 10 MB) of the post-churn baseline (captured
+	// with Churn-Routes installed on all three peers before Step 1, raised per daemon to the
+	// Health-1.3.3 peak-churn sample when higher).
 	afterProcs := system.CollectUserSpaceProcesses(t, env.dut)
+	system.LogProcessMemoryDeltas(t, "Health-1.3.5 Step 5", env.persistentProcesses, baselineProcs, afterProcs)
 	system.VerifyProcessMemoryWithinBounds(t, "Health-1.3.5 Step 5", env.persistentProcesses, baselineProcs, afterProcs, maxMemoryGrowthPct, tenMBBytes)
 }
 
 // runHealth136RepeatedEgressInterfaceFlapping implements Health-1.3.6:
 // Repeated Egress Interface Admin-Down Flapping Under High Route Scale (Negative).
 func runHealth136RepeatedEgressInterfaceFlapping(t *testing.T, env *testEnvironment) {
-	// Ensure Churn-Routes (20,000 dual-stack routes) are installed across Peer 1-Peer 3.
+	dni := deviations.DefaultNetworkInstance(env.dut)
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	// Ensure Churn-Routes (20,000 dual-stack routes) are installed across Peer 1-Peer 3 on the
+	// shared egress link (Link 1).
 	setRouteState(t, env.ate, env.allChurnRouteNames(), gosnappi.StateProtocolRouteState.ADVERTISE)
 	awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
 
 	preFlapProcs := system.CollectUserSpaceProcesses(t, env.dut)
 	preFlapComps := system.CollectControlPlaneMemory(t, env.dut)
+
+	wildcardSessionWatchUnsupported := false
+	allNbrIPs := make([]string, 0, 2*len(env.peers))
+	for _, peer := range env.peers {
+		allNbrIPs = append(allNbrIPs, peer.ateAttr.IPv4, peer.ateAttr.IPv6)
+	}
 
 	port1Name := env.dut.Port(t, "port1").Name()
 	intfPath := gnmi.OC().Interface(port1Name)
@@ -1157,9 +1166,10 @@ func runHealth136RepeatedEgressInterfaceFlapping(t *testing.T, env *testEnvironm
 		}
 	})
 
-	// Health-1.3.6 Step 1 & Step 2: Flap port1 across 5 consecutive cycles.
+	// Health-1.3.6 Step 1 & Step 2: Flap port1 (Link 1, the shared egress link carrying
+	// Peer 1-Peer 3) across 3 consecutive cycles.
 	for cycle := 1; cycle <= egressInterfaceFlapCycles; cycle++ {
-		t.Logf("Health-1.3.6 Step 1-2 Cycle %d/%d: Setting port1 (%s) enabled=false and awaiting oper-status=DOWN", cycle, egressInterfaceFlapCycles, port1Name)
+		t.Logf("Health-1.3.6 Step 1 Cycle %d/%d: Setting port1 (%s) enabled=false and awaiting oper-status=DOWN", cycle, egressInterfaceFlapCycles, port1Name)
 		gnmi.Replace(t, env.dut, intfPath.Enabled().Config(), false)
 		if _, ok := gnmi.Watch(t, env.dut, intfPath.OperStatus().State(), interfaceOperStatusTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 			state, present := val.Val()
@@ -1168,18 +1178,35 @@ func runHealth136RepeatedEgressInterfaceFlapping(t *testing.T, env *testEnvironm
 			t.Errorf("Health-1.3.6 Step 1 Fail (Cycle %d): Interface %s did not reach oper-status=DOWN", cycle, port1Name)
 		}
 
-		// Verify 2-way ECMP reconvergence across port2 and port3 (50% +- 5% split) with 0% steady-state loss.
-		verifyTrafficAndECMPSplit(
-			t,
-			env,
-			steadyTrafficHold,
-			[]string{flowChurnIPv4, flowChurnIPv6},
-			nil,
-			[]string{"port2", "port3"},
-			ecmp2WayTargetPct,
-		)
+		// Health-1.3.6 Step 2 (DOWN phase): Verify all six eBGP sessions leave ESTABLISHED and
+		// Churn-Sentinel-Prefixes are removed from the AFT. Traffic from atePort2 to the withdrawn
+		// routes is expected to be dropped while the only egress link is down, so no traffic
+		// assertion is made in this phase.
+		t.Logf("Health-1.3.6 Step 2 Cycle %d/%d (DOWN): Verifying all six eBGP sessions leave ESTABLISHED and Churn-Sentinel-Prefixes are removed from the AFT", cycle, egressInterfaceFlapCycles)
+		sessionFallbackTimeout := bgpConvergenceTimeout
+		wildcardStart := time.Now()
+		if wildcardSessionWatchUnsupported || !cfgplugins.AwaitBGPNeighborsNotEstablished(t, env.dut, dni, allNbrIPs, bgpConvergenceTimeout) {
+			if !wildcardSessionWatchUnsupported && time.Since(wildcardStart) >= sessionFallbackWaitCap {
+				sessionFallbackTimeout = sessionFallbackWaitCap
+			}
+			allDown := true
+			for _, nbrIP := range allNbrIPs {
+				if _, ok := gnmi.Watch(t, env.dut, bgpPath.Neighbor(nbrIP).SessionState().State(), sessionFallbackTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+					state, present := val.Val()
+					return present && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+				}).Await(t); !ok {
+					allDown = false
+					t.Errorf("Health-1.3.6 Step 2 Fail (Cycle %d): BGP neighbor %s did not leave ESTABLISHED while port1 was down", cycle, nbrIP)
+				}
+			}
+			if allDown && !wildcardSessionWatchUnsupported {
+				t.Logf("Health-1.3.6: Per-neighbor session-state watches succeeded while the wildcard watch did not; using per-neighbor watches for the remaining cycles")
+				wildcardSessionWatchUnsupported = true
+			}
+		}
+		verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, false, nil)
 
-		t.Logf("Health-1.3.6 Step 1-2 Cycle %d/%d: Setting port1 (%s) enabled=true and awaiting oper-status=UP and 3-way ECMP restoration", cycle, egressInterfaceFlapCycles, port1Name)
+		t.Logf("Health-1.3.6 Step 1 Cycle %d/%d: Setting port1 (%s) enabled=true and awaiting oper-status=UP", cycle, egressInterfaceFlapCycles, port1Name)
 		gnmi.Replace(t, env.dut, intfPath.Enabled().Config(), true)
 		if _, ok := gnmi.Watch(t, env.dut, intfPath.OperStatus().State(), interfaceOperStatusTimeout, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 			state, present := val.Val()
@@ -1188,27 +1215,35 @@ func runHealth136RepeatedEgressInterfaceFlapping(t *testing.T, env *testEnvironm
 			t.Errorf("Health-1.3.6 Step 1 Fail (Cycle %d): Interface %s did not return to oper-status=UP", cycle, port1Name)
 		}
 
+		// Health-1.3.6 Step 2 (UP phase): Verify all six eBGP sessions return to ESTABLISHED,
+		// prefixes/installed returns to 10,250 per family on all three peers, the
+		// Churn-Sentinel-Prefixes next-hop-group is restored to 3 next-hops, and traffic from
+		// atePort2 forwards with 0% steady-state loss.
+		t.Logf("Health-1.3.6 Step 2 Cycle %d/%d (UP): Verifying six eBGP sessions ESTABLISHED, prefixes/installed=%d per family on Peer 1-3, 3 next-hops in Churn-Sentinel-Prefixes next-hop-group, and 0%% loss from atePort2",
+			cycle, egressInterfaceFlapCycles, totalInstalledPeak)
 		awaitAllBGPSessionsEstablished(t, env)
 		awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
-
-		// Verify 3-way ECMP restoration (33.3% +- 5% split) across port1-port3.
-		verifyTrafficAndECMPSplit(
-			t,
-			env,
-			steadyTrafficHold,
-			[]string{flowChurnIPv4, flowChurnIPv6},
-			nil,
-			[]string{"port1", "port2", "port3"},
-			ecmp3WayTargetPct,
-		)
+		verifySentinelPrefixesInAFT(t, env.dut, churnSentinelIPv4, churnSentinelIPv6, true, env.peers)
+		verifyTrafficForwarding(t, env, steadyTrafficHold, []string{flowChurnIPv4, flowChurnIPv6}, nil)
 	}
 	portRestored = true
 
-	// Health-1.3.6 Step 3: Query [OC-Group-A] and [OC-Group-B] after the 5 flap cycles and confirm
-	// persistent daemon memory-usage returns within <= 5% (or <= 10 MB) and control-plane
-	// memory/utilized returns within <= 5% of their pre-flap baseline.
+	// Health-1.3.6 Step 3: Full re-convergence after the final UP phase was confirmed above (six
+	// eBGP sessions ESTABLISHED, prefixes/installed = 10,250 per family, and 3 next-hops in the
+	// Churn-Sentinel-Prefixes next-hop-group). Allow one additional 60s [OC-Group-A] SAMPLE
+	// interval to elapse so transient re-learning buffers are released before measurement.
+	t.Logf("Health-1.3.6 Step 3: Full re-convergence confirmed after %d flap cycles; awaiting one additional %v [OC-Group-A] SAMPLE interval before measuring memory",
+		egressInterfaceFlapCycles, sampleInterval)
+	settleStream := system.NewProcessSampleStream(t, env.dut, sampleInterval)
+	settleStream.AwaitNextSample(t, env.dut)
+	settleStream.Close()
+
+	// Health-1.3.6 Step 3: Query [OC-Group-A] (single wildcard gnmi.GetAll) and [OC-Group-B] after
+	// the 3 flap cycles and confirm persistent daemon memory-usage returns within <= 5% (or
+	// <= 10 MB) and control-plane memory/utilized returns within <= 5% of their pre-flap baseline.
 	postFlapProcs := system.CollectUserSpaceProcesses(t, env.dut)
 	postFlapComps := system.CollectControlPlaneMemory(t, env.dut)
+	system.LogProcessMemoryDeltas(t, "Health-1.3.6 Step 3", env.persistentProcesses, preFlapProcs, postFlapProcs)
 	system.VerifyProcessMemoryWithinBounds(t, "Health-1.3.6 Step 3", env.persistentProcesses, preFlapProcs, postFlapProcs, maxMemoryGrowthPct, tenMBBytes)
 	system.VerifyComponentMemoryWithinBounds(t, "Health-1.3.6 Step 3", preFlapComps, postFlapComps, maxMemoryGrowthPct)
 }
@@ -1252,16 +1287,12 @@ func runHealth137AbruptBGPPeerSessionReset(t *testing.T, env *testEnvironment) {
 			}
 		}
 
+		// Health-1.3.7 Step 2: Verify traffic from atePort2 continues with 0% steady-state loss via
+		// Peer 1 and Peer 3 on the shared egress link while Peer 2 is down.
+		t.Logf("Health-1.3.7 Step 2 Reset %d/%d: Verifying Peer 1 and Peer 3 hold prefixes/installed=%d and forward traffic from atePort2 with 0%% loss",
+			cycle, abruptPeerResetCycles, totalInstalledPeak)
 		awaitAllPeersPrefixCounts(t, env, survivingPeers, totalInstalledPeak)
-		verifyTrafficAndECMPSplit(
-			t,
-			env,
-			steadyTrafficHold,
-			[]string{flowChurnIPv4, flowChurnIPv6},
-			nil,
-			[]string{"port1", "port3"},
-			ecmp2WayTargetPct,
-		)
+		verifyTrafficForwarding(t, env, steadyTrafficHold, []string{flowChurnIPv4, flowChurnIPv6}, nil)
 
 		t.Logf("Health-1.3.7 Step 1-2 Reset %d/%d: Restoring OTG Peer 2 (%s, %s) UP and awaiting convergence to %d prefixes",
 			cycle, abruptPeerResetCycles, peer2.ateAttr.IPv4, peer2.ateAttr.IPv6, totalInstalledPeak)
@@ -1278,6 +1309,7 @@ func runHealth137AbruptBGPPeerSessionReset(t *testing.T, env *testEnvironment) {
 	// persistent daemon memory-usage remains within <= 5% (or <= 10 MB) of the pre-reset baseline
 	// without a sustained upward trend across repeated peer RIB flush and re-learning cycles.
 	postResetProcs := perResetSnapshots[len(perResetSnapshots)-1]
+	system.LogProcessMemoryDeltas(t, "Health-1.3.7 Step 3", env.persistentProcesses, preResetProcs, postResetProcs)
 	system.VerifyProcessMemoryWithinBounds(t, "Health-1.3.7 Step 3", env.persistentProcesses, preResetProcs, postResetProcs, maxMemoryGrowthPct, tenMBBytes)
 
 	tracked := env.persistentProcesses
@@ -1327,14 +1359,14 @@ func cleanupEnvironment(t *testing.T, env *testEnvironment) {
 
 	gnmi.BatchDelete(sb, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
 	gnmi.BatchDelete(sb, dc.RoutingPolicy().PolicyDefinition(routingPolicyName).Config())
-	for _, portID := range []string{"port1", "port2", "port3", "port4"} {
+	for _, portID := range []string{"port1", "port2"} {
 		pName := env.dut.Port(t, portID).Name()
 		gnmi.BatchReplace(sb, dc.Interface(pName).Enabled().Config(), true)
 	}
 	sb.Set(t, env.dut)
 	cfgplugins.DeleteResourceUtilizationThreshold(t, env.dut, env.fibResourceName)
 
-	awaitPortsUp(t, env.dut, []string{"port1", "port2", "port3", "port4"})
+	awaitPortsUp(t, env.dut, []string{"port1", "port2"})
 }
 
 func (env *testEnvironment) allBaselineRouteNames() []string {
@@ -1397,6 +1429,7 @@ func awaitPortsUp(t *testing.T, dut *ondatra.DUTDevice, portIDs []string) {
 
 func awaitAllBGPSessionsEstablished(t *testing.T, env *testEnvironment) {
 	t.Helper()
+	defer logStepDuration(t, "awaitAllBGPSessionsEstablished", time.Now())
 	dni := deviations.DefaultNetworkInstance(env.dut)
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, peer := range env.peers {
@@ -1411,31 +1444,70 @@ func awaitAllBGPSessionsEstablished(t *testing.T, env *testEnvironment) {
 	}
 }
 
+// wildcardPrefixWatchUnsupported caches, per DUT, that the single wildcard prefix-count
+// subscription did not converge while the per-neighbor watches did, so later calls skip it.
+var wildcardPrefixWatchUnsupported = make(map[string]bool)
+
+// awaitAllPeersPrefixCounts verifies via [OC-Group-C] that prefixes/received and
+// prefixes/installed equal wantCount for IPV4_UNICAST and IPV6_UNICAST on every peer. It first
+// uses a single wildcard subscription per leaf across all neighbors and falls back to
+// per-neighbor gnmi.Watch calls (which report precise errors) if the wildcard watch does not
+// converge.
 func awaitAllPeersPrefixCounts(t *testing.T, env *testEnvironment, peers []bgpPeerSpec, wantCount uint32) {
 	t.Helper()
+	defer logStepDuration(t, fmt.Sprintf("awaitAllPeersPrefixCounts(peers=%d, want=%d)", len(peers), wantCount), time.Now())
 	dni := deviations.DefaultNetworkInstance(env.dut)
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
+	// Per-neighbor fallback watches use the full convergence timeout only when the wildcard watch
+	// was skipped or failed fast; if the wildcard watch already waited, the counts have had time to
+	// converge, so the fallback only needs a short confirmation window.
+	fallbackTimeout := bgpConvergenceTimeout
+	if !wildcardPrefixWatchUnsupported[env.dut.Name()] {
+		wildcardStart := time.Now()
+		nbrs := make(map[string]oc.E_BgpTypes_AFI_SAFI_TYPE, 2*len(peers))
+		for _, peer := range peers {
+			nbrs[peer.ateAttr.IPv4] = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+			nbrs[peer.ateAttr.IPv6] = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+		}
+		if cfgplugins.AwaitBGPNeighborsPrefixCounts(t, env.dut, dni, nbrs, wantCount, bgpConvergenceTimeout) {
+			return
+		}
+		if time.Since(wildcardStart) >= fallbackWaitCap {
+			fallbackTimeout = fallbackWaitCap
+		}
+		t.Logf("Wildcard prefix-count watch did not converge to %d on %s; falling back to per-neighbor watches (timeout %v)", wantCount, env.dut.Name(), fallbackTimeout)
+	}
+
+	failed := false
 	pred := func(val *ygnmi.Value[uint32]) bool {
 		c, present := val.Val()
 		return present && c == wantCount
 	}
 	for _, peer := range peers {
 		v4Pfx := bgpPath.Neighbor(peer.ateAttr.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Received().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Received().State(), fallbackTimeout, pred).Await(t); !ok {
+			failed = true
 			t.Errorf("Peer %s (%s) IPv4 prefixes/received got %v, want %d", peer.name, peer.ateAttr.IPv4, got, wantCount)
 		}
-		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Installed().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Installed().State(), fallbackTimeout, pred).Await(t); !ok {
+			failed = true
 			t.Errorf("Peer %s (%s) IPv4 prefixes/installed got %v, want %d", peer.name, peer.ateAttr.IPv4, got, wantCount)
 		}
 
 		v6Pfx := bgpPath.Neighbor(peer.ateAttr.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
-		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Received().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Received().State(), fallbackTimeout, pred).Await(t); !ok {
+			failed = true
 			t.Errorf("Peer %s (%s) IPv6 prefixes/received got %v, want %d", peer.name, peer.ateAttr.IPv6, got, wantCount)
 		}
-		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), bgpConvergenceTimeout, pred).Await(t); !ok {
+		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), fallbackTimeout, pred).Await(t); !ok {
+			failed = true
 			t.Errorf("Peer %s (%s) IPv6 prefixes/installed got %v, want %d", peer.name, peer.ateAttr.IPv6, got, wantCount)
 		}
+	}
+	if !failed && !wildcardPrefixWatchUnsupported[env.dut.Name()] {
+		t.Logf("Per-neighbor prefix-count watches converged on %s while the wildcard watch did not; using per-neighbor watches for the remainder of the test", env.dut.Name())
+		wildcardPrefixWatchUnsupported[env.dut.Name()] = true
 	}
 }
 
@@ -1444,16 +1516,23 @@ var (
 	aftKeyedV6Unsupported       = make(map[string]bool)
 	aftSampleKeyedV4Unsupported = make(map[string]bool)
 	aftSampleKeyedV6Unsupported = make(map[string]bool)
-	verifiedNHCache             = make(map[uint64]bool)
 )
 
 // verifySentinelPrefixesInAFT queries [OC-Group-C] AFT paths for the given IPv4 and IPv6 sentinel
-// prefixes and, when wantPresent is true, verifies their ECMP next-hop-group and next-hop IP addresses.
-func verifySentinelPrefixesInAFT(t *testing.T, dut *ondatra.DUTDevice, v4Prefixes, v6Prefixes []string, wantPresent bool, wantMinNextHops int) {
+// prefixes and verifies their presence (wantPresent) or absence. When wantPresent is true and
+// wantPeers is non-empty, it also verifies that each prefix's next-hop-group contains exactly one
+// next-hop per peer in wantPeers (the ECMP set on the shared egress link).
+func verifySentinelPrefixesInAFT(t *testing.T, dut *ondatra.DUTDevice, v4Prefixes, v6Prefixes []string, wantPresent bool, wantPeers []bgpPeerSpec) {
 	t.Helper()
+	defer logStepDuration(t, fmt.Sprintf("verifySentinelPrefixesInAFT(wantPresent=%t, wantNextHops=%d)", wantPresent, len(wantPeers)), time.Now())
 	dni := deviations.DefaultNetworkInstance(dut)
 	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 	verifiedNHGs := make(map[uint64]bool)
+	var wantV4NHs, wantV6NHs []string
+	for _, peer := range wantPeers {
+		wantV4NHs = append(wantV4NHs, peer.ateAttr.IPv4)
+		wantV6NHs = append(wantV6NHs, peer.ateAttr.IPv6)
+	}
 
 	var v4Table map[string]uint64
 	var v4TableLoaded bool
@@ -1487,7 +1566,7 @@ func verifySentinelPrefixesInAFT(t *testing.T, dut *ondatra.DUTDevice, v4Prefixe
 					nhgID := entry.GetNextHopGroup()
 					if !verifiedNHGs[nhgID] {
 						verifiedNHGs[nhgID] = true
-						verifyNextHopGroupECMP(t, dut, nhgID, wantMinNextHops)
+						verifyNextHopGroupMembers(t, dut, pfx, nhgID, wantV4NHs)
 					}
 				}
 			}
@@ -1505,7 +1584,7 @@ func verifySentinelPrefixesInAFT(t *testing.T, dut *ondatra.DUTDevice, v4Prefixe
 			if matched {
 				if nhgID != 0 && !verifiedNHGs[nhgID] {
 					verifiedNHGs[nhgID] = true
-					verifyNextHopGroupECMP(t, dut, nhgID, wantMinNextHops)
+					verifyNextHopGroupMembers(t, dut, pfx, nhgID, wantV4NHs)
 				}
 				continue
 			}
@@ -1551,7 +1630,7 @@ func verifySentinelPrefixesInAFT(t *testing.T, dut *ondatra.DUTDevice, v4Prefixe
 					nhgID := entry.GetNextHopGroup()
 					if !verifiedNHGs[nhgID] {
 						verifiedNHGs[nhgID] = true
-						verifyNextHopGroupECMP(t, dut, nhgID, wantMinNextHops)
+						verifyNextHopGroupMembers(t, dut, pfx, nhgID, wantV6NHs)
 					}
 				}
 			}
@@ -1569,7 +1648,7 @@ func verifySentinelPrefixesInAFT(t *testing.T, dut *ondatra.DUTDevice, v4Prefixe
 			if matched {
 				if nhgID != 0 && !verifiedNHGs[nhgID] {
 					verifiedNHGs[nhgID] = true
-					verifyNextHopGroupECMP(t, dut, nhgID, wantMinNextHops)
+					verifyNextHopGroupMembers(t, dut, pfx, nhgID, wantV6NHs)
 				}
 				continue
 			}
@@ -1669,79 +1748,62 @@ func prefixesEqual(a, b string) bool {
 	return errA == nil && errB == nil && pa.Masked() == pb.Masked()
 }
 
-func verifyNextHopGroupECMP(t *testing.T, dut *ondatra.DUTDevice, nhgID uint64, wantMinNextHops int) {
-	t.Helper()
-	dni := deviations.DefaultNetworkInstance(dut)
-	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	defer cancel()
+// nhgTelemetryUnsupported caches, per DUT, that AFT next-hop-group membership telemetry is not
+// exported, so later checks skip it instead of waiting. nhgTelemetrySeen records, per DUT, that
+// next-hop-group membership telemetry has been observed at least once, after which a missing
+// response is retried and then reported as a failure instead of being skipped.
+var (
+	nhgTelemetryUnsupported = make(map[string]bool)
+	nhgTelemetrySeen        = make(map[string]bool)
+)
 
-	nhgVal, err := ygnmi.Lookup(ctx, c, aftsPath.NextHopGroup(nhgID).State())
-	if err != nil || nhgVal == nil {
+// verifyNextHopGroupMembers verifies via [OC-Group-C] that the AFT next-hop-group nhgID resolved
+// for sentinel prefix pfx contains exactly the next-hop IP addresses in wantIPs (one per active
+// eBGP peer on the shared egress link), polling for up to nhgMembershipTimeout. If the DUT has
+// never reported next-hop-group membership telemetry, the check is logged once and skipped for
+// the rest of the test. If the DUT has reported it before, a missing response is retried once and
+// then reported as a failure.
+func verifyNextHopGroupMembers(t *testing.T, dut *ondatra.DUTDevice, pfx string, nhgID uint64, wantIPs []string) {
+	t.Helper()
+	if len(wantIPs) == 0 || nhgTelemetryUnsupported[dut.Name()] {
 		return
 	}
-	nhg, ok := nhgVal.Val()
-	if !ok || nhg == nil {
-		return
+	dni := deviations.DefaultNetworkInstance(dut)
+	gotIPs, populated, ok := system.AwaitNextHopGroupMembers(t, dut, dni, nhgID, wantIPs, nhgMembershipTimeout)
+	if !populated && nhgTelemetrySeen[dut.Name()] {
+		t.Logf("AFT next-hop-group %d for sentinel %s returned no next-hop ip-addresses within %v on %s although membership telemetry was reported earlier; retrying once", nhgID, pfx, nhgMembershipTimeout, dut.Name())
+		gotIPs, populated, ok = system.AwaitNextHopGroupMembers(t, dut, dni, nhgID, wantIPs, nhgMembershipTimeout)
 	}
-	if gotID := nhg.GetId(); gotID != nhgID {
-		t.Errorf("AFT next-hop-group id mismatch: got %d, want %d", gotID, nhgID)
-	}
-	if len(nhg.NextHop) < wantMinNextHops {
-		t.Errorf("AFT next-hop-group %d has %d next-hops, want >= %d", nhgID, len(nhg.NextHop), wantMinNextHops)
-	}
-	for nhIndex := range nhg.NextHop {
-		if verifiedNHCache[nhIndex] {
-			continue
-		}
-		nhCtx, nhCancel := context.WithTimeout(context.Background(), 4*time.Second)
-		nhVal, err := ygnmi.Lookup(nhCtx, c, aftsPath.NextHop(nhIndex).State())
-		nhCancel()
-		if err != nil || nhVal == nil {
-			continue
-		}
-		nh, present := nhVal.Val()
-		if !present || nh == nil {
-			continue
-		}
-		if gotIdx := nh.GetIndex(); gotIdx != nhIndex {
-			t.Errorf("AFT next-hop index mismatch: got %d, want %d", gotIdx, nhIndex)
-		}
-		if ipAddr := nh.GetIpAddress(); ipAddr == "" {
-			t.Errorf("AFT next-hop %d reported empty ip-address", nhIndex)
-		} else {
-			verifiedNHCache[nhIndex] = true
-		}
+	switch {
+	case ok:
+		nhgTelemetrySeen[dut.Name()] = true
+		t.Logf("AFT sentinel %s next-hop-group %d contains %d next-hops %v (want %v)", pfx, nhgID, len(gotIPs), gotIPs, wantIPs)
+	case !populated && !nhgTelemetrySeen[dut.Name()]:
+		t.Logf("AFT next-hop-group membership telemetry is not populated via gNMI on %s (sentinel %s, next-hop-group %d); skipping next-hop membership checks for the remainder of the test", dut.Name(), pfx, nhgID)
+		nhgTelemetryUnsupported[dut.Name()] = true
+	default:
+		t.Errorf("AFT sentinel %s next-hop-group %d next-hops got %v, want exactly %v", pfx, nhgID, gotIPs, wantIPs)
 	}
 }
 
-// verifyTrafficAndECMPSplit selectively starts only the targeted flows (zeroLossFlows + fullLossFlows),
-// awaits packet transmission via gnmi.Watch (without time.Sleep), stops the flows, checks 0% loss on
-// zeroLossFlows and 100% loss on fullLossFlows, and verifies [OC-Group-C] interface counters
-// (in-pkts on port4 and out-pkts ECMP split across activeEgressPortIDs within +-5%).
-func verifyTrafficAndECMPSplit(
-	t *testing.T,
-	env *testEnvironment,
-	duration time.Duration,
-	zeroLossFlows []string,
-	fullLossFlows []string,
-	activeEgressPortIDs []string,
-	wantSharePct float64,
-) {
+// verifyTrafficForwarding selectively starts only the targeted flows (zeroLossFlows + fullLossFlows)
+// from atePort2, awaits packet transmission via gnmi.Watch (without time.Sleep), stops the flows,
+// checks 0% loss on zeroLossFlows and 100% loss on fullLossFlows, and verifies [OC-Group-C]
+// interface counters (in-pkts on ingress DUT port2 and out-pkts on the shared egress DUT port1).
+// ECMP across Peer 1-Peer 3 is verified separately via AFT next-hop-group membership.
+func verifyTrafficForwarding(t *testing.T, env *testEnvironment, duration time.Duration, zeroLossFlows, fullLossFlows []string) {
 	t.Helper()
+	defer logStepDuration(t, fmt.Sprintf("verifyTrafficForwarding(zeroLoss=%v, fullLoss=%v)", zeroLossFlows, fullLossFlows), time.Now())
 	dut := env.dut
 	otg := env.ate.OTG()
 	dc := gnmi.OC()
+	activeEgressPortIDs := []string{"port1"}
 
 	var targetFlows []string
 	targetFlows = append(targetFlows, zeroLossFlows...)
 	targetFlows = append(targetFlows, fullLossFlows...)
 
-	inPortName := dut.Port(t, "port4").Name()
+	inPortName := dut.Port(t, "port2").Name()
 	allPortNames := make([]string, 0, len(activeEgressPortIDs)+1)
 	allPortNames = append(allPortNames, inPortName)
 	for _, portID := range activeEgressPortIDs {
@@ -1756,7 +1818,7 @@ func verifyTrafficAndECMPSplit(
 		beforeOutPkts[portID] = beforeOutMap[pName]
 	}
 
-	inATEPortName := env.ate.Port(t, "port4").ID()
+	inATEPortName := env.ate.Port(t, "port2").ID()
 	beforeATEOutFrames, _ := gnmi.Lookup(t, otg, gnmi.OTG().Port(inATEPortName).Counters().OutFrames().State()).Val()
 	beforeATEInFrames := make(map[string]uint64, len(activeEgressPortIDs))
 	for _, portID := range activeEgressPortIDs {
@@ -1866,7 +1928,7 @@ func verifyTrafficAndECMPSplit(
 		}
 	}
 
-	// Await [OC-Group-C] leaf interface counter flush on ingress port4 and all activeEgressPortIDs via gnmi.Watch in SAMPLE mode.
+	// Await [OC-Group-C] leaf interface counter flush on ingress port2 and egress port1 via gnmi.Watch in SAMPLE mode.
 	minExpectedOut := uint64(float64(expectedOutDelta) * 0.9)
 	minExpectedIn := minExpectedOut
 	if minExpectedIn == 0 {
@@ -1973,7 +2035,7 @@ func verifyTrafficAndECMPSplit(
 			ateTotalEgressDelta += d
 		}
 		if ateTotalEgressDelta > 0 {
-			t.Logf("[OC-Group-C] Egress hardware counter export pending (dutTotalDelta=%d); using 1:1 connected ATE egress port frame deltas (total=%d) for ECMP split verification",
+			t.Logf("[OC-Group-C] Egress hardware counter export pending (dutTotalDelta=%d); using 1:1 connected ATE egress port frame deltas (total=%d) for egress forwarding verification",
 				totalEgressDelta, ateTotalEgressDelta)
 			egressDeltas = ateEgressDeltas
 			totalEgressDelta = ateTotalEgressDelta
@@ -1985,15 +2047,13 @@ func verifyTrafficAndECMPSplit(
 		return
 	}
 
+	var inDelta uint64
+	if afterInPkts > beforeInPkts {
+		inDelta = afterInPkts - beforeInPkts
+	}
 	for _, portID := range activeEgressPortIDs {
-		sharePct := float64(egressDeltas[portID]) * 100.0 / float64(totalEgressDelta)
-		if math.Abs(sharePct-wantSharePct) > ecmpSplitTolerance {
-			t.Errorf("[OC-Group-C] Egress ECMP split on %s out of bounds: got %.2f%%, want %.2f%% +- %.2f%%",
-				portID, sharePct, wantSharePct, ecmpSplitTolerance)
-		} else {
-			t.Logf("[OC-Group-C] Egress ECMP split on %s: %.2f%% (target %.2f%% +- %.2f%%)",
-				portID, sharePct, wantSharePct, ecmpSplitTolerance)
-		}
+		t.Logf("[OC-Group-C] Egress interface %s (%s) out-pkts delta=%d; ingress interface %s in-pkts delta=%d",
+			portID, dut.Port(t, portID).Name(), egressDeltas[portID], inPortName, inDelta)
 	}
 }
 

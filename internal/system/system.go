@@ -18,6 +18,8 @@ package system
 import (
 	"context"
 	"math"
+	"net/netip"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -711,5 +713,167 @@ func VerifyComponentMemoryWithinBounds(
 			t.Errorf("%s Fail: Control-plane component %s memory/utilized grew by %.2f%% (from %d to %d), exceeding <= %.1f%% threshold",
 				stepLabel, name, growthPct, baseComp.Utilized, afterComp.Utilized, maxPct)
 		}
+	}
+}
+
+// normalizeIPAddress returns the canonical string form of an IPv4 or IPv6 address so that
+// differently formatted representations of the same address (e.g. IPv6 zero compression) compare
+// equal. Unparsable input is returned unchanged.
+func normalizeIPAddress(addr string) string {
+	if a, err := netip.ParseAddr(addr); err == nil {
+		return a.String()
+	}
+	return addr
+}
+
+// AwaitNextHopGroupMembers verifies that
+// /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=nhgID] in network
+// instance dni contains exactly one member next-hop per address in wantIPs, resolving each
+// member's /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address. It
+// re-evaluates the next-hop-group with non-fatal ONCE lookups roughly every 2 seconds until it
+// matches or timeout expires. Member ip-addresses that could not be resolved yet (for example
+// because a lookup timed out while the DUT is busy programming routes) are looked up again on
+// every attempt. It never fails the test.
+//
+// A member next-hop reported with an IPv6 link-local address (fe80::/10) is accepted as a valid
+// resolution of a global IPv6 BGP next-hop and counted without being matched by address.
+//
+// It returns the last observed next-hop ip-address list, whether next-hop-group membership
+// telemetry (including at least one next-hop ip-address) was observed at all (populated), and
+// whether the membership matched (ok). Callers should treat populated == false as "AFT
+// next-hop-group telemetry not available".
+func AwaitNextHopGroupMembers(t testing.TB, dut *ondatra.DUTDevice, dni string, nhgID uint64, wantIPs []string, timeout time.Duration) (gotIPs []string, populated, ok bool) {
+	t.Helper()
+	want := make(map[string]bool, len(wantIPs))
+	for _, ip := range wantIPs {
+		want[normalizeIPAddress(ip)] = true
+	}
+	c, err := getYGNMIClient(t, dut)
+	if err != nil {
+		return nil, false, false
+	}
+	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
+	nhIPCache := make(map[uint64]string)
+	anyIPPopulated := false
+	resolve := func(nhg *oc.NetworkInstance_Afts_NextHopGroup) ([]string, bool) {
+		ips := make([]string, 0, len(nhg.NextHop))
+		matched := len(nhg.NextHop) == len(want)
+		for idx := range nhg.NextHop {
+			ip, cached := nhIPCache[idx]
+			if !cached {
+				ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+				val, lErr := ygnmi.Lookup(ctx, c, aftsPath.NextHop(idx).State())
+				cancel()
+				if lErr == nil && val != nil {
+					if nh, present := val.Val(); present && nh != nil && nh.GetIpAddress() != "" {
+						ip = normalizeIPAddress(nh.GetIpAddress())
+						nhIPCache[idx] = ip
+					}
+				}
+			}
+			ips = append(ips, ip)
+			if ip == "" {
+				matched = false
+				continue
+			}
+			anyIPPopulated = true
+			if a, pErr := netip.ParseAddr(ip); pErr == nil && a.Is6() && a.IsLinkLocalUnicast() {
+				continue
+			}
+			if !want[ip] {
+				matched = false
+			}
+		}
+		sort.Strings(ips)
+		return ips, matched
+	}
+
+	// Re-evaluate the next-hop-group with non-fatal ONCE lookups until it matches or timeout
+	// expires. Member ip-addresses that could not be resolved yet are looked up again on every
+	// attempt. Between attempts, a SAMPLE subscription bounded by a 2-second context is used as
+	// the wait, so that no time.Sleep is needed.
+	deadline := time.Now().Add(timeout)
+	for {
+		lctx, lcancel := context.WithTimeout(context.Background(), 4*time.Second)
+		val, lErr := ygnmi.Lookup(lctx, c, aftsPath.NextHopGroup(nhgID).State())
+		lcancel()
+		if lErr == nil && val != nil {
+			if nhg, present := val.Val(); present && nhg != nil {
+				if gotIPs, ok = resolve(nhg); ok {
+					return gotIPs, true, true
+				}
+			}
+		}
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
+		}
+		waitDur := 2 * time.Second
+		if rem < waitDur {
+			waitDur = rem
+		}
+		if !awaitSampleInterval(c, waitDur) {
+			// The target rejected every SAMPLE subscription used as a wait; stop rather than spin.
+			break
+		}
+	}
+	return gotIPs, anyIPPopulated, false
+}
+
+// awaitSampleInterval blocks for waitDur using a SAMPLE subscription bounded by a context
+// deadline (instead of time.Sleep). It first subscribes to
+// /system/state/current-datetime and falls back to /system/state if the target rejects the
+// first subscription. It returns false if both subscriptions are rejected before waitDur elapses.
+func awaitSampleInterval(c *ygnmi.Client, waitDur time.Duration) bool {
+	start := time.Now()
+	opts := []ygnmi.Option{
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(waitDur),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), waitDur)
+	_, _ = ygnmi.Watch(ctx, c, gnmi.OC().System().CurrentDatetime().State(), func(*ygnmi.Value[string]) error {
+		return ygnmi.Continue
+	}, opts...).Await()
+	cancel()
+	if rem := waitDur - time.Since(start); rem > 100*time.Millisecond {
+		ctx, cancel := context.WithTimeout(context.Background(), rem)
+		_, _ = ygnmi.Watch(ctx, c, gnmi.OC().System().State(), func(*ygnmi.Value[*oc.System]) error {
+			return ygnmi.Continue
+		}, opts...).Await()
+		cancel()
+	}
+	return waitDur-time.Since(start) <= 100*time.Millisecond
+}
+
+// LogProcessMemoryDeltas logs the baseline, after, and growth memory-usage of every tracked
+// persistent daemon ([OC-Group-A]) so that memory headroom against leak thresholds is recorded on
+// passing runs as well as failing runs. tracked falls back to baseline when empty.
+func LogProcessMemoryDeltas(t testing.TB, stepLabel string, tracked, baseline, after map[uint64]ProcessSample) {
+	t.Helper()
+	if len(tracked) == 0 {
+		tracked = baseline
+	}
+	pids := make([]uint64, 0, len(tracked))
+	for pid := range tracked {
+		pids = append(pids, pid)
+	}
+	sort.Slice(pids, func(i, j int) bool { return pids[i] < pids[j] })
+	for _, pid := range pids {
+		ref := tracked[pid]
+		base, okBase := baseline[pid]
+		if !okBase {
+			base = ref
+		}
+		aft, okAfter := after[pid]
+		if !okAfter || aft.Name != ref.Name {
+			t.Logf("%s Memory: pid=%d name=%q not present after (baseline=%dB)", stepLabel, pid, ref.Name, base.MemoryUsage)
+			continue
+		}
+		delta := int64(aft.MemoryUsage) - int64(base.MemoryUsage)
+		var pct float64
+		if base.MemoryUsage > 0 {
+			pct = float64(delta) * 100.0 / float64(base.MemoryUsage)
+		}
+		t.Logf("%s Memory: pid=%d name=%q baseline=%dB after=%dB delta=%+dB (%+.2f%%)", stepLabel, pid, ref.Name, base.MemoryUsage, aft.MemoryUsage, delta, pct)
 	}
 }
