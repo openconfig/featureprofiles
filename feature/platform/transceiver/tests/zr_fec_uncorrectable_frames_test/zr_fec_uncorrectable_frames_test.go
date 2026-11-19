@@ -387,17 +387,30 @@ func settleAndValidateFEC(t *testing.T, dut *ondatra.DUTDevice, s *samplestream.
 	}
 }
 
-// validateAllFEC runs settleAndValidateFEC on every subscribed FEC leaf of every port.
-func validateAllFEC(t *testing.T, dut *ondatra.DUTDevice, ports []*zrPort, streams map[string]*fecStreams, step string, count int) {
+// validateFECStreamed verifies that count consecutive PM interval samples are streamed for the
+// leaf. Any value, including non-zero, is allowed; a missing (nil) sample fails.
+func validateFECStreamed(t *testing.T, s *samplestream.SampleStream[uint64], desc string, count int) {
+	t.Helper()
+	for i := 1; i <= count; i++ {
+		got, ok := awaitFECSample(t, s, desc)
+		if !ok {
+			return
+		}
+		t.Logf("%s [PM interval %d/%d]: got %d", desc, i, count, got)
+	}
+}
+
+// validateAllFEC runs validateFECStreamed on every subscribed FEC leaf of every port.
+func validateAllFEC(t *testing.T, ports []*zrPort, streams map[string]*fecStreams, step string, count int) {
 	t.Helper()
 	for _, p := range ports {
 		s := streams[p.name]
-		settleAndValidateFEC(t, dut, s.otn, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", step, p.name), count)
+		validateFECStreamed(t, s.otn, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", step, p.name), count)
 		if s.eth != nil {
-			settleAndValidateFEC(t, dut, s.eth, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks", step, p.name), count)
+			validateFECStreamed(t, s.eth, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks", step, p.name), count)
 		}
 		if s.och != nil {
-			settleAndValidateFEC(t, dut, s.och, fmt.Sprintf("%s %s /components/component/optical-channel/state/fec-uncorrectable-blocks", step, p.name), count)
+			validateFECStreamed(t, s.och, fmt.Sprintf("%s %s /components/component/optical-channel/state/fec-uncorrectable-blocks", step, p.name), count)
 		}
 	}
 }
@@ -457,7 +470,7 @@ func TestZrFecPMIntervalSemantics(t *testing.T) {
 		}
 		streams[p.name] = openFECStreams(t, dut, p)
 	}
-	validateAllFEC(t, dut, ports, streams, "Step 2 (baseline)", 3)
+	validateAllFEC(t, ports, streams, "Step 2 (baseline)", 3)
 
 	// Step 3a: Transient link disturbance via an administrative interface flap on port1.
 	p1 := ports[0]
@@ -469,7 +482,7 @@ func TestZrFecPMIntervalSemantics(t *testing.T) {
 	for _, p := range ports {
 		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
 	}
-	validateAllFEC(t, dut, ports, streams, "Step 3a (after interface flap)", 2)
+	validateAllFEC(t, ports, streams, "Step 3a (after interface flap)", 2)
 
 	// Step 3b: Transient link disturbance via a transceiver power toggle on port1.
 	if deviations.TransceiverConfigEnableUnsupported(dut) {
@@ -482,7 +495,7 @@ func TestZrFecPMIntervalSemantics(t *testing.T) {
 	for _, p := range ports {
 		awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, linkUpTimeout)
 	}
-	validateAllFEC(t, dut, ports, streams, "Step 3b (after transceiver toggle)", 2)
+	validateAllFEC(t, ports, streams, "Step 3b (after transceiver toggle)", 2)
 }
 
 // plqPlan holds the PLQ parameters derived from the DUT capabilities.

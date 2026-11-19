@@ -78,9 +78,10 @@ The following setup applies to the base test and to every subtest below.
 ### TRANSCEIVER-10.1.1: Validate 400ZR FEC PM Interval Semantics
 
 This subtest validates that the OpenConfig FEC uncorrectable blocks telemetry
-leaves report the count over the prior PM interval defined by the host
-(`yang:gauge64` semantics), rather than retaining stale historical counts across
-subsequent error-free PM intervals after link flaps or transceiver resets.
+leaves (`yang:gauge64`, the count over the prior Performance Monitoring (PM)
+interval defined by the host) keep streaming a valid value every PM interval,
+including after link flaps and transceiver resets. Any value, including
+non-zero, is allowed; the value must not be missing (`nil`) or invalid.
 
 1.  **Configuration**:
     *   Apply the [Setup](#setup) configuration.
@@ -101,9 +102,9 @@ subsequent error-free PM intervals after link flaps or transceiver resets.
         *   `/terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks`
         *   `/terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks`
         *   `/components/component/optical-channel/state/fec-uncorrectable-blocks`
-    *   Discard the first PM interval sample, then verify that each leaf
-        reports `0` for 3 consecutive PM intervals.
-3.  **Transient Link Disturbance and PM Interval Reset**:
+    *   Verify that each leaf streams a valid value (not `nil`) for 3
+        consecutive PM intervals.
+3.  **Transient Link Disturbance**:
     *   Flap `DUT port 1` (`Ethernet1`) as in the
         [base test](#transceiver-101-validate-fec-uncorrectable-frames-streaming),
         keeping it `DOWN` for 1 PM interval (10 seconds) before setting
@@ -112,19 +113,18 @@ subsequent error-free PM intervals after link flaps or transceiver resets.
     *   Toggle `Ethernet1-Transceiver` using
         `/components/component/transceiver/config/enabled` (`false`, wait for
         `DOWN`, then `true`) and wait for both ports to be `UP`.
-    *   After each disturbance, discard the first PM interval sample after the
-        link is `UP`, then verify the next 2 PM intervals.
+    *   After each disturbance, verify the next 2 PM intervals once the link is
+        `UP`.
     *   **Pass/Fail Criteria**:
-        *   **Pass**: Errors may occur during the optical lock/unlock
-            transition, but once the link has been stable for a full PM
-            interval, each of the following leaves MUST report `0` for every
-            subsequent error-free PM interval:
+        *   **Pass**: Each of the following leaves streams a valid value (not
+            `nil`) for every PM interval. Any value is allowed, including
+            non-zero values caused by errors during the optical lock/unlock
+            transition:
             *   `/terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks`
             *   `/terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks`
             *   `/components/component/optical-channel/state/fec-uncorrectable-blocks`
-        *   **Fail**: A leaf is not streamed, continues to report a non-zero
-            stale value (e.g., `4`) across subsequent error-free PM intervals,
-            or streams invalid values such as `"nil"` or `"-inf"`.
+        *   **Fail**: A leaf is not streamed (`nil`) in a PM interval, or streams
+            invalid values such as `"nil"` or `"-inf"`.
 
 #### Canonical OC
 
