@@ -37,9 +37,11 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     skip_plq_interface_oper_status_check: true
     plq_reflector_stats_unsupported: true
-    plq_generator_capabilities_max_mtu: 512
-    plq_generator_capabilities_max_pps: 13000000
-    plq_generator_capabilities_max_bps: 50000000000
+    # Cisco 8202 (single NPU) reports max_mtu=577 and max_pps=13643000,
+    # giving max_bps = 577 * 13643000 * 8 = 62976088000.
+    plq_generator_capabilities_max_mtu: 577
+    plq_generator_capabilities_max_pps: 13643000
+    plq_generator_capabilities_max_bps: 62976088000
   }
 }
 platform_exceptions: {
@@ -51,9 +53,12 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     skip_plq_interface_oper_status_check: true
     plq_reflector_stats_unsupported: true
-    plq_generator_capabilities_max_mtu: 512
-    plq_generator_capabilities_max_pps: 40000000
-    plq_generator_capabilities_max_bps: 100000000000
+    # Cisco 8808/8818 (3 NPUs per linecard * 13643000 pps/NPU) reports
+    # max_mtu=577 and max_pps=40929000, giving
+    # max_bps = 577 * 40929000 * 8 = 188928264000.
+    plq_generator_capabilities_max_mtu: 577
+    plq_generator_capabilities_max_pps: 40929000
+    plq_generator_capabilities_max_bps: 188928264000
   }
 }
 platform_exceptions: {

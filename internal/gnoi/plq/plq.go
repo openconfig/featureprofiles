@@ -32,13 +32,16 @@ import (
 )
 
 const (
-	rpcTimeout         = 60 * time.Second
-	pollInterval       = 10 * time.Second
-	listPollInterval   = 2 * time.Second
-	listPresentTimeout = 30 * time.Second
-	deletePollTimeout  = 3 * time.Minute
-	minHistResultsReq  = uint32(2)
-	listDeleteTestRate = uint64(100000)
+	rpcTimeout             = 60 * time.Second
+	pollInterval           = 10 * time.Second
+	listPollInterval       = 2 * time.Second
+	listPresentTimeout     = 30 * time.Second
+	deletePollTimeout      = 3 * time.Minute
+	minHistResultsReq      = uint32(2)
+	listDeleteTestRate     = uint64(100000)
+	minCapSetupDuration    = time.Second
+	minCapTeardownDuration = time.Second
+	minCapSampleInterval   = 10 * time.Second
 )
 
 type qualificationSpec struct {
@@ -124,8 +127,17 @@ func validateGeneratorCapabilities(t *testing.T, dut *ondatra.DUTDevice, genCaps
 	if genCaps == nil {
 		t.Fatalf("DUT %s PacketGenerator capabilities are nil", dut.Name())
 	}
-	thresholds := ExpectedMinCapabilities(dut, targetSpeedBPS)
+	logs, errs := evaluateGeneratorCapabilities(dut.Name(), genCaps, ExpectedMinCapabilities(dut, targetSpeedBPS))
+	for _, msg := range logs {
+		t.Log(msg)
+	}
+	for _, msg := range errs {
+		t.Error(msg)
+	}
+}
 
+func evaluateGeneratorCapabilities(dutName string, genCaps *plqpb.PacketGeneratorCapabilities, thresholds CapabilityThresholds) ([]string, []string) {
+	var logs, errs []string
 	checks := []struct {
 		desc string
 		got  uint64
@@ -136,20 +148,31 @@ func validateGeneratorCapabilities(t *testing.T, dut *ondatra.DUTDevice, genCaps
 		{desc: "Generator MaxPps", got: uint64(genCaps.GetMaxPps()), min: thresholds.MinPPS},
 	}
 	for _, c := range checks {
-		t.Logf("DUT %s capability %s: got %d, want >= %d", dut.Name(), c.desc, c.got, c.min)
+		logs = append(logs, fmt.Sprintf("DUT %s capability %s: got %d, want >= %d", dutName, c.desc, c.got, c.min))
 		if c.got < c.min {
-			t.Errorf("DUT %s %s: got %d, want >= %d", dut.Name(), c.desc, c.got, c.min)
+			errs = append(errs, fmt.Sprintf("DUT %s %s: got %d, want >= %d", dutName, c.desc, c.got, c.min))
 		}
 	}
 	if genCaps.GetMinMtu() == 0 || genCaps.GetMinMtu() > genCaps.GetMaxMtu() {
-		t.Errorf("DUT %s invalid MTU bounds: min_mtu=%d, max_mtu=%d", dut.Name(), genCaps.GetMinMtu(), genCaps.GetMaxMtu())
+		errs = append(errs, fmt.Sprintf("DUT %s invalid MTU bounds: min_mtu=%d, max_mtu=%d", dutName, genCaps.GetMinMtu(), genCaps.GetMaxMtu()))
 	}
-	if genCaps.GetMinSetupDuration() == nil || genCaps.GetMinTeardownDuration() == nil {
-		t.Errorf("DUT %s PacketGenerator min setup/teardown durations must be populated", dut.Name())
+
+	durationChecks := []struct {
+		desc string
+		got  time.Duration
+		min  time.Duration
+	}{
+		{desc: "Generator MinSetupDuration", got: protoDuration(genCaps.GetMinSetupDuration()), min: minCapSetupDuration},
+		{desc: "Generator MinTeardownDuration", got: protoDuration(genCaps.GetMinTeardownDuration()), min: minCapTeardownDuration},
+		{desc: "Generator MinSampleInterval", got: protoDuration(genCaps.GetMinSampleInterval()), min: minCapSampleInterval},
 	}
-	if genCaps.GetMinSampleInterval() == nil {
-		t.Errorf("DUT %s PacketGenerator.MinSampleInterval is nil", dut.Name())
+	for _, c := range durationChecks {
+		logs = append(logs, fmt.Sprintf("DUT %s capability %s: got %v, want >= %v", dutName, c.desc, c.got, c.min))
+		if c.got < c.min {
+			errs = append(errs, fmt.Sprintf("DUT %s %s: got %v, want >= %v", dutName, c.desc, c.got, c.min))
+		}
 	}
+	return logs, errs
 }
 
 func validateReflectorCapabilities(t *testing.T, dut *ondatra.DUTDevice, refCaps *plqpb.ReflectorCapabilities) {
@@ -157,13 +180,17 @@ func validateReflectorCapabilities(t *testing.T, dut *ondatra.DUTDevice, refCaps
 	if refCaps == nil {
 		t.Fatalf("DUT %s Reflector capabilities are nil", dut.Name())
 	}
-	pmdOK := refCaps.GetPmdLoopback().GetMinSetupDuration().GetSeconds() >= 1 &&
-		refCaps.GetPmdLoopback().GetMinTeardownDuration().GetSeconds() >= 1
-	asicOK := refCaps.GetAsicLoopback().GetMinSetupDuration().GetSeconds() >= 1 &&
-		refCaps.GetAsicLoopback().GetMinTeardownDuration().GetSeconds() >= 1
-	if !pmdOK && !asicOK {
+	if !reflectorTimingSupported(refCaps) {
 		t.Errorf("DUT %s Reflector MinSetupDuration or MinTeardownDuration is not >= 1s for PmdLoopback or AsicLoopback: %v", dut.Name(), refCaps)
 	}
+}
+
+func reflectorTimingSupported(refCaps *plqpb.ReflectorCapabilities) bool {
+	pmdOK := protoDuration(refCaps.GetPmdLoopback().GetMinSetupDuration()) >= minCapSetupDuration &&
+		protoDuration(refCaps.GetPmdLoopback().GetMinTeardownDuration()) >= minCapTeardownDuration
+	asicOK := protoDuration(refCaps.GetAsicLoopback().GetMinSetupDuration()) >= minCapSetupDuration &&
+		protoDuration(refCaps.GetAsicLoopback().GetMinTeardownDuration()) >= minCapTeardownDuration
+	return pmdOK || asicOK
 }
 
 func preferPmdReflector(refCaps *plqpb.ReflectorCapabilities) bool {
@@ -225,7 +252,7 @@ func TestListDelete(t *testing.T, pair LinkPair) {
 		usePmdReflect: preferPmdReflector(capsB.GetReflector()),
 	}
 
-	registerSessionCleanup(t, []qualificationSpec{spec})
+	markCleaned := registerSessionCleanup(t, []qualificationSpec{spec})
 	issueCreateBatch(t, []qualificationSpec{spec})
 
 	if pair.A.DUT == pair.B.DUT {
@@ -248,6 +275,9 @@ func TestListDelete(t *testing.T, pair LinkPair) {
 
 	assertIDsInList(t, pair.A.DUT, []string{spec.genID}, false)
 	assertIDsInList(t, pair.B.DUT, []string{spec.refID}, false)
+	if !t.Failed() {
+		markCleaned()
+	}
 }
 
 // TestMaxPPS qualifies one link at a time at the device's MaxPps capability with dynamic packet sizing.
@@ -385,18 +415,25 @@ func isChannelizedJuniperInjector(vendor ondatra.Vendor, portName string, capsRe
 
 func executeAndValidateSpecs(t *testing.T, specs []qualificationSpec) {
 	t.Helper()
-	registerSessionCleanup(t, specs)
+	markCleaned := registerSessionCleanup(t, specs)
 	issueCreateBatch(t, specs)
 	pollUntilCompleted(t, specs)
 	verifyResults(t, specs)
 	deleteSpecs(t, specs)
+	markCleaned()
 }
 
-func registerSessionCleanup(t *testing.T, specs []qualificationSpec) {
+func registerSessionCleanup(t *testing.T, specs []qualificationSpec) func() {
 	t.Helper()
+	var sessionsDeleted bool
 	t.Cleanup(func() {
-		deleteSpecs(t, specs)
+		if !sessionsDeleted {
+			deleteSpecs(t, specs)
+		}
 	})
+	return func() {
+		sessionsDeleted = true
+	}
 }
 
 func issueCreateBatch(t *testing.T, specs []qualificationSpec) {
