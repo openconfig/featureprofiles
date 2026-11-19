@@ -42,6 +42,7 @@ Interface properties has attributes required for creating interfaces/subinterfac
 type Port struct {
 	Name        string
 	AggMAC      string
+	MemberMACs  []string
 	Interfaces  []*InterfaceProperties
 	MemberPorts []string
 	LagID       uint32
@@ -94,7 +95,11 @@ func ConfigureLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *
 // ConfigureLagMemberPort configures the member port in the LAG.
 func ConfigureLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index int) {
 	lagPort := agg.Ports().Add().SetPortName(portID)
-	lagPort.Ethernet().SetMac(a.AggMAC).SetName(a.Name + "-" + portID)
+	mac := a.AggMAC
+	if index < len(a.MemberMACs) && a.MemberMACs[index] != "" {
+		mac = a.MemberMACs[index]
+	}
+	lagPort.Ethernet().SetMac(mac).SetName(a.Name + "-" + portID)
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 	if a.IsMTU {
 		lagPort.Ethernet().SetMtu(a.MTU)

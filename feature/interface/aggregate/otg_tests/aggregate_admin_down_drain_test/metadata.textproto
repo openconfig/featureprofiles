@@ -5,3 +5,57 @@ uuid: "16166927-5ff3-4271-9f5d-29f70b64973a"
 plan_id: "RT-5.18"
 description: "Aggregate Interface (LAG) Drain via Admin Down"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    isis_interface_afi_unsupported: true
+    interface_ref_config_unsupported: true
+    explicit_enable_bgp_on_default_vrf: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    bgp_afi_safi_in_default_ni_before_other_ni: true
+    bgp_rib_oc_path_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+    missing_isis_interface_afi_safi_enable: true
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    missing_isis_interface_afi_safi_enable: true
+    deprecated_vlan_id: true
+    require_routed_subinterface_0: true
+    explicit_enable_bgp_on_default_vrf: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_interface_level1_disable_required: true
+    isis_level_enabled: true
+    interface_ref_interface_id_format: true
+  }
+}

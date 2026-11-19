@@ -1883,3 +1883,158 @@ func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 	}
 	return sb
 }
+
+// EBGPPeerParam holds eBGP neighbor configuration parameters for IPv4 or IPv6 peers.
+type EBGPPeerParam struct {
+	NeighborAddress string
+	LocalAddress    string
+	PeerAS          uint32
+	PeerGroupName   string
+	IsIPv6          bool
+}
+
+// EBGPInstanceParams holds parameters for configuring an eBGP protocol instance with peer groups and neighbors.
+type EBGPInstanceParams struct {
+	NetworkInstanceName string
+	RouterID            string
+	LocalAS             uint32
+	PolicyName          string
+	HoldTime            uint16
+	KeepaliveInterval   uint16
+	Peers               []EBGPPeerParam
+}
+
+// ConfigureEBGPInstance configures an eBGP protocol instance on the specified network instance (or default network instance
+// if NetworkInstanceName is empty) along with a permissive ACCEPT_ROUTE routing policy, peer groups, and dual-stack neighbors.
+func ConfigureEBGPInstance(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params EBGPInstanceParams) *gnmi.SetBatch {
+	t.Helper()
+	if len(params.Peers) == 0 {
+		t.Fatalf("ConfigureEBGPInstance: Peers slice cannot be empty")
+	}
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+	niName := params.NetworkInstanceName
+	dni := deviations.DefaultNetworkInstance(dut)
+	if niName == "" {
+		niName = dni
+	}
+	isDefaultNI := niName == dni
+	if !isDefaultNI && deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		EnableDefaultNetworkInstanceBgp(t, dut, params.LocalAS)
+	}
+	policyName := params.PolicyName
+	if policyName == "" {
+		policyName = "ACCEPT-ALL"
+	}
+
+	root := &oc.Root{}
+	rp := root.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(policyName)
+	stmt, err := pdef.AppendNewStatement("accept-all")
+	if err != nil {
+		t.Fatalf("Failed to append routing policy statement: %v", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	gnmi.BatchUpdate(sb, gnmi.OC().RoutingPolicy().Config(), rp)
+
+	ni := root.GetOrCreateNetworkInstance(niName)
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	proto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	proto.SetName("BGP")
+	proto.SetEnabled(true)
+
+	bgp := proto.GetOrCreateBgp()
+	global := bgp.GetOrCreateGlobal()
+	global.SetAs(params.LocalAS)
+	if params.RouterID != "" {
+		global.SetRouterId(params.RouterID)
+	}
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
+
+	skipPeerGroup := !isDefaultNI && deviations.PeerGroupDefEbgpVrfUnsupported(dut)
+	for _, p := range params.Peers {
+		if p.PeerGroupName != "" && !skipPeerGroup {
+			pg := bgp.GetOrCreatePeerGroup(p.PeerGroupName)
+			pg.SetPeerGroupName(p.PeerGroupName)
+			pg.SetPeerAs(p.PeerAS)
+			if params.HoldTime > 0 && params.KeepaliveInterval > 0 {
+				pg.GetOrCreateTimers().SetHoldTime(params.HoldTime)
+				pg.GetOrCreateTimers().SetKeepaliveInterval(params.KeepaliveInterval)
+			}
+			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := pg.GetOrCreateApplyPolicy()
+				rpl.SetImportPolicy([]string{policyName})
+				rpl.SetExportPolicy([]string{policyName})
+			} else if p.IsIPv6 {
+				v6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				v6.SetEnabled(true)
+				v6Pol := v6.GetOrCreateApplyPolicy()
+				v6Pol.SetImportPolicy([]string{policyName})
+				v6Pol.SetExportPolicy([]string{policyName})
+			} else {
+				v4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				v4.SetEnabled(true)
+				v4Pol := v4.GetOrCreateApplyPolicy()
+				v4Pol.SetImportPolicy([]string{policyName})
+				v4Pol.SetExportPolicy([]string{policyName})
+			}
+		}
+
+		nbr := bgp.GetOrCreateNeighbor(p.NeighborAddress)
+		nbr.SetNeighborAddress(p.NeighborAddress)
+		nbr.SetEnabled(true)
+		nbr.SetPeerAs(p.PeerAS)
+		if params.HoldTime > 0 && params.KeepaliveInterval > 0 {
+			nbr.GetOrCreateTimers().SetHoldTime(params.HoldTime)
+			nbr.GetOrCreateTimers().SetKeepaliveInterval(params.KeepaliveInterval)
+		}
+		if p.PeerGroupName != "" && !skipPeerGroup {
+			nbr.SetPeerGroup(p.PeerGroupName)
+		} else if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			rpl := nbr.GetOrCreateApplyPolicy()
+			rpl.SetImportPolicy([]string{policyName})
+			rpl.SetExportPolicy([]string{policyName})
+		} else if skipPeerGroup && !deviations.BgpDefaultPolicyUnsupported(dut) && !deviations.DefaultRoutePolicyUnsupported(dut) {
+			rpl := nbr.GetOrCreateApplyPolicy()
+			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		}
+		if p.LocalAddress != "" {
+			nbr.GetOrCreateTransport().SetLocalAddress(p.LocalAddress)
+		}
+		if p.IsIPv6 {
+			af6 := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.SetEnabled(true)
+			if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				pol := af6.GetOrCreateApplyPolicy()
+				pol.SetImportPolicy([]string{policyName})
+				pol.SetExportPolicy([]string{policyName})
+			}
+		} else {
+			af4 := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.SetEnabled(true)
+			if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				pol := af4.GetOrCreateApplyPolicy()
+				pol.SetImportPolicy([]string{policyName})
+				pol.SetExportPolicy([]string{policyName})
+			}
+		}
+	}
+
+	protoPath := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	gnmi.BatchUpdate(sb, protoPath.Config(), proto)
+	if skipPeerGroup && !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		for _, p := range params.Peers {
+			afi := oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+			if p.IsIPv6 {
+				afi = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+			}
+			pol := proto.GetOrCreateBgp().GetOrCreateNeighbor(p.NeighborAddress).GetOrCreateAfiSafi(afi).GetOrCreateApplyPolicy()
+			polPath := protoPath.Bgp().Neighbor(p.NeighborAddress).AfiSafi(afi).ApplyPolicy()
+			gnmi.BatchUpdate(sb, polPath.Config(), pol)
+		}
+	}
+	return sb
+}

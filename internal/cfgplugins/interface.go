@@ -2058,3 +2058,256 @@ func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName s
 		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
 }
+
+// L3AggregateParams holds parameters for configuring an L3 aggregate (LAG) interface and its member ports.
+type L3AggregateParams struct {
+	AggID            string
+	LagType          oc.E_IfAggregate_AggregationType
+	MinLinks         uint16
+	LacpMode         oc.E_Lacp_LacpActivityType
+	LacpInterval     oc.E_Lacp_LacpPeriodType
+	MemberPorts      []*ondatra.Port
+	ForwardingViable *bool
+	Attributes       *attrs.Attributes
+}
+
+// SingleTaggedSubinterfaceParams holds parameters for configuring a single-tagged 802.1Q VLAN L3 subinterface.
+type SingleTaggedSubinterfaceParams struct {
+	InterfaceName string
+	SubintfIndex  uint32
+	VlanID        uint16
+	IPv4Addr      string
+	IPv4PrefixLen uint8
+	IPv6Addr      string
+	IPv6PrefixLen uint8
+}
+
+// ClearAggregateMembers removes the aggregate-id and forwarding-viable configuration from the specified member ports.
+func ClearAggregateMembers(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, memberPorts []*ondatra.Port) *gnmi.SetBatch {
+	t.Helper()
+	if len(memberPorts) == 0 {
+		t.Fatalf("ClearAggregateMembers: memberPorts slice cannot be empty")
+	}
+	if sb != nil {
+		for _, port := range memberPorts {
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(port.Name()).ForwardingViable().Config())
+		}
+		return sb
+	}
+	localBatch := &gnmi.SetBatch{}
+	for _, port := range memberPorts {
+		gnmi.BatchDelete(localBatch, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchDelete(localBatch, gnmi.OC().Interface(port.Name()).ForwardingViable().Config())
+	}
+	localBatch.Set(t, dut)
+	return nil
+}
+
+// ConfigureL3AggregateInterface configures an L3 aggregate (LAG) interface, LACP parameters,
+// and member ports using a gNMI SetBatch.
+func ConfigureL3AggregateInterface(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params L3AggregateParams) *gnmi.SetBatch {
+	t.Helper()
+	if len(params.MemberPorts) == 0 {
+		t.Fatalf("ConfigureL3AggregateInterface: MemberPorts slice cannot be empty")
+	}
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+
+	if deviations.AggregateAtomicUpdate(dut) {
+		ClearAggregateMembers(t, dut, nil, params.MemberPorts)
+		d := &oc.Root{}
+		if params.LagType == oc.IfAggregate_AggregationType_LACP {
+			lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(params.AggID)
+			lacpIntf.LacpMode = params.LacpMode
+			if params.LacpInterval != oc.Lacp_LacpPeriodType_UNSET {
+				lacpIntf.Interval = params.LacpInterval
+			}
+		}
+		agg := d.GetOrCreateInterface(params.AggID)
+		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		agg.Enabled = ygot.Bool(true)
+		agg.GetOrCreateAggregation().LagType = params.LagType
+		if params.MinLinks > 0 {
+			agg.GetOrCreateAggregation().MinLinks = ygot.Uint16(params.MinLinks)
+		}
+		for _, port := range params.MemberPorts {
+			i := d.GetOrCreateInterface(port.Name())
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			i.Enabled = ygot.Bool(true)
+			if params.ForwardingViable != nil {
+				i.ForwardingViable = ygot.Bool(*params.ForwardingViable)
+			}
+			i.GetOrCreateEthernet().AggregateId = ygot.String(params.AggID)
+		}
+		gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	}
+
+	if params.LagType == oc.IfAggregate_AggregationType_LACP {
+		lacp := &oc.Lacp_Interface{
+			Name:     ygot.String(params.AggID),
+			LacpMode: params.LacpMode,
+		}
+		if params.LacpInterval != oc.Lacp_LacpPeriodType_UNSET {
+			lacp.Interval = params.LacpInterval
+		}
+		gnmi.BatchReplace(sb, gnmi.OC().Lacp().Interface(params.AggID).Config(), lacp)
+	}
+
+	agg := &oc.Interface{Name: ygot.String(params.AggID)}
+	if params.Attributes != nil {
+		params.Attributes.ConfigOCInterface(agg, dut)
+	}
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.Enabled = ygot.Bool(true)
+	aggCfg := agg.GetOrCreateAggregation()
+	aggCfg.LagType = params.LagType
+	if params.MinLinks > 0 {
+		aggCfg.MinLinks = ygot.Uint16(params.MinLinks)
+	}
+	if params.Attributes != nil {
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	} else {
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(params.AggID).Config(), agg)
+	}
+
+	for _, port := range params.MemberPorts {
+		i := &oc.Interface{
+			Name:        ygot.String(port.Name()),
+			Description: ygot.String(port.String()),
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled:     ygot.Bool(true),
+		}
+		if params.ForwardingViable != nil {
+			i.ForwardingViable = ygot.Bool(*params.ForwardingViable)
+		}
+		i.GetOrCreateEthernet().AggregateId = ygot.String(params.AggID)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(port.Name()).Config(), i)
+	}
+
+	return sb
+}
+
+// ConfigureSingleTaggedSubinterface configures a single-tagged 802.1Q VLAN subinterface with dual-stack
+// IPv4 and IPv6 addresses and adds it to the provided gNMI SetBatch.
+func ConfigureSingleTaggedSubinterface(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params SingleTaggedSubinterfaceParams) *gnmi.SetBatch {
+	t.Helper()
+	if sb == nil {
+		sb = &gnmi.SetBatch{}
+	}
+
+	sub := &oc.Interface_Subinterface{
+		Index:   ygot.Uint32(params.SubintfIndex),
+		Enabled: ygot.Bool(true),
+	}
+	if params.VlanID > 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			sub.GetOrCreateVlan().VlanId = oc.UnionUint16(params.VlanID)
+		} else {
+			sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(params.VlanID)
+		}
+	}
+
+	if params.IPv4Addr != "" {
+		v4 := sub.GetOrCreateIpv4()
+		if !deviations.IPv4MissingEnabled(dut) {
+			v4.Enabled = ygot.Bool(true)
+		}
+		a4 := v4.GetOrCreateAddress(params.IPv4Addr)
+		a4.Ip = ygot.String(params.IPv4Addr)
+		a4.PrefixLength = ygot.Uint8(params.IPv4PrefixLen)
+	}
+
+	if params.IPv6Addr != "" {
+		v6 := sub.GetOrCreateIpv6()
+		v6.Enabled = ygot.Bool(true)
+		a6 := v6.GetOrCreateAddress(params.IPv6Addr)
+		a6.Ip = ygot.String(params.IPv6Addr)
+		a6.PrefixLength = ygot.Uint8(params.IPv6PrefixLen)
+	}
+
+	subPath := gnmi.OC().Interface(params.InterfaceName).Subinterface(params.SubintfIndex)
+	gnmi.BatchUpdate(sb, subPath.Config(), sub)
+	return sb
+}
+
+// SetInterfaceAdminEnabled sets /interfaces/interface[name=<intfName>]/config/enabled via gNMI Replace.
+func SetInterfaceAdminEnabled(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, intfName string, enabled bool) *gnmi.SetBatch {
+	t.Helper()
+	path := gnmi.OC().Interface(intfName).Enabled().Config()
+	if sb != nil {
+		gnmi.BatchReplace(sb, path, enabled)
+		return sb
+	}
+	gnmi.Replace(t, dut, path, enabled)
+	return nil
+}
+
+// SetMemberForwardingViable sets /interfaces/interface[name=<portName>]/config/forwarding-viable
+// while preserving /interfaces/interface[name=<portName>]/ethernet/config/aggregate-id.
+func SetMemberForwardingViable(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, portName, aggID string, viable bool) *gnmi.SetBatch {
+	t.Helper()
+	fvPath := gnmi.OC().Interface(portName).ForwardingViable().Config()
+	aggIDPath := gnmi.OC().Interface(portName).Ethernet().AggregateId().Config()
+	if sb != nil {
+		gnmi.BatchReplace(sb, fvPath, viable)
+		if aggID != "" {
+			gnmi.BatchReplace(sb, aggIDPath, aggID)
+		}
+		return sb
+	}
+	localBatch := &gnmi.SetBatch{}
+	gnmi.BatchReplace(localBatch, fvPath, viable)
+	if aggID != "" {
+		gnmi.BatchReplace(localBatch, aggIDPath, aggID)
+	}
+	localBatch.Set(t, dut)
+	return nil
+}
+
+// CompareInterfaceNames compares two interface names in natural numeric order (e.g. Ethernet2 < Ethernet10).
+func CompareInterfaceNames(a, b string) bool {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		isDigitA := a[i] >= '0' && a[i] <= '9'
+		isDigitB := b[j] >= '0' && b[j] <= '9'
+		if isDigitA && isDigitB {
+			numA := 0
+			for i < len(a) && a[i] >= '0' && a[i] <= '9' {
+				numA = numA*10 + int(a[i]-'0')
+				i++
+			}
+			numB := 0
+			for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+				numB = numB*10 + int(b[j]-'0')
+				j++
+			}
+			if numA != numB {
+				return numA < numB
+			}
+			continue
+		}
+		if a[i] != b[j] {
+			return a[i] < b[j]
+		}
+		i++
+		j++
+	}
+	return len(a) < len(b)
+}
+
+// SortPortIDsByDUTName sorts a slice of port IDs in natural numeric order of their corresponding DUT interface names
+// and returns both the sorted port IDs and the resolved *ondatra.Port slice.
+func SortPortIDsByDUTName(t *testing.T, dut *ondatra.DUTDevice, portIDs []string) ([]string, []*ondatra.Port) {
+	t.Helper()
+	sortedIDs := append([]string(nil), portIDs...)
+	sort.Slice(sortedIDs, func(i, j int) bool {
+		return CompareInterfaceNames(dut.Port(t, sortedIDs[i]).Name(), dut.Port(t, sortedIDs[j]).Name())
+	})
+	ports := make([]*ondatra.Port, 0, len(sortedIDs))
+	for _, id := range sortedIDs {
+		ports = append(ports, dut.Port(t, id))
+	}
+	return sortedIDs, ports
+}
