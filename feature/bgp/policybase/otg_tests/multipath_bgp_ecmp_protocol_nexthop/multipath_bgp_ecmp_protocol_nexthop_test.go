@@ -278,6 +278,11 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
+				wantPaths := 1
+				if tc.multipath {
+					wantPaths = 3
+				}
+				waitForIPv4AFTNextHopGroup(t, dut, "100.1.1.0/24", wantPaths)
 				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
 				otg.StopTraffic(t)
@@ -299,6 +304,11 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
+				wantPaths := 1
+				if tc.multipath {
+					wantPaths = 3
+				}
+				waitForIPv6AFTNextHopGroup(t, dut, "100:1:1::/64", wantPaths)
 				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
 				otg.StopTraffic(t)
@@ -311,6 +321,56 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func waitForIPv4AFTNextHopGroup(t *testing.T, dut *ondatra.DUTDevice, prefix string, wantPaths int) {
+	t.Helper()
+	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
+	entryPath := aftsPath.Ipv4Entry(prefix).State()
+	lastState := "AFT entry not present"
+	_, ok := gnmi.Watch(t, dut, entryPath, 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		entry, present := val.Val()
+		if !present || entry == nil {
+			lastState = "AFT entry not present"
+			return false
+		}
+		nextHopGroup, present := gnmi.Lookup(t, dut, aftsPath.NextHopGroup(entry.GetNextHopGroup()).State()).Val()
+		if !present || nextHopGroup == nil {
+			lastState = fmt.Sprintf("next-hop group %d not present", entry.GetNextHopGroup())
+			return false
+		}
+		gotPaths := len(nextHopGroup.NextHop)
+		lastState = fmt.Sprintf("next-hop group %d has %d paths", entry.GetNextHopGroup(), gotPaths)
+		return gotPaths == wantPaths
+	}).Await(t)
+	if !ok {
+		t.Fatalf("AFT IPv4 entry %s did not reach %d next hops within 2m: %s", prefix, wantPaths, lastState)
+	}
+}
+
+func waitForIPv6AFTNextHopGroup(t *testing.T, dut *ondatra.DUTDevice, prefix string, wantPaths int) {
+	t.Helper()
+	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
+	entryPath := aftsPath.Ipv6Entry(prefix).State()
+	lastState := "AFT entry not present"
+	_, ok := gnmi.Watch(t, dut, entryPath, 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		entry, present := val.Val()
+		if !present || entry == nil {
+			lastState = "AFT entry not present"
+			return false
+		}
+		nextHopGroup, present := gnmi.Lookup(t, dut, aftsPath.NextHopGroup(entry.GetNextHopGroup()).State()).Val()
+		if !present || nextHopGroup == nil {
+			lastState = fmt.Sprintf("next-hop group %d not present", entry.GetNextHopGroup())
+			return false
+		}
+		gotPaths := len(nextHopGroup.NextHop)
+		lastState = fmt.Sprintf("next-hop group %d has %d paths", entry.GetNextHopGroup(), gotPaths)
+		return gotPaths == wantPaths
+	}).Await(t)
+	if !ok {
+		t.Fatalf("AFT IPv6 entry %s did not reach %d next hops within 2m: %s", prefix, wantPaths, lastState)
 	}
 }
 
@@ -384,7 +444,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Logf("BGP config applied on DUT")
-	time.Sleep(30 * time.Second)
 }
 
 type bgpNeighbor struct {
@@ -466,9 +525,8 @@ func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4
 	} else {
 		cliConfig = fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
 		t.Logf("CLI config: \n%v", cliConfig)
-		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
+		t.Logf("Now applying CLI config on DUT")
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
-		time.Sleep(30 * time.Second)
 	}
 }
 
@@ -698,7 +756,7 @@ func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []str
 		} else {
 			prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 		}
-		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 90*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 2*time.Minute, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, ok := val.Val()
 			return ok && gotRx == wantRx
 		}).Await(t); !ok {
