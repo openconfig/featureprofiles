@@ -11,7 +11,12 @@ Test `used-threshold-upper` configuration and telemetry for hardware resources.
 *   Establish BGP session between ATE Port1 --- DUT Port1.
 
 *   Get initial utilization percentages (free/(used+free) * 100) for the FIB
-    resource in the system.
+    resource in the system from the integrated-circuit or chassis utilization
+    telemetry paths:
+    *   `/components/component/integrated-circuit/utilization/resources/resource/state/used`
+    *   `/components/component/integrated-circuit/utilization/resources/resource/state/free`
+    *   `/components/component/chassis/utilization/resources/resource/state/used`
+    *   `/components/component/chassis/utilization/resources/resource/state/free`
 
 *   Configure DUT used-threshold-upper to 60% and used-threshold-upper-clear to
     50%.
@@ -82,6 +87,10 @@ paths:
     platform_type: ["INTEGRATED_CIRCUIT"]
   /components/component/integrated-circuit/utilization/resources/resource/state/used-threshold-upper-exceeded:
     platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/chassis/utilization/resources/resource/state/used:
+    platform_type: ["CHASSIS"]
+  /components/component/chassis/utilization/resources/resource/state/free:
+    platform_type: ["CHASSIS"]
 rpcs:
   gnmi:
     gNMI.Set:
