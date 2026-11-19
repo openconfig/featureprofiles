@@ -17,7 +17,6 @@ package egress_strict_priority_scheduler_test
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -209,32 +208,6 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 			},
 		}
 
-		if deviations.InterfaceOutputQueueNonStandardName(dut) {
-
-			// Configuring the non-standard queue names.
-			for flowName, data := range trafficFlows {
-				if strings.Contains(strings.ToUpper(flowName), "BE1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(0)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(1)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF2") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(2)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF3") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(3)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF4") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(4)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "NC1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(5)
-				}
-			}
-
-		}
-
 		ateOutPkts := make(map[string]uint64)
 		ateInPkts := make(map[string]uint64)
 		dutQosPktsBeforeTraffic := make(map[string]uint64)
@@ -270,7 +243,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 		}
@@ -287,6 +260,8 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 		time.Sleep(15 * time.Second)
 
 		ate.OTG().StopTraffic(t)
+
+		time.Sleep(30 * time.Second)
 
 		for flowName := range trafficFlows {
 			waitForTraffic(t, ate.OTG(), flowName, 10)
@@ -322,8 +297,17 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 		t.Logf(header, "Intf", "Queue", "ATE Tx frames", "DUT Tx frames", "ATE Dropped frames", "DUT Dropped frames")
 
 		for queue := range uniqueQueues {
-			dutQueueTransmitPktsTotal := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State())
-			dutQueueDroppedPktsTotal := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State())
+			count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("TransmitPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
+			}
+			dutQueueTransmitPktsTotal, _ := count.Val()
+
+			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
+			}
+			dutQueueDroppedPktsTotal, _ := count.Val()
 
 			dutQueueTransmitPkts := dutQueueTransmitPktsTotal - dutQosPktsBeforeTraffic[queue]
 			dutQueueDroppedPkts := dutQueueDroppedPktsTotal - dutQosDroppedPktsBeforeTraffic[queue]
@@ -481,31 +465,6 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 			},
 		}
 
-		if deviations.InterfaceOutputQueueNonStandardName(dut) {
-
-			// Configuring the non-standard queue names.
-			for flowName, data := range trafficFlows {
-				if strings.Contains(strings.ToUpper(flowName), "BE1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(0)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(1)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF2") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(2)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF3") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(3)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF4") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(4)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "NC1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(5)
-				}
-			}
-		}
-
 		ateOutPkts := make(map[string]uint64)
 		ateInPkts := make(map[string]uint64)
 		dutQosPktsBeforeTraffic := make(map[string]uint64)
@@ -540,7 +499,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 		}
@@ -554,7 +513,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 		time.Sleep(30 * time.Second)
 		ate.OTG().StopTraffic(t)
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 
 		t.Logf("Printing aggregated flow metrics from OTG: \n")
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
@@ -586,8 +545,17 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 		t.Logf(header, "Intf", "Queue", "ATE Tx frames", "DUT Tx frames", "ATE Dropped frames", "DUT Dropped frames")
 
 		for queue := range uniqueQueues {
-			dutQueueTransmitPktsTotal := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State())
-			dutQueueDroppedPktsTotal := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State())
+			count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("TransmitPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
+			}
+			dutQueueTransmitPktsTotal, _ := count.Val()
+
+			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
+			}
+			dutQueueDroppedPktsTotal, _ := count.Val()
 
 			dutQueueTransmitPkts := dutQueueTransmitPktsTotal - dutQosPktsBeforeTraffic[queue]
 			dutQueueDroppedPkts := dutQueueDroppedPktsTotal - dutQosDroppedPktsBeforeTraffic[queue]
@@ -643,7 +611,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 			trafficRate           float64
 			expectedThroughputPct float32
 			frameSize             uint32
-			dscp                  uint8
+			exp                   uint8
 			queue                 string
 			inputIntf             attrs.Attributes
 		}
@@ -653,14 +621,14 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           1,
 				expectedThroughputPct: 100.0,
-				dscp:                  6,
+				exp:                   6,
 				queue:                 queues.NC1,
 				inputIntf:             ateTxP1,
 			},
 			"ateTxP2-regular-nc1": {
 				frameSize:             512,
 				trafficRate:           1,
-				dscp:                  7,
+				exp:                   7,
 				expectedThroughputPct: 100.0,
 				queue:                 queues.NC1,
 				inputIntf:             ateTxP2,
@@ -669,14 +637,14 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           30,
 				expectedThroughputPct: 100.0,
-				dscp:                  4,
+				exp:                   4,
 				queue:                 queues.AF4,
 				inputIntf:             ateTxP1,
 			},
 			"ateTxP2-regular-af4": {
 				frameSize:             512,
 				trafficRate:           30,
-				dscp:                  5,
+				exp:                   5,
 				expectedThroughputPct: 100.0,
 				queue:                 queues.AF4,
 				inputIntf:             ateTxP2,
@@ -685,14 +653,14 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           12,
 				expectedThroughputPct: 100.0,
-				dscp:                  3,
+				exp:                   3,
 				queue:                 queues.AF3,
 				inputIntf:             ateTxP1,
 			},
 			"ateTxP2-regular-af3": {
 				frameSize:             512,
 				trafficRate:           12,
-				dscp:                  3,
+				exp:                   3,
 				expectedThroughputPct: 100.0,
 				queue:                 queues.AF3,
 				inputIntf:             ateTxP2,
@@ -701,14 +669,14 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           10,
 				expectedThroughputPct: 50.0,
-				dscp:                  2,
+				exp:                   2,
 				queue:                 queues.AF2,
 				inputIntf:             ateTxP1,
 			},
 			"ateTxP2-regular-af2": {
 				frameSize:             512,
 				trafficRate:           10,
-				dscp:                  2,
+				exp:                   2,
 				expectedThroughputPct: 50.0,
 				queue:                 queues.AF2,
 				inputIntf:             ateTxP2,
@@ -717,14 +685,14 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           12,
 				expectedThroughputPct: 0.0,
-				dscp:                  1,
+				exp:                   1,
 				queue:                 queues.AF1,
 				inputIntf:             ateTxP1,
 			},
 			"ateTxP2-regular-af1": {
 				frameSize:             512,
 				trafficRate:           12,
-				dscp:                  1,
+				exp:                   1,
 				expectedThroughputPct: 0.0,
 				queue:                 queues.AF1,
 				inputIntf:             ateTxP2,
@@ -733,7 +701,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           12,
 				expectedThroughputPct: 0.0,
-				dscp:                  0,
+				exp:                   0,
 				queue:                 queues.BE1,
 				inputIntf:             ateTxP1,
 			},
@@ -741,37 +709,12 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 				frameSize:             512,
 				trafficRate:           12,
 				expectedThroughputPct: 0.0,
-				dscp:                  0,
+				exp:                   0,
 				queue:                 queues.BE1,
 				inputIntf:             ateTxP2,
 			},
 		}
 
-		if deviations.InterfaceOutputQueueNonStandardName(dut) {
-
-			// Configuring the non-standard queue names.
-			for flowName, data := range trafficFlows {
-				if strings.Contains(strings.ToUpper(flowName), "BE1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(0)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(1)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF2") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(2)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF3") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(3)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "AF4") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(4)
-				}
-				if strings.Contains(strings.ToUpper(flowName), "NC1") {
-					data.queue = dp3.Name() + "-" + strconv.Itoa(5)
-				}
-			}
-
-		}
 		ateOutPkts := make(map[string]uint64)
 		ateInPkts := make(map[string]uint64)
 		dutQosPktsBeforeTraffic := make(map[string]uint64)
@@ -807,7 +750,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 
 			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
 			if !ok {
-				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", dp3.Name(), queue, timeout)
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
 			}
 			dutQosDroppedPktsBeforeTraffic[queue], _ = count.Val()
 		}
@@ -821,7 +764,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 
 		ate.OTG().StopTraffic(t)
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 
 		t.Logf("Printing aggregated flow metrics from OTG: \n")
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
@@ -853,8 +796,17 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 		t.Logf(header, "Intf", "Queue", "ATE Tx frames", "DUT Tx frames", "ATE Dropped frames", "DUT Dropped frames")
 
 		for queue := range uniqueQueues {
-			dutQueueTransmitPktsTotal := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State())
-			dutQueueDroppedPktsTotal := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State())
+			count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("TransmitPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
+			}
+			dutQueueTransmitPktsTotal, _ := count.Val()
+
+			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("DroppedPkts count for queue %s on interface %q not available within %v", queue, dp3.Name(), timeout)
+			}
+			dutQueueDroppedPktsTotal, _ := count.Val()
 
 			dutQueueTransmitPkts := dutQueueTransmitPktsTotal - dutQosPktsBeforeTraffic[queue]
 			dutQueueDroppedPkts := dutQueueDroppedPktsTotal - dutQosDroppedPktsBeforeTraffic[queue]
