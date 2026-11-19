@@ -54,3 +54,11 @@ platform_exceptions: {
     channel_assignment_rate_class_parameters_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    eth_channel_ingress_parameters_unsupported: true
+  }
+}
