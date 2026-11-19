@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -90,6 +91,21 @@ const (
 var (
 	sharedBaseline string
 	defaultNI      string
+
+	// testMTUs are the MTUs configured by this test. setCLINoMTU treats any other MTU as the
+	// platform or testbed default. Some of these share a value, so this is a slice rather
+	// than a map literal.
+	testMTUs = []uint16{
+		overlapMTUOC,
+		overlapMTUCLI,
+		nonOverlapMTU,
+		moveIPMTU,
+		badIntfMTU,
+		addMTUOC,
+		addMTUCLI,
+		changeMTUOC1,
+		changeMTUOC2,
+	}
 )
 
 type cliInterfaceConfigOpts struct {
@@ -209,22 +225,26 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 		t.Fatalf("unsupported vendor: %v", dut.Vendor())
 	}
 	helpers.GnmiCLIConfig(t, dut, cli)
-	// Wait for the MTU to be removed (i.e., not equal to 1500/1514/9232).
+	// Wait for the MTU to be removed, i.e. for the MTU to fall back to a platform or testbed
+	// default. Defaults vary (e.g. 1500, 1514, 9232, or an Arista "interface defaults mtu 9214"),
+	// so any value other than an MTU configured by this test is accepted.
 	mtuPath := gnmi.OC().Interface(portName).Mtu().State()
 	if deviations.OmitL2MTU(dut) {
 		mtuPath = gnmi.OC().Interface(portName).Subinterface(defaultSubif).Ipv4().Mtu().State()
 	}
-	gnmi.Watch(t, dut, mtuPath, awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
+	lastMTU := "none observed"
+	_, ok := gnmi.Watch(t, dut, mtuPath, awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
 		m, present := val.Val()
 		if !present {
-			t.Logf("Got MTU not present, want 1500, 1514, or 9232.")
+			lastMTU = "not present"
 			return false
 		}
-		if m == 1500 || m == 1514 || m == 9232 {
-			return true
-		}
-		return false
+		lastMTU = fmt.Sprint(m)
+		return !slices.Contains(testMTUs, m)
 	}).Await(t)
+	if !ok {
+		t.Logf("MTU on %s did not return to a non-test default within %v after removing the CLI MTU, last MTU: %s", portName, awaitTimeOut, lastMTU)
+	}
 }
 
 // setCLIunionReplace adds any necessary modifications to the base CLI configuration
@@ -238,10 +258,37 @@ func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 		// applied by the time the Set returned.
 		clicfg := "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
 		helpers.GnmiCLIConfig(t, dut, clicfg)
-		if running := cliConfig(t, dut); !strings.Contains(running, "operation set namespace") || !strings.Contains(running, "operation set persistence") {
-			t.Fatalf("union_replace support (operation set namespace and persistence) not in running-config after gNMI Set")
+		gnmiBlock := cliSection(cliConfig(t, dut), "management api gnmi")
+		if !strings.Contains(gnmiBlock, "operation set namespace") || !strings.Contains(gnmiBlock, "operation set persistence") {
+			t.Fatalf("union_replace support (operation set namespace and persistence) not in running-config \"management api gnmi\" block after gNMI Set, got block:\n%s", gnmiBlock)
 		}
 	}
+}
+
+// cliSection returns the top-level section of the CLI config cli whose header line is header,
+// together with all of its indented sub-lines. The section ends at the next top-level
+// (non-indented) line, so nested "!" separators inside the section are included. It returns
+// "" if no such section exists.
+func cliSection(cli, header string) string {
+	var sb strings.Builder
+	inside := false
+	for _, line := range strings.Split(cli, "\n") {
+		line = strings.TrimRight(line, " \t\r")
+		if !inside {
+			if line == header {
+				inside = true
+				sb.WriteString(line)
+				sb.WriteByte('\n')
+			}
+			continue
+		}
+		if line != "" && line[0] != ' ' && line[0] != '\t' {
+			break
+		}
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	return sb.String()
 }
 
 // Remove description lines from the base CLI config.
@@ -495,8 +542,11 @@ func ocInterface(root *oc.Root, dut *ondatra.DUTDevice, intfName string) *oc.Int
 	return intf
 }
 
-// setOCMTU sets the MTU of intf. DUTs that do not support setting the L2 MTU take the MTU on the
-// subinterface 0 IPv4 and IPv6 MTU leaves instead, which some DUTs require to be equal. As in
+// setOCMTU sets the MTU of intf. DUTs that do not support setting the L2 MTU (omit_l2_mtu) take
+// the MTU on the subinterface 0 IPv4 and IPv6 MTU leaves instead. In this test only Arista EOS
+// sets omit_l2_mtu. EOS has a single L3 "mtu" per interface for both IPv4 and IPv6, so the
+// IPv4 and IPv6 MTU leaves must be set to the same value. Because they are the same EOS
+// setting, the test verifies only the IPv4 MTU (see verifyInterfaceMTU). As in
 // attrs.NewOCInterface, IPv4 is enabled on the subinterface that carries the IPv4 MTU.
 func setOCMTU(dut *ondatra.DUTDevice, intf *oc.Interface, mtu uint16) {
 	if !deviations.OmitL2MTU(dut) {
@@ -513,14 +563,11 @@ func setOCMTU(dut *ondatra.DUTDevice, intf *oc.Interface, mtu uint16) {
 }
 
 // batchUnionReplaceOCInterface adds an OC union_replace of the interface
-// intfName to sb, initialized via ocInterface and customized by set.
+// intfName to sb, initialized via ocInterface and customized by set. Callers that
+// set an MTU must use setOCMTU inside set so that omit_l2_mtu is honored.
 func batchUnionReplaceOCInterface(sb *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, set func(*oc.Interface)) {
 	intf := ocInterface(&oc.Root{}, dut, intfName)
 	set(intf)
-	if deviations.OmitL2MTU(dut) && intf.Mtu != nil {
-		setOCMTU(dut, intf, *intf.Mtu)
-		intf.Mtu = nil
-	}
 	gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(intfName).Config(), intf)
 }
 
@@ -740,7 +787,9 @@ func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName strin
 	}
 	step := uint8(1)
 	// Arista EOS names breakout child interfaces after their first lane, e.g. /1 and /3 for a
-	// 2x50G breakout that uses 2 lanes per child.
+	// 2x50G breakout that uses 2 lanes per child. Using numChannels as the step assumes that
+	// num-physical-channels equals the number of lanes per child, which holds for the breakout
+	// modes breakoutParams selects for Arista (4x100G-2 and 2x50G-2).
 	if dut.Vendor() == ondatra.ARISTA && breakout.numChannels > 0 {
 		step = breakout.numChannels
 	}
@@ -1071,7 +1120,7 @@ func TestUnionReplace(t *testing.T) {
 				mtu := addMTUOC
 				cliConfig2 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig2)
-				batchUnionReplaceOCInterface(sb1, dut, dp1.Name(), func(i *oc.Interface) { i.Mtu = ygot.Uint16(mtu) })
+				batchUnionReplaceOCInterface(sb1, dut, dp1.Name(), func(i *oc.Interface) { setOCMTU(dut, i, mtu) })
 				t.Logf("Generated BatchUnionReplace: %#v\n", sb1.String())
 
 				setResult := sb1.Set(t, dut)
@@ -1102,7 +1151,7 @@ func TestUnionReplace(t *testing.T) {
 				cliMTU := addMTUCLI
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig1)
-				batchUnionReplaceOCInterface(sb1, dut, dp2.Name(), func(i *oc.Interface) { i.Mtu = ygot.Uint16(ocMTU) })
+				batchUnionReplaceOCInterface(sb1, dut, dp2.Name(), func(i *oc.Interface) { setOCMTU(dut, i, ocMTU) })
 				sb1.Set(t, dut)
 				if err := verifyInterfaceMTU(t, dut, dp2.Name(), ocMTU); err != nil {
 					return err
@@ -1163,7 +1212,7 @@ func TestUnionReplace(t *testing.T) {
 				mtu2 := changeMTUOC2
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, cliConfig1)
-				batchUnionReplaceOCInterface(sb, dut, portName, func(i *oc.Interface) { i.Mtu = ygot.Uint16(mtu1) })
+				batchUnionReplaceOCInterface(sb, dut, portName, func(i *oc.Interface) { setOCMTU(dut, i, mtu1) })
 				sb.Set(t, dut)
 
 				if err := verifyInterfaceMTU(t, dut, portName, mtu1); err != nil {
@@ -1173,7 +1222,7 @@ func TestUnionReplace(t *testing.T) {
 				// Change the MTU using OC config.
 				// reuse the same CLI config without any MTU config.
 				sb2 := &gnmi.SetBatch{}
-				batchUnionReplaceOCInterface(sb2, dut, portName, func(i *oc.Interface) { i.Mtu = ygot.Uint16(mtu2) })
+				batchUnionReplaceOCInterface(sb2, dut, portName, func(i *oc.Interface) { setOCMTU(dut, i, mtu2) })
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, cliConfig1)
 				sb2.Set(t, dut)
 
