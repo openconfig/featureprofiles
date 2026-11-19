@@ -707,6 +707,9 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 // waits for all wanted prefixes and their next hops and stops only when none of
 // absentPrefixes are present in the current streamed AFT view. Absence is a
 // point-in-time check; this condition does not wait for an initial-sync marker.
+// Use it for an already-open stream transitioning to a new filter. For a fresh
+// subscription, use InitialSyncStoppingCondition and verify absence from the
+// resulting AFT snapshot so an initial leak fails immediately.
 func InitialSyncStoppingConditionWithAbsentPrefixes(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, absentPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20

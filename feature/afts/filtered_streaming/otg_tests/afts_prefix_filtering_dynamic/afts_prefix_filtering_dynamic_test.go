@@ -29,29 +29,30 @@ import (
 )
 
 const (
-	vrfName              = "VRF-A"
-	v4PfxSet             = "PREFIX-SET-A"
-	v6PfxSet             = "PREFIX-SET-B"
-	v4Policy             = "POLICY-PREFIX-SET-A"
-	v6Policy             = "POLICY-PREFIX-SET-B"
-	matchAllPolicy       = "POLICY-MATCH-ALL"
-	subscriptionWait     = 5 * time.Minute
-	prefixAFT1V4         = "198.51.100.0/24"
-	prefixAFT2V4         = "203.0.113.0/28"
-	prefixAFT3V4         = "192.0.2.0/24"
-	prefixAFT1V6         = "2001:db8:2::/64"
-	prefixAFT2V6         = "2001:db8:2::1/128"
-	prefixAFT3V6         = "2001:db8:2::2/128"
-	vrfV4Pfx             = "100.64.1.0/24"
-	vrfV6Pfx             = "2001:db8:3::/64"
-	vrfRouteV4Pfx        = "90.0.0.1"
-	vrfRouteV6Pfx        = "4000::1"
-	maskRange            = "exact"
-	notificationWaitTime = subscriptionWait
-	staticRouteIndex     = 100
-	pfxCount             = 1
-	aftFilterDUTAS       = 65001
-	vrfRoutes            = 5000
+	vrfName                 = "VRF-A"
+	v4PfxSet                = "PREFIX-SET-A"
+	v6PfxSet                = "PREFIX-SET-B"
+	v4Policy                = "POLICY-PREFIX-SET-A"
+	v6Policy                = "POLICY-PREFIX-SET-B"
+	matchAllPolicy          = "POLICY-MATCH-ALL"
+	subscriptionWait        = 5 * time.Minute
+	prefixAFT1V4            = "198.51.100.0/24"
+	prefixAFT2V4            = "203.0.113.0/28"
+	prefixAFT3V4            = "192.0.2.0/24"
+	prefixAFT1V6            = "2001:db8:2::/64"
+	prefixAFT2V6            = "2001:db8:2::1/128"
+	prefixAFT3V6            = "2001:db8:2::2/128"
+	unmatchedIPv6BasePrefix = "2001:db8:1::/64"
+	vrfV4Pfx                = "100.64.1.0/24"
+	vrfV6Pfx                = "2001:db8:3::/64"
+	vrfRouteV4Pfx           = "90.0.0.1"
+	vrfRouteV6Pfx           = "4000::1"
+	maskRange               = "exact"
+	notificationWaitTime    = subscriptionWait
+	staticRouteIndex        = 100
+	pfxCount                = 1
+	aftFilterDUTAS          = 65001
+	vrfRoutes               = 5000
 )
 
 // notificationCollectorTimeout extends past the next two-minute periodic
@@ -112,6 +113,7 @@ var (
 		"2001:db8:2::/64",
 		"2001:db8:2::1/128",
 		"2001:db8:2::2/128",
+		unmatchedIPv6BasePrefix,
 	}
 
 	policyIPv6Prefixes = []string{
@@ -401,6 +403,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 		policyCfg.V4Policy = pArgs.policyName
 	}
 	aftpf.ConfigureGlobalFilterPolicies(t, dut, policyCfg)
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, policyCfg)
 	if pArgs.isIPv6 {
 		wantPrefixes = aftpf.GeneratePrefixes(t,
 			aftpf.GeneratePrefixesParams{
@@ -414,9 +417,11 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 				PfxCount:   pfxCount,
 			})
 	}
-	absentPrefixes := map[string]bool{pArgs.dynamicPrefix: true}
-	if !pArgs.isIPv6 {
-		absentPrefixes["100.64.0.0/24"] = true
+	initialAbsentPrefixes := []string{pArgs.dynamicPrefix}
+	if pArgs.isIPv6 {
+		initialAbsentPrefixes = append(initialAbsentPrefixes, unmatchedIPv6BasePrefix)
+	} else {
+		initialAbsentPrefixes = append(initialAbsentPrefixes, "100.64.0.0/24")
 	}
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
@@ -438,7 +443,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 		aftpf.RunCollectorParams{
 			Ctx:       ctx,
 			Collector: collector,
-			Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, absentPrefixes,
+			Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
 				map[string]bool{atePort1.IPv4: true},
 				map[string]bool{atePort1.IPv6: true},
 			),
@@ -453,6 +458,7 @@ func testDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdat
 			InfoAFT:  initialAFT,
 			Prefixes: pArgs.initialAllowedPrefixes,
 		})
+	aftpf.VerifyPrefixesAbsent(t, aftpf.PrefixesParams{InfoAFT: initialAFT, Prefixes: initialAbsentPrefixes})
 	//----------------------------------------------------------------------
 	// AFT-6.4.X.1 Add Prefix
 	//----------------------------------------------------------------------
