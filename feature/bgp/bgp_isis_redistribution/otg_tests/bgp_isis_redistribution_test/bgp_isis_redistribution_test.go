@@ -446,69 +446,50 @@ func matchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func waitForIPv4PrefixAbsent(t *testing.T, ate *ondatra.ATEDevice, prefix string, timeout time.Duration) {
+// Poll fresh snapshots across all LSPs rather than relying on wildcard stream
+// deletions. Once withdrawn, the prefix must stay absent until the deadline.
+func waitForOTGPrefixAbsent[T any](t testing.TB, dev gnmi.DeviceOrOpts, query ygnmi.WildcardQuery[T], timeout time.Duration) bool {
 	t.Helper()
-	// Check if prefix is currently present in OTG LSDB (e.g. from a previous subtest).
-	// If present, wait for DUT route withdrawal to propagate to OTG.
-	prefixes := gnmi.LookupAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State())
-	hasPrefix := false
-	for _, p := range prefixes {
-		if val, ok := p.Val(); ok && val.GetPrefix() == prefix {
-			hasPrefix = true
-			break
+	deadline := time.Now().Add(timeout)
+	seenAbsent := false
+	for {
+		present := false
+		for _, value := range gnmi.LookupAll(t, dev, query) {
+			if _, ok := value.Val(); ok {
+				present = true
+				if seenAbsent || !time.Now().Before(deadline) {
+					t.Logf("OTG IS-IS LSDB still reports prefix at %v: %v", value.Path, value)
+				}
+			}
 		}
-	}
-	if hasPrefix {
-		t.Logf("Prefix %s is currently present in LSDB; waiting for withdrawal...", prefix)
-		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
-			_, present := v.Val()
+		if present && seenAbsent {
+			return false
+		}
+		if !present {
+			seenAbsent = true
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
 			return !present
-		}).Await(t)
-		if !ok {
-			t.Errorf("Timed out waiting for prefix %s to be withdrawn from LSDB", prefix)
 		}
-		return
-	}
-
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
-		pfx, present := v.Val()
-		return present && pfx.GetPrefix() == prefix
-	}).Await(t)
-	if ok {
-		t.Errorf("Prefix found, not want: %s", prefix)
+		time.Sleep(min(time.Second, remaining))
 	}
 }
 
+func waitForIPv4PrefixAbsent(t *testing.T, ate *ondatra.ATEDevice, prefix string, timeout time.Duration) {
+	t.Helper()
+	query := gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(prefix).State()
+	if !waitForOTGPrefixAbsent(t, ate.OTG(), query, timeout) {
+		t.Errorf("Prefix %s still present in OTG IS-IS LSDB, want withdrawn", prefix)
+	}
+}
+
+// waitForIPv6PrefixAbsent is the IPv6 counterpart of waitForIPv4PrefixAbsent.
 func waitForIPv6PrefixAbsent(t *testing.T, ate *ondatra.ATEDevice, prefix string, timeout time.Duration) {
 	t.Helper()
-	// Check if prefix is currently present in OTG LSDB (e.g. from a previous subtest).
-	// If present, wait for DUT route withdrawal to propagate to OTG.
-	prefixes := gnmi.LookupAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State())
-	hasPrefix := false
-	for _, p := range prefixes {
-		if val, ok := p.Val(); ok && val.GetPrefix() == prefix {
-			hasPrefix = true
-			break
-		}
-	}
-	if hasPrefix {
-		t.Logf("Prefix %s is currently present in LSDB; waiting for withdrawal...", prefix)
-		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
-			_, present := v.Val()
-			return !present
-		}).Await(t)
-		if !ok {
-			t.Errorf("Timed out waiting for prefix %s to be withdrawn from LSDB", prefix)
-		}
-		return
-	}
-
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State(), timeout, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
-		pfx, present := v.Val()
-		return present && pfx.GetPrefix() == prefix
-	}).Await(t)
-	if ok {
-		t.Errorf("Prefix found, not want: %s", prefix)
+	query := gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(prefix).State()
+	if !waitForOTGPrefixAbsent(t, ate.OTG(), query, timeout) {
+		t.Errorf("Prefix %s still present in OTG IS-IS LSDB, want withdrawn", prefix)
 	}
 }
 
