@@ -37,6 +37,24 @@ At the start of each of the following scenarios, ensure:
 Unless otherwise specified, all the tests below should use traffic with
 `dscp_encap_a_1` referenced int he VRF selection policy.
 
+Each flow sends 1,000 packets at 50 packets per second. UDP source and
+destination ports use separate, deterministically shuffled lists of distinct
+values from 1024 through 65535. Outer and inner UDP headers use different
+seeds, so their port sequences do not advance in lockstep. IP addresses, DSCP,
+protocols, and TTL/Hop-Limit remain fixed as required by each policy scenario.
+Weighted egress distribution is still checked against the agreed 0.02
+absolute tolerance, inclusive at both boundaries. The comparison adds the
+tolerance to the smaller ratio to avoid floating-point cancellation at an
+exact 2-percentage-point difference; no additional tolerance is added.
+PacketIn delivery and metadata checks remain enabled.
+
+OTG transmit-counter verification allows up to three minutes per flow for
+statistics snapshots to become available. Missing telemetry is reported
+separately from an observed short transmit count. After stopping traffic,
+counters must remain unchanged for two seconds within another bounded
+three-minute wait; resets and short final counts fail before PacketIn
+validation. These waits do not change traffic volume or acceptance thresholds.
+
 ### Test-1
 
 Tests that traceroute with TTL=1 for a packet that would match the VRF
