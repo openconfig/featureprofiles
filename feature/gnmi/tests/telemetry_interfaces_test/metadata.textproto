@@ -4,17 +4,6 @@ uuid: "72d5fade-abb1-49fb-ab9d-1c4f14845e2f"
 plan_id: "gNMI-1.28"
 description: "Telemetry: Interface openconfig validation."
 testbed: TESTBED_DUT_2LINKS
-# Cisco 8808 interface state rate telemetry is skipped across IOS XR versions.
-# This deviation is consumed by TEST3 (interface state rates) only.
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    state_path_unsupported: true
-  }
-}
-
 platform_exceptions: {
   platform: {
     vendor: PALOALTO
@@ -38,6 +27,28 @@ platform_exceptions: {
   }
   deviations: {
     state_path_unsupported: true
+    subinterface_ifindex_unsupported: true
+  }
+}
+# Cisco interface state rate telemetry is skipped across IOS XR versions.
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    state_path_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    state_path_unsupported: true
+    interface_enabled: true
+    require_routed_subinterface_0: true
   }
 }
 

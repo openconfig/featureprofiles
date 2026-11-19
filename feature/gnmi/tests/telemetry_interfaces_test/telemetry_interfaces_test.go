@@ -354,7 +354,13 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 		t.Logf("\n\n Iteration on port %s on DUT %s: \n\n", port, dut.Name())
 
 		i := &oc.Interface_Subinterface{Index: ygot.Uint32(subIntfIndex)}
+		if deviations.RequireRoutedSubinterface0(dut) {
+			i.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		}
 		gnmi.Update(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config(), i)
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config())
+		})
 		time.Sleep(2 * time.Minute)
 
 		subIntf := p.Interface(port).Subinterface(subIntfIndex)
@@ -377,6 +383,24 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 			t.Errorf("\n\n [FAILED]: leaf: Subinterface oper-status is not present on port %s subinterface: '%v'\n\n", port, subIntfIndex)
 		}
 
+		if !deviations.SubinterfaceIfindexUnsupported(dut) {
+			if ifindexValue, ok := gnmi.Lookup(t, dut, subIntf.Ifindex().State()).Val(); ok {
+				t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' ifindex value: '%v' is present \n\n", port, subIntfIndex, ifindexValue)
+			} else {
+				t.Errorf("\n\n [FAILED]: leaf: Subinterface ifindex is not present on port %s subinterface: '%v'\n\n", port, subIntfIndex)
+			}
+		}
+
+		if nameValue, ok := gnmi.Lookup(t, dut, subIntf.Name().State()).Val(); ok {
+			if nameValue != "" {
+				t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' name value: '%s' is present \n\n", port, subIntfIndex, nameValue)
+			} else {
+				t.Errorf("\n\n [FAILED]: Subinterface name value is empty on port '%s' subinterface: '%v'\n\n", port, subIntfIndex)
+			}
+		} else {
+			t.Errorf("\n\n [FAILED]: leaf: Subinterface name is not present on port %s subinterface: '%v'\n\n", port, subIntfIndex)
+		}
+
 		subinterface := p.Interface(port).Subinterface(subIntfIndex)
 
 		// Include Index in the payload for vendors (e.g. Junos) that require the
@@ -384,6 +408,9 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 		si := &oc.Interface_Subinterface{
 			Index:       ygot.Uint32(subIntfIndex),
 			Description: ygot.String(description),
+		}
+		if deviations.RequireRoutedSubinterface0(dut) {
+			si.GetOrCreateIpv4().Enabled = ygot.Bool(true)
 		}
 		gnmi.Update(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config(), si)
 
@@ -399,8 +426,6 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 		} else {
 			t.Errorf("\n\n [FAILED]: leaf: Subinterface description is not present on port %s subinterface: '%v' \n\n", port, subinterface)
 		}
-
-		gnmi.Delete(t, dut, subinterface.Config())
 	}
 }
 
@@ -466,6 +491,7 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
 			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index+1)))
 			}
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			i.Ethernet = &oc.Interface_Ethernet{
 				MacAddress: ygot.String(macAddressConfig),
 			}
@@ -496,6 +522,9 @@ func TestTelemetryInterfaces(t *testing.T) {
 		Name:    ygot.String(port1),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled: ygot.Bool(true),
+	}
+	if deviations.RequireRoutedSubinterface0(dut) {
+		i.GetOrCreateSubinterface(0).GetOrCreateIpv4().Enabled = ygot.Bool(true)
 	}
 	gnmi.Update(t, dut, p.Interface(port1).Config(), i)
 	time.Sleep(2 * time.Minute)

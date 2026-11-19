@@ -35,6 +35,9 @@ func setISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice) {
 	// ISIS Configs to set Overload Bit to true.
 	dutISISPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	lspBit := dutISISPath.Global().LspBit().OverloadBit()
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, lspBit.SetBit().Config(), false)
+	})
 	gnmi.Replace(t, dut, lspBit.SetBit().Config(), true)
 }
 
@@ -54,8 +57,17 @@ func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 			gnmi.BatchReplace(b, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
 			l1AF := dutISISPath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 			gnmi.BatchReplace(b, l1AF.Metric().Config(), setup.ISISMetric)
+			t.Cleanup(func() {
+				cleanupBatch := &gnmi.SetBatch{}
+				gnmi.BatchReplace(cleanupBatch, dutISISPathIntfAF.Metric().Config(), 200)
+				gnmi.BatchReplace(cleanupBatch, l1AF.Metric().Config(), 200)
+				cleanupBatch.Set(t, dut)
+			})
 			b.Set(t, dut)
 		} else {
+			t.Cleanup(func() {
+				gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), 200)
+			})
 			gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
 		}
 	}
