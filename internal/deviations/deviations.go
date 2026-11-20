@@ -2036,6 +2036,8 @@ func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
 
 // BgpDefaultImportPolicyAcceptRoute reports whether BGP accepts routes without an
 // explicit import policy instead of using the OpenConfig REJECT_ROUTE default.
+// Tracking issue for Cisco: https://issuetracker.google.com/479056256
+// TODO: Google team to raise issues for vendors who consume this deviation
 func BgpDefaultImportPolicyAcceptRoute(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultImportPolicyAcceptRoute()
 }
