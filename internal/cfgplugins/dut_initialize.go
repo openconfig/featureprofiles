@@ -17,8 +17,11 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -38,6 +41,7 @@ type VRFConfig struct {
 const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
+	FeatureVrfSelectionDecap
 	FeaturePolicyForwarding
 	FeatureEnableAFTSummaries
 	FeatureNGPR
@@ -46,10 +50,15 @@ const (
 	FeatureACLCounters
 	FeatureAnPF
 	FeatureIngressARP
+	FeatureCFM
 	FeatureOptimizeFIBAndCounters
 	FeatureHierarchicalFIB
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
+	FeatureHighScale
+	FeatureLoadBalanceHashReset
+	FeatureLoadBalanceHashPerturb
+	FeatureVrfSelectionFallbackDecap
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -193,7 +202,7 @@ hardware tcam
 
 	aristaTcamProfileVrfSelectionExtended = `
 hardware tcam
-   profile vrf-selection-with-ip6-sip
+   profile vrf-selection-with-extended-hashing
       feature acl port ip
          sequence 45
          key size limit 160
@@ -231,13 +240,13 @@ hardware tcam
          packet ipv4 forwarding bridged
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv4 mpls ipv4 forwarding mpls decap
          packet ipv4 mpls ipv6 forwarding mpls decap
          packet ipv4 non-vxlan forwarding routed decap
          packet ipv4 vxlan forwarding bridged decap
          packet ipv6 forwarding bridged
          packet ipv6 forwarding routed
-         packet ipv6 forwarding routed decap
          packet ipv6 forwarding routed multicast
          packet ipv6 ipv6 forwarding routed decap
          packet mpls forwarding bridged decap
@@ -282,6 +291,8 @@ hardware tcam
          sequence 85
       feature forwarding-destination mpls
          sequence 100
+      feature load-balance hash extended
+         packet all-active
       feature mirror ip
          sequence 80
          key size limit 160
@@ -339,6 +350,7 @@ hardware tcam
          sequence 70
          key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
          action set-dscp set-policer set-tc
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv6 forwarding routed
       feature tunnel vxlan
          sequence 50
@@ -347,16 +359,17 @@ hardware tcam
          packet ipv4 vxlan forwarding bridged decap
       feature vrf selection
          port qualifier size 8 bits
-      feature vrf selection extended
 	  !
-	system profile vrf-selection-with-ip6-sip
+	system profile vrf-selection-with-extended-hashing
 `
 
 	nokiaSecondaryDefaultLookup = `
+platform resource-management mdb-profile id 2
 system datapath secondary-default-lookup admin-state enable
 `
 
 	aristaOptimizeFIBAndCounters = `
+   ip hardware fib hierarchical next-hop max-level 3
    ip hardware fib next-hop weight-deviation 2.0
    ip hardware fib programmed error action preserved
    hardware fec programmed all
@@ -401,6 +414,125 @@ hardware tcam
     !
     `
 
+	aristaTcamProfileCFM = `
+      hardware tcam
+   profile anPF
+      system-rule overriding-action redirect
+      !
+      feature acl vlan ipv6 egress
+         key field forwarding-type
+         action count
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+      !
+      feature cfm
+         packet ipv4 forwarding bridged
+         packet ipv6 forwarding bridged
+         packet non-ip forwarding bridged
+      !
+      feature flow tracking sampled ipv4
+         key size limit 160
+         key field dst-ip ip-frag ip-protocol l4-dst-port l4-src-port src-ip vlan vrf
+         action count sample
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+      !
+      feature interface-policing
+         action count police-interface
+         packet ipv4 forwarding routed
+         packet ipv6 forwarding routed
+      !
+      feature l2-protocol forwarding
+         key size limit 160
+         key field dst-mac vlan-tag-format
+         action redirect-to-cpu
+         packet non-ip forwarding bridged
+      !
+      feature mirror ip
+         key size limit 160
+         key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
+         action count mirror
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv4 non-vxlan forwarding routed decap
+      !
+      feature mpls
+         key size limit 160
+         action drop redirect set-ecn
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv6 forwarding mpls
+         packet mpls non-ip forwarding mpls
+      !
+      feature mpls pop ingress
+      !
+      feature mpls pop ingress multicast
+         packet mpls ipv4 forwarding mpls php
+         packet mpls ipv6 forwarding mpls php
+      !
+      feature qos ip
+         sequence 90
+         port qualifier size 2 bits
+         key field dscp dst-ip forwarding-type ip-frag ip-protocol l4-dst-port l4-ops-7b l4-src-port outer-vlan-id src-ip tcp-control vlan-tag-format
+         action count set-drop-precedence set-dscp set-policer set-tc
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv4 non-vxlan forwarding routed decap
+      !
+      feature qos ipv6
+         port qualifier size 2 bits
+         key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
+         action count set-drop-precedence set-dscp set-policer set-tc
+         packet ipv6 forwarding routed
+      !
+      feature qos mac
+         key size limit 160
+         port qualifier size 2 bits
+         key field forwarding-type ipv6-traffic-class mpls-traffic-class vlan
+         action count set-dscp set-policer set-tc
+         packet ipv6 forwarding bridged
+         packet mpls forwarding bridged decap
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv6 forwarding mpls
+         packet mpls non-ip forwarding mpls
+         packet non-ip forwarding bridged
+      !
+      feature traffic-policy port ipv4
+         port qualifier size 12 bits
+         key field dscp dst-ip-label dst-mac ip-frag ip-fragment-offset ip-length ip-protocol ipv4-mc l4-dst-port l4-src-port src-ip-label src-mac tcp-control ttl
+         action copy-ttl count drop redirect set-dscp set-fwd-layer-index set-tc set-ttl
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 mpls ipv4 forwarding mpls decap
+         packet ipv4 non-vxlan forwarding routed decap
+         packet mpls ipv4 forwarding bridged
+         packet mpls ipv4 forwarding mpls
+         packet mpls ipv4 forwarding routed decap
+      !
+      feature traffic-policy port ipv6
+         port qualifier size 12 bits
+         key field dst-ipv6-label dst-mac hop-limit ipv6-length ipv6-mc ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-label src-mac tcp-control
+         action copy-ttl count drop redirect set-dscp set-fwd-layer-index set-tc set-ttl
+         packet ipv4 mpls ipv6 forwarding mpls decap
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+         packet ipv6 forwarding routed decap
+         packet mpls ipv6 forwarding bridged
+         packet mpls ipv6 forwarding mpls
+         packet mpls ipv6 forwarding routed decap
+      !
+      feature tunnel vxlan
+         key size limit 160
+         packet ipv4 vxlan eth ipv4 forwarding routed decap
+         packet ipv4 vxlan forwarding bridged decap
+   system profile anPF
+   `
 	aristaEnableAFTSummaries = `
    management api models
       !
@@ -1375,27 +1507,208 @@ router general
 !
    `
 
+const aristaVrfSelectionDecap = `
+vrf selection policy
+   next-hop decapsulation vrf
+!
+`
+
+const aristaVrfSelectionFallbackDecap = `
+vrf selection policy
+   next-hop fallback decapsulation vrf
+!
+`
+
+const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
+no hw-module profile cef sropt enable
+no hw-module profile cef dark-bw enable
+no hw-module profile cef te-tunnel highscale-no-ldp-over-te
+no hw-module profile route scale ipv6-unicast connected-prefix high
+hw-module profile cef hash ip-field-duplication
+hw-module profile pbr vrf-redirect
+hw-module profile qos qos-stats-push-collection
+hw-module profile cef iptunnel scale
+hw-module profile npu-compatibility Q200
+hw-module local-station-mac 0010.0010.0010`
+
+const aristaLoadBalanceHashReset = `load-balance policies
+   load-balance sand profile default
+      default ecmp hash seed
+      default ecmp hash polynomial
+      default port-channel hash seed
+      default port-channel hash polynomial
+`
+
+const aristaLoadBalanceHashPerturb = `load-balance policies
+   load-balance sand profile default
+      ecmp hash seed %d
+      ecmp hash polynomial %d
+      port-channel hash seed %d
+      port-channel hash polynomial %d
+`
+
+const nokiaLoadBalanceHashReset = "system load-balancing hash-options hash-seed generate-from-mac"
+
+const nokiaLoadBalanceHashPerturb = "system load-balancing hash-options hash-seed %d"
+
+// juniperLoadBalanceHashReset deletes the explicit ECMP/LAG hash-seed under
+// forwarding-options enhanced-hash-key so Junos reverts to deriving the seed
+// from the chassis MAC address without disturbing sibling enhanced-hash-key
+// stanzas.
+const juniperLoadBalanceHashReset = `forwarding-options {
+    enhanced-hash-key {
+        delete: hash-seed;
+    }
+}
+`
+
+// juniperLoadBalanceHashPerturb sets an explicit ECMP/LAG hash seed on Junos
+// (Evolved) PTX platforms.
+const juniperLoadBalanceHashPerturb = `forwarding-options {
+    enhanced-hash-key {
+        hash-seed %d;
+    }
+}
+`
+
+var juniperHashSeedRE = regexp.MustCompile(`\bhash-seed"?\s*:?\s*"?(\d+)\b`)
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
-		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
-		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
-		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
-		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
-		FeatureNGPR:                   aristaNGPRTcamProfile,
-		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
-		FeatureQOSIn:                  aristaQOSTcamIn,
-		FeatureACLCounters:            aristaTCAMACLCounters,
-		FeatureAnPF:                   aristaAnPF,
-		FeatureIngressARP:             aristaIngressARP,
-		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
-		FeatureAnpf:                   aristaAnpfTcamProfile,
-		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
+		FeatureMplsTracking:              aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended:      aristaTcamProfileVrfSelectionExtended,
+		FeatureVrfSelectionDecap:         aristaVrfSelectionDecap,
+		FeatureVrfSelectionFallbackDecap: aristaVrfSelectionFallbackDecap,
+		FeaturePolicyForwarding:          aristaTcamProfilePolicyForwarding,
+		FeatureEnableAFTSummaries:        aristaEnableAFTSummaries,
+		FeatureNGPR:                      aristaNGPRTcamProfile,
+		FeatureTTLPolicyForwarding:       aristaTcamProfilePreserveTTL,
+		FeatureQOSIn:                     aristaQOSTcamIn,
+		FeatureACLCounters:               aristaTCAMACLCounters,
+		FeatureAnPF:                      aristaAnPF,
+		FeatureIngressARP:                aristaIngressARP,
+		FeatureOptimizeFIBAndCounters:    aristaOptimizeFIBAndCounters,
+		FeatureCFM:                       aristaTcamProfileCFM,
+		FeatureAnpf:                      aristaAnpfTcamProfile,
+		FeatureHierarchicalFIB:           aristaHierarchicalFIB,
+		FeatureLoadBalanceHashReset:      aristaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb:    aristaLoadBalanceHashPerturb,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+		FeatureLoadBalanceHashReset:   nokiaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb: nokiaLoadBalanceHashPerturb,
+	}
+
+	ciscoHardwareInitMap = map[FeatureType]string{
+		FeatureHighScale: ciscoHighScale,
+	}
+
+	juniperHardwareInitMap = map[FeatureType]string{
+		FeatureLoadBalanceHashReset:   juniperLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb: juniperLoadBalanceHashPerturb,
 	}
 )
+
+// JuniperLoadBalanceHashSeed queries the active enhanced-hash-key hash-seed on
+// a Juniper DUT. It returns (seed, true) when an explicit hash-seed statement
+// is configured, or (0, false) when unset (Junos derives the seed from the
+// chassis MAC address).
+func JuniperLoadBalanceHashSeed(t *testing.T, dut *ondatra.DUTDevice) (int, bool) {
+	t.Helper()
+	const showCmd = "show configuration forwarding-options enhanced-hash-key hash-seed"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var raw string
+	var queried bool
+	var lastErr error
+	gnmiClient := dut.RawAPIs().GNMI(t)
+
+	cliReq := &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Origin: "cli",
+			Elem:   []*gpb.PathElem{{Name: showCmd}},
+		}},
+		Encoding: gpb.Encoding_ASCII,
+	}
+	if resp, err := gnmiClient.Get(ctx, cliReq); err == nil {
+		queried = true
+		for _, notif := range resp.GetNotification() {
+			for _, upd := range notif.GetUpdate() {
+				if s := upd.GetVal().GetAsciiVal(); s != "" {
+					raw = s
+					break
+				}
+			}
+		}
+	} else {
+		lastErr = err
+	}
+
+	if !queried {
+		for _, origin := range []string{"junos", "native", ""} {
+			cfgReq := &gpb.GetRequest{
+				Path: []*gpb.Path{{
+					Origin: origin,
+					Elem: []*gpb.PathElem{
+						{Name: "configuration"},
+						{Name: "forwarding-options"},
+						{Name: "enhanced-hash-key"},
+					},
+				}},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			}
+			resp, err := gnmiClient.Get(ctx, cfgReq)
+			if err != nil {
+				if strings.Contains(err.Error(), "code = NotFound") {
+					queried = true
+					break
+				}
+				lastErr = err
+				continue
+			}
+			queried = true
+			for _, notif := range resp.GetNotification() {
+				for _, upd := range notif.GetUpdate() {
+					if b := upd.GetVal().GetJsonIetfVal(); len(b) > 0 {
+						raw = string(b)
+						break
+					}
+					if b := upd.GetVal().GetJsonVal(); len(b) > 0 {
+						raw = string(b)
+						break
+					}
+				}
+			}
+			break
+		}
+	}
+
+	if !queried {
+		res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, showCmd)
+		if err != nil {
+			t.Fatalf("Unable to query initial Juniper enhanced-hash-key hash-seed via gNMI or CLI: %v (last gNMI error: %v)", err, lastErr)
+		}
+		raw = res.Output()
+	}
+
+	if strings.TrimSpace(raw) == "" {
+		return 0, false
+	}
+	m := juniperHashSeedRE.FindStringSubmatch(raw)
+	if len(m) < 2 {
+		return 0, false
+	}
+	seed, err := strconv.Atoi(m[1])
+	if err != nil {
+		t.Fatalf("Unable to parse Juniper enhanced-hash-key hash-seed from %q: %v", raw, err)
+	}
+	return seed, true
+}
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
 	gpbSetRequest := &gpb.SetRequest{
@@ -1425,6 +1738,10 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return aristaTcamProfileMap[feature]
 	case ondatra.NOKIA:
 		return nokiaHardwareInitMap[feature]
+	case ondatra.CISCO:
+		return ciscoHardwareInitMap[feature]
+	case ondatra.JUNIPER:
+		return juniperHardwareInitMap[feature]
 	default:
 		return ""
 	}
@@ -1452,6 +1769,7 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 			loadBalanceCliConfig := `
 			load-balance policies
          load-balance sand profile default
+		 	fields ipv4 outer dst-ip protocol src-ip
             fields ipv6 outer dst-ip flow-label next-header src-ip
             fields l4 outer dst-port src-port
             no fields mpls
@@ -1502,6 +1820,77 @@ func EnableHardwareCounters(t *testing.T, dut *ondatra.DUTDevice, feature string
 		helpers.GnmiCLIConfig(t, dut, counterCli)
 	default:
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+	}
+}
+
+// BackUpConfig saves the current running configuration from the DUT into the specified file on local flash storage.
+func BackUpConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Saving running-config to flash:%s", fileName)
+		cmd := fmt.Sprintf("copy running-config flash:%s", fileName)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		cli, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+		if err != nil {
+			t.Fatalf("BackUpConfig: SSH dial: %v", err)
+		}
+		if _, err := cli.RunCommand(ctx, cmd); err != nil {
+			t.Fatalf("BackUpConfig: %v", err)
+		}
+	default:
+		t.Fatalf("BackUpConfig: unsupported vendor %v", dut.Vendor())
+	}
+}
+
+// RestoreRunningConfigCLI restores the DUT configuration using the specified file on local flash storage.
+func RestoreRunningConfigCLI(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cmd := fmt.Sprintf("configure replace flash:%s", fileName)
+		deadline := time.Now().Add(2 * time.Minute)
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			cli, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+			if err != nil {
+				cancel()
+				if time.Now().After(deadline) {
+					t.Fatalf("Timed out waiting for SSH during config restore: %v", err)
+				}
+				t.Logf("SSH not ready for config restore, retrying: %v", err)
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			result, runErr := cli.RunCommand(ctx, cmd)
+			cancel()
+			if runErr == nil {
+				output := result.Output()
+				if strings.Contains(output, "system not yet initialized") {
+					t.Logf("DUT not fully initialized yet, retrying config restore...")
+					if time.Now().After(deadline) {
+						t.Fatalf("Timed out waiting for DUT initialization: %v", output)
+					}
+					time.Sleep(15 * time.Second)
+					continue
+				}
+				t.Logf("Successfully restored DUT config from flash:%s", fileName)
+				return
+			}
+			errStr := runErr.Error()
+			if strings.Contains(errStr, "system not yet initialized") {
+				t.Logf("DUT not fully initialized yet, retrying config restore...")
+				if time.Now().After(deadline) {
+					t.Fatalf("Timed out waiting for DUT initialization: %v", errStr)
+				}
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			t.Fatalf("Failed to restore DUT config via SSH CLI: %v", errStr)
+		}
+	default:
+		t.Fatalf("RestoreRunningConfigCLI: unsupported vendor %v", dut.Vendor())
 	}
 }
 

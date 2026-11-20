@@ -301,6 +301,7 @@ func verifyNeighborMAC(t *testing.T, dut *ondatra.DUTDevice, expectedMAC string)
 	cases := []struct {
 		desc      string
 		ip        string
+		ipPath    ygnmi.SingletonQuery[string]
 		telemetry ygnmi.SingletonQuery[string]
 	}{
 		{
@@ -311,14 +312,36 @@ func verifyNeighborMAC(t *testing.T, dut *ondatra.DUTDevice, expectedMAC string)
 		{
 			desc:      "IPv6",
 			ip:        ateSrc.IPv6,
+			ipPath:    gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).Ip().State(),
 			telemetry: gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).LinkLayerAddress().State(),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			actualMAC := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), tc.telemetry)
-			if !strings.EqualFold(actualMAC, expectedMAC) {
+			gnmiOpts := dut.GNMIOpts().WithYGNMIOpts(opts...)
+			if tc.ipPath != nil {
+				lastIP, ok := gnmi.Watch(t, gnmiOpts, tc.ipPath, time.Minute, func(val *ygnmi.Value[string]) bool {
+					gotIP, present := val.Val()
+					return present && strings.EqualFold(gotIP, tc.ip)
+				}).Await(t)
+				if !ok {
+					var actualIP string
+					if lastIP != nil {
+						actualIP, _ = lastIP.Val()
+					}
+					t.Errorf("Neighbor IP for %s got %q, want %q", tc.desc, actualIP, tc.ip)
+				}
+			}
+			lastMAC, ok := gnmi.Watch(t, gnmiOpts, tc.telemetry, time.Minute, func(val *ygnmi.Value[string]) bool {
+				gotMAC, present := val.Val()
+				return present && strings.EqualFold(gotMAC, expectedMAC)
+			}).Await(t)
+			if !ok {
+				var actualMAC string
+				if lastMAC != nil {
+					actualMAC, _ = lastMAC.Val()
+				}
 				t.Errorf("Actual MAC for %s got %q, want %q", tc.ip, actualMAC, expectedMAC)
 			}
 		})
@@ -334,6 +357,7 @@ func TestStaticARP(t *testing.T) {
 	config := configureATE(t)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().State())
 
 	t.Run("NotPoisoned", func(t *testing.T) {

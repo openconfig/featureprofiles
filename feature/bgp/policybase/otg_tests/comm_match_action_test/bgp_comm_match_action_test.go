@@ -221,15 +221,11 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		as6.Enabled = ygot.Bool(true)
 
-		if deviations.SkipBgpSendCommunityType(dut) {
-			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
+		if deviations.BgpAfiSafiSendCommunityTypeUnsupported(dut) {
+			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		} else {
-			if deviations.SkipBgpPeerGroupSendCommunityType(dut) {
-				as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-				as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-			} else {
-				pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-			}
+			as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		}
 
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrAddr)
@@ -364,13 +360,19 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	if nbr != nil {
-		gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
+		applyPolicy := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
+		applyPolicy.SetImportPolicy([]string{policyName})
+		gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).ApplyPolicy().Config(), applyPolicy)
 	}
 	if pgName != "" {
-		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
-		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
-		gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config())
-		gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV6.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config())
+		applyPolicyV4 := &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+		applyPolicyV4.SetImportPolicy([]string{policyName})
+		applyPolicyV6 := &oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi_ApplyPolicy{}
+		applyPolicyV6.SetImportPolicy([]string{policyName})
+		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().Config(), applyPolicyV4)
+		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(pgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().Config(), applyPolicyV6)
+		gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().Config())
+		gnmi.BatchDelete(batchConfig, bgpPath.Neighbor(ebgp1NbrV6.nbrAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().Config())
 	}
 
 	batchConfig.Set(t, dut)
@@ -516,38 +518,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			f, present := val.Val()
-			if !present || f.GetCounters() == nil {
-				return false
-			}
-			txPackets := f.GetCounters().GetOutPkts()
-			rxPackets := f.GetCounters().GetInPkts()
-			if txPackets == 0 {
-				return false
-			}
-			if rxPackets > txPackets {
-				return false
-			}
-			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return int(lossPct) <= int(tolerancePct)
-		}).Await(t)
-
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
-		}
-		if rxPackets > txPackets {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-		}
-		lossPct := (txPackets - rxPackets) * 100 / txPackets
-		if int(lossPct) > int(tolerancePct) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flow.Name(), lossPct, tolerancePct)
-		} else {
-			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, float64(tolerancePct)+0.99)
 	}
 }
 

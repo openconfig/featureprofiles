@@ -23,6 +23,7 @@ const (
 	ipv4PrefixLen            = 28
 	ipv6PrefixLen            = 64
 	vlanID                   = uint16(10)
+	vlanName                 = "VLAN_10"
 	vlanIntfName             = "Vlan10"
 	frameSize                = 512
 	packetPerSecond          = 100
@@ -155,6 +156,11 @@ func TestStaticRouteWithVlanInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
+	t.Run("Validate_VLAN_State", func(t *testing.T) {
+		t.Logf("Validating VLAN %d name and status state on DUT", vlanID)
+		validateVlanState(t, dut)
+	})
+
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
 	configureOTG(t, ate, top)
@@ -182,14 +188,6 @@ func TestStaticRouteWithVlanInterface(t *testing.T) {
 func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	t.Helper()
 
-	// Validate static routes if this is the IP forwarding over static route test
-	if tc.flowType == flowTypeStatic {
-		t.Log("Validating all static routes on DUT")
-		if err := validateAllStaticRoutes(t, dut); err != nil {
-			t.Fatalf("Static route validation failed: %v", err)
-		}
-	}
-
 	// Clear existing flows
 	top.Flows().Clear()
 
@@ -202,6 +200,17 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+	t.Logf("Validating routed-vlan %s IPv4 and IPv6 address state on DUT", vlanIntfName)
+	validateRoutedVlanAddressState(t, dut)
+
+	// Validate static routes if this is the IP forwarding over static route test
+	if tc.flowType == flowTypeStatic {
+		t.Log("Validating all static routes on DUT")
+		if err := validateAllStaticRoutes(t, dut); err != nil {
+			t.Fatalf("Static route validation failed: %v", err)
+		}
+	}
 
 	// Capture DUT counters BEFORE traffic
 	t.Log("Reading DUT counters before traffic")
@@ -227,6 +236,11 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 	t.Log("Stopping traffic")
 	ate.OTG().StopTraffic(t)
 
+	if tc.flowType == flowTypeStatic {
+		t.Logf("Validating routed-vlan %s IPv4 and IPv6 neighbor state on DUT", vlanIntfName)
+		validateRoutedVlanNeighbors(t, dut)
+	}
+
 	// Capture DUT counters AFTER traffic
 	t.Log("Reading DUT counters after traffic")
 	afterCounters := fetchDUTCounters(t, dut)
@@ -247,6 +261,79 @@ func mustTestStaticRoute(t *testing.T, tc testCase, dut *ondatra.DUTDevice, top 
 	}
 }
 
+// validateVlanState verifies the global VLAN name and operational status state in the default network instance.
+func validateVlanState(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if deviations.SwitchedVlanUnsupported(dut) || (!deviations.DeprecatedVlanID(dut) && dut.Vendor() != ondatra.ARISTA) {
+		t.Skipf("Skipping global VLAN state validation on %v (global VLAN OpenConfig model not configured)", dut.Vendor())
+	}
+
+	vlanPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(vlanID)
+	gnmi.Await(t, dut, vlanPath.Name().State(), time.Minute, vlanName)
+
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_ACTIVE)
+	})
+	gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_SUSPENDED)
+	gnmi.Await(t, dut, vlanPath.Status().State(), time.Minute, oc.Vlan_Status_SUSPENDED)
+
+	gnmi.Update(t, dut, vlanPath.Status().Config(), oc.Vlan_Status_ACTIVE)
+	if _, ok := gnmi.Watch(t, dut, vlanPath.Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Vlan_Status]) bool {
+		status, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut)
+		}
+		return status == oc.Vlan_Status_ACTIVE
+	}).Await(t); !ok {
+		t.Errorf("VLAN %d status state did not return to ACTIVE", vlanID)
+	}
+}
+
+// validateRoutedVlanAddressState verifies the IPv4 and IPv6 address and prefix-length state on the routed-vlan interface.
+func validateRoutedVlanAddressState(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	rvPath := gnmi.OC().Interface(vlanIntfName).RoutedVlan()
+
+	gnmi.Await(t, dut, rvPath.Ipv4().Address(sviParams.IPv4).Ip().State(), time.Minute, sviParams.IPv4)
+	gnmi.Await(t, dut, rvPath.Ipv4().Address(sviParams.IPv4).PrefixLength().State(), time.Minute, sviParams.IPv4Len)
+	gnmi.Await(t, dut, rvPath.Ipv6().Address(sviParams.IPv6).Ip().State(), time.Minute, sviParams.IPv6)
+	gnmi.Await(t, dut, rvPath.Ipv6().Address(sviParams.IPv6).PrefixLength().State(), time.Minute, sviParams.IPv6Len)
+}
+
+// validateRoutedVlanNeighbors verifies that the routed-vlan interface resolves the expected IPv4 and IPv6 neighbor IPs and link-layer addresses.
+func validateRoutedVlanNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	rvPath := gnmi.OC().Interface(vlanIntfName).RoutedVlan()
+
+	for _, atePort := range atePorts[:numOfVlanAccessPorts] {
+		gnmi.Await(t, dut, rvPath.Ipv4().Neighbor(atePort.IPv4).Ip().State(), time.Minute, atePort.IPv4)
+		if lastVal, ok := gnmi.Watch(t, dut, rvPath.Ipv4().Neighbor(atePort.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			gotMAC, present := val.Val()
+			return present && strings.EqualFold(gotMAC, atePort.MAC)
+		}).Await(t); !ok {
+			var gotMAC string
+			if lastVal != nil {
+				gotMAC, _ = lastVal.Val()
+			}
+			t.Errorf("RoutedVlan %s IPv4 neighbor %s link-layer-address mismatch: got %q, want %q", vlanIntfName, atePort.IPv4, gotMAC, atePort.MAC)
+		}
+
+		gnmi.Await(t, dut, rvPath.Ipv6().Neighbor(atePort.IPv6).Ip().State(), time.Minute, atePort.IPv6)
+		if lastVal, ok := gnmi.Watch(t, dut, rvPath.Ipv6().Neighbor(atePort.IPv6).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			gotMAC, present := val.Val()
+			return present && strings.EqualFold(gotMAC, atePort.MAC)
+		}).Await(t); !ok {
+			var gotMAC string
+			if lastVal != nil {
+				gotMAC, _ = lastVal.Val()
+			}
+			t.Errorf("RoutedVlan %s IPv6 neighbor %s link-layer-address mismatch: got %q, want %q", vlanIntfName, atePort.IPv6, gotMAC, atePort.MAC)
+		}
+	}
+}
+
 // configureDUT configures the DUT with VLAN, access ports, SVI interface, and recursive static routes.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -256,6 +343,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.ConfigureVlan(t, dut, cfgplugins.VlanParams{
 		VlanID: vlanID,
 	})
+	if !deviations.SwitchedVlanUnsupported(dut) && (deviations.DeprecatedVlanID(dut) || dut.Vendor() == ondatra.ARISTA) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(vlanID).Config(), &oc.NetworkInstance_Vlan{
+			VlanId: ygot.Uint16(vlanID),
+			Name:   ygot.String(vlanName),
+			Status: oc.Vlan_Status_ACTIVE,
+		})
+	}
 
 	// Physical Ports (Access for Ports 1-3, Routed for Port 4) Configuration
 	t.Log("Configuring switched vlan ports and routed port")
@@ -299,6 +393,7 @@ func mustConfigureRecursiveStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	proto.SetEnabled(true)
+	gnmi.BatchUpdate(staticRouteBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), proto)
 
 	for _, r := range staticRoutes {
 		routeCfg := &cfgplugins.StaticRouteCfg{
@@ -417,11 +512,22 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, flowType string) {
 	}
 }
 
-// validateAllStaticRoutes verifies that all recursive and resolution static routes are installed on the DUT.
+// validateAllStaticRoutes verifies that the static protocol is enabled and all recursive and resolution static routes are installed on the DUT.
 func validateAllStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	t.Log("Validating static protocol enabled state on DUT")
+	if _, ok := gnmi.Watch(t, dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+		enabled, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut)
+		}
+		return enabled
+	}).Await(t); !ok {
+		return fmt.Errorf("static protocol enabled state is not true")
+	}
 
 	for _, r := range staticRoutes {
 

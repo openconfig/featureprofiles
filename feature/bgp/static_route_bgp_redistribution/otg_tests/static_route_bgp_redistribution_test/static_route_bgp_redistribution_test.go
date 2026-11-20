@@ -248,11 +248,6 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	bgpGlobalIPv6AF := bgpGlobal.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	bgpGlobalIPv6AF.SetEnabled(true)
 
-	if !deviations.SkipBgpSendCommunityType(dut) {
-		bgpGlobalIPv6AF.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-		bgpGlobalIPv4AF.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-	}
-
 	bgpPeerGroup := bgp.GetOrCreatePeerGroup(peerGroupName)
 	bgpPeerGroup.SetPeerAs(dutAsn)
 
@@ -260,6 +255,11 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		if !deviations.SkipBgpPeerGroupSendCommunityType(dut) {
 			bgpPeerGroup.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		}
+	} else {
+		bgpPeerGroup.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+			SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+		bgpPeerGroup.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
+			SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 	}
 
 	// dutPort1 -> atePort1 peer (ebgp session)
@@ -437,38 +437,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	otg := ate.OTG()
 	defer otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
-		gnmi.Watch(t, otg, gnmi.OTG().Flow(flow.Name()).State(), 45*time.Second, func(val *ygnmi.Value[*otgtelemetry.Flow]) bool {
-			f, present := val.Val()
-			if !present || f.GetCounters() == nil {
-				return false
-			}
-			txPackets := f.GetCounters().GetOutPkts()
-			rxPackets := f.GetCounters().GetInPkts()
-			if txPackets == 0 {
-				return false
-			}
-			if rxPackets > txPackets {
-				return false
-			}
-			lossPct := float32(txPackets-rxPackets) * 100 / float32(txPackets)
-			return int(lossPct) <= int(tolerancePct)
-		}).Await(t)
-
-		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
-		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
-		if txPackets == 0 {
-			t.Fatalf("IXIA traffic generation failed: TxPkts = 0 for flow %s", flow.Name())
-		}
-		if rxPackets > txPackets {
-			t.Fatalf("IXIA traffic validation anomaly: RxPkts (%v) > TxPkts (%v)", rxPackets, txPackets)
-		}
-		lossPct := (txPackets - rxPackets) * 100 / txPackets
-		if int(lossPct) > int(tolerancePct) {
-			t.Errorf("Generic Test Assertion Failure: Flow %s: got %v, want <= %d", flow.Name(), lossPct, tolerancePct)
-		} else {
-			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
-		}
+		otgutils.ExpectedTrafficLoss(t, otg, flow.Name(), 0, float64(tolerancePct)+0.99)
 	}
 }
 
@@ -643,6 +612,27 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 			}
 		}
 	}
+}
+
+func clearTableConnectionImportPolicy(t *testing.T, dut *ondatra.DUTDevice, addressFamily oc.E_Types_ADDRESS_FAMILY) {
+	t.Helper()
+
+	tableConnPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		addressFamily,
+	)
+	if deviations.EnableTableConnections(dut) {
+		gnmi.Delete(t, dut, tableConnPath.ImportPolicy().Config())
+		return
+	}
+	tableConn, present := gnmi.Lookup(t, dut, tableConnPath.Config()).Val()
+	if !present || tableConn == nil {
+		t.Logf("Table connection for address family %v is not configured; no import policy to clear", addressFamily)
+		return
+	}
+	tableConn.ImportPolicy = nil
+	gnmi.Replace(t, dut, tableConnPath.Config(), tableConn)
 }
 
 // Validate configurations for table-connections and routing-policy
@@ -1046,13 +1036,11 @@ func redistributeStaticRoutePolicyWithCommunitySet(t *testing.T, dut *ondatra.DU
 	communitySetPolicyDefinition := communitySet.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
 	communitySetPolicyDefinition.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString("64512:100")})
 
-	// Delete the references import policy under table connection before replacing the policy.
+	// Detach the referenced import policy under table connection before replacing the policy.
 	if isV4 {
-		tableConnV4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
-		gnmi.Delete(t, dut, tableConnV4Path.ImportPolicy().Config())
+		clearTableConnectionImportPolicy(t, dut, oc.Types_ADDRESS_FAMILY_IPV4)
 	} else {
-		tableConnV6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
-		gnmi.Delete(t, dut, tableConnV6Path.ImportPolicy().Config())
+		clearTableConnectionImportPolicy(t, dut, oc.Types_ADDRESS_FAMILY_IPV6)
 	}
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
@@ -1256,9 +1244,18 @@ func validatePrefixASN(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, bgpPeerN
 	if isV4 {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny()
 		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 20*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			prefix, _ := val.Val()
+			if val == nil {
+				return false
+			}
+			prefix, present := val.Val()
+			if !present || prefix == nil || len(prefix.AsPath) == 0 {
+				return false
+			}
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
+				if len(prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()) == 0 {
+					return false
+				}
 				gotASPath := prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()
 				t.Logf("Prefix %v learned with ASN : %v", prefix.GetAddress(), gotASPath)
 				return reflect.DeepEqual(gotASPath, wantASPath)
@@ -1266,15 +1263,30 @@ func validatePrefixASN(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, bgpPeerN
 			return false
 		}).Await(t)
 		if !ok {
-			pfx, _ := prefix.Val()
-			t.Fatalf("Prefix not updated with required as-path. Got %v, want %v", pfx.AsPath[len(pfx.AsPath)-1].GetAsNumbers(), wantASPath)
+			if prefix == nil {
+				t.Fatalf("Prefix %v absent from OTG peer %v; cannot validate AS path %v", subnet, bgpPeerName, wantASPath)
+			}
+			pfx, present := prefix.Val()
+			if !present || pfx == nil || len(pfx.AsPath) == 0 || len(pfx.AsPath[len(pfx.AsPath)-1].GetAsNumbers()) == 0 {
+				t.Fatalf("Prefix %v received from OTG peer %v without usable AS-path telemetry; want %v", subnet, bgpPeerName, wantASPath)
+			}
+			t.Fatalf("Prefix %v received from OTG peer %v, but AS-path mismatch: got %v, want %v", subnet, bgpPeerName, pfx.AsPath[len(pfx.AsPath)-1].GetAsNumbers(), wantASPath)
 		}
 	} else {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny()
 		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 20*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			prefix, _ := val.Val()
+			if val == nil {
+				return false
+			}
+			prefix, present := val.Val()
+			if !present || prefix == nil || len(prefix.AsPath) == 0 {
+				return false
+			}
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
+				if len(prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()) == 0 {
+					return false
+				}
 				gotASPath := prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()
 				t.Logf("Prefix %v learned with ASN : %v", prefix.GetAddress(), gotASPath)
 				return reflect.DeepEqual(gotASPath, wantASPath)
@@ -1282,8 +1294,14 @@ func validatePrefixASN(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, bgpPeerN
 			return false
 		}).Await(t)
 		if !ok {
-			pfx, _ := prefix.Val()
-			t.Fatalf("Prefix not updated with required as-path. Got %v, want %v", pfx.AsPath[len(pfx.AsPath)-1].GetAsNumbers(), wantASPath)
+			if prefix == nil {
+				t.Fatalf("Prefix %v absent from OTG peer %v; cannot validate AS path %v", subnet, bgpPeerName, wantASPath)
+			}
+			pfx, present := prefix.Val()
+			if !present || pfx == nil || len(pfx.AsPath) == 0 || len(pfx.AsPath[len(pfx.AsPath)-1].GetAsNumbers()) == 0 {
+				t.Fatalf("Prefix %v received from OTG peer %v without usable AS-path telemetry; want %v", subnet, bgpPeerName, wantASPath)
+			}
+			t.Fatalf("Prefix %v received from OTG peer %v, but AS-path mismatch: got %v, want %v", subnet, bgpPeerName, pfx.AsPath[len(pfx.AsPath)-1].GetAsNumbers(), wantASPath)
 		}
 	}
 	if !foundPrefix {
@@ -1298,7 +1316,13 @@ func validatePrefixLocalPreference(t *testing.T, ate *ondatra.ATEDevice, isV4 bo
 	if isV4 {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny()
 		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 10*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			prefix, _ := val.Val()
+			if val == nil {
+				return false
+			}
+			prefix, present := val.Val()
+			if !present || prefix == nil {
+				return false
+			}
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
 				gotLocalPreference := prefix.GetLocalPreference()
@@ -1337,59 +1361,82 @@ func validatePrefixLocalPreference(t *testing.T, ate *ondatra.ATEDevice, isV4 bo
 func validatePrefixCommunitySet(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, bgpPeerName, subnet, wantCommunitySet string) {
 
 	foundPrefix := false
+	var gotCommunitySets []string
 	if isV4 {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny()
-		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 10*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			prefix, _ := val.Val()
+		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 30*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			if val == nil {
+				return false
+			}
+			prefix, present := val.Val()
+			if !present || prefix == nil {
+				return false
+			}
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
-				var gotCommunitySet string
+				gotCommunitySets = nil
 				for _, community := range prefix.Community {
 					gotCommunityNumber := community.GetCustomAsNumber()
 					gotCommunityValue := community.GetCustomAsValue()
-					gotCommunitySet = fmt.Sprint(gotCommunityNumber) + ":" + fmt.Sprint(gotCommunityValue)
+					gotCommunitySet := fmt.Sprint(gotCommunityNumber) + ":" + fmt.Sprint(gotCommunityValue)
+					gotCommunitySets = append(gotCommunitySets, gotCommunitySet)
+					if gotCommunitySet == wantCommunitySet {
+						return true
+					}
 				}
-				t.Logf("Prefix %v learned with CommunitySet : %v", prefix.GetAddress(), gotCommunitySet)
-				return gotCommunitySet == wantCommunitySet
 			}
 			return false
 		}).Await(t)
 		if !ok {
-			pfx, _ := prefix.Val()
-			var gotCS string
-			for _, community := range pfx.Community {
-				gotCN := community.GetCustomAsNumber()
-				gotCV := community.GetCustomAsValue()
-				gotCS = fmt.Sprint(gotCN) + ":" + fmt.Sprint(gotCV)
+			if prefix == nil || !foundPrefix {
+				t.Fatalf("Prefix %v absent from OTG peer %v; cannot validate community-set %v", subnet, bgpPeerName, wantCommunitySet)
 			}
-			t.Fatalf("Prefix not updated with the community-set. Got %v, want %v", gotCS, wantCommunitySet)
+			pfx, present := prefix.Val()
+			if !present || pfx == nil {
+				t.Fatalf("Prefix %v received from OTG peer %v without usable telemetry; cannot validate community-set %v", subnet, bgpPeerName, wantCommunitySet)
+			}
+			if len(gotCommunitySets) == 0 {
+				t.Fatalf("Prefix %v received from OTG peer %v without community telemetry; cannot validate community-set %v", subnet, bgpPeerName, wantCommunitySet)
+			}
+			t.Fatalf("Prefix %v received from OTG peer %v, but community-set mismatch: got %v, want %v", subnet, bgpPeerName, gotCommunitySets, wantCommunitySet)
 		}
 	} else {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny()
-		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 10*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			prefix, _ := val.Val()
+		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 30*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			if val == nil {
+				return false
+			}
+			prefix, present := val.Val()
+			if !present || prefix == nil {
+				return false
+			}
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
-				var gotCommunitySet string
+				gotCommunitySets = nil
 				for _, community := range prefix.Community {
 					gotCommunityNumber := community.GetCustomAsNumber()
 					gotCommunityValue := community.GetCustomAsValue()
-					gotCommunitySet = fmt.Sprint(gotCommunityNumber) + ":" + fmt.Sprint(gotCommunityValue)
+					gotCommunitySet := fmt.Sprint(gotCommunityNumber) + ":" + fmt.Sprint(gotCommunityValue)
+					gotCommunitySets = append(gotCommunitySets, gotCommunitySet)
+					if gotCommunitySet == wantCommunitySet {
+						return true
+					}
 				}
-				t.Logf("Prefix %v learned with CommunitySet : %v", prefix.GetAddress(), gotCommunitySet)
-				return gotCommunitySet == wantCommunitySet
 			}
 			return false
 		}).Await(t)
 		if !ok {
-			pfx, _ := prefix.Val()
-			var gotCS string
-			for _, community := range pfx.Community {
-				gotCN := community.GetCustomAsNumber()
-				gotCV := community.GetCustomAsValue()
-				gotCS = fmt.Sprint(gotCN) + ":" + fmt.Sprint(gotCV)
+			if prefix == nil || !foundPrefix {
+				t.Fatalf("Prefix %v absent from OTG peer %v; cannot validate community-set %v", subnet, bgpPeerName, wantCommunitySet)
 			}
-			t.Fatalf("Prefix not updated with the community-set. Got %v, want %v", gotCS, wantCommunitySet)
+			pfx, present := prefix.Val()
+			if !present || pfx == nil {
+				t.Fatalf("Prefix %v received from OTG peer %v without usable telemetry; cannot validate community-set %v", subnet, bgpPeerName, wantCommunitySet)
+			}
+			if len(gotCommunitySets) == 0 {
+				t.Fatalf("Prefix %v received from OTG peer %v without community telemetry; cannot validate community-set %v", subnet, bgpPeerName, wantCommunitySet)
+			}
+			t.Fatalf("Prefix %v received from OTG peer %v, but community-set mismatch: got %v, want %v", subnet, bgpPeerName, gotCommunitySets, wantCommunitySet)
 		}
 	}
 
