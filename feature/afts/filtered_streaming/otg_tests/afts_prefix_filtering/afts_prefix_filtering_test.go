@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -266,21 +267,24 @@ func policyDefinitionPath(policyName string) *gpb.Path {
 	}
 }
 
-// globalFilterPolicyPath builds the gNMI path for an afts/global-filter policy
-// config leaf (ipv4-policy or ipv6-policy) under a network-instance.
-// TODO: replace this raw gNMI path with the ygot-generated OC path once the
-// afts/global-filter schema is supported in featureprofiles.
-func globalFilterPolicyPath(niName, leaf string) *gpb.Path {
-	return &gpb.Path{
-		Elem: []*gpb.PathElem{
-			{Name: "network-instances"},
-			{Name: "network-instance", Key: map[string]string{"name": niName}},
-			{Name: "afts"},
-			{Name: "global-filter"},
-			{Name: "config"},
-			{Name: leaf},
-		},
+// globalFilterPolicyPath resolves a generated OC policy path for wire-level diagnostics.
+func globalFilterPolicyPath(t *testing.T, niName, leaf string) *gpb.Path {
+	t.Helper()
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	var query ygnmi.ConfigQuery[string]
+	switch leaf {
+	case "ipv4-policy":
+		query = filter.Ipv4Policy().Config()
+	case "ipv6-policy":
+		query = filter.Ipv6Policy().Config()
+	default:
+		t.Fatalf("Unknown global-filter policy leaf %q", leaf)
 	}
+	path, _, err := ygnmi.ResolvePath(query.PathStruct())
+	if err != nil {
+		t.Fatalf("Resolve generated global-filter path: %v", err)
+	}
+	return path
 }
 
 // statementPrefixSetConfigPath builds the gNMI path for the match-prefix-set
@@ -314,34 +318,24 @@ func policyStatementPath(policyName, statementName string) *gpb.Path {
 func setGlobalFilterExpectCode(t *testing.T, dut *ondatra.DUTDevice, niName, v4Policy, v6Policy string,
 	wantCode codes.Code) error {
 	t.Helper()
-	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Log("Skipping AFT global-filter negative check: unsupported on EOS")
-			return nil
-		}
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) && dut.Vendor() == ondatra.ARISTA {
+		t.Log("Skipping AFT global-filter negative check: unsupported on EOS")
+		return nil
 	}
-
-	client, err := dialGNMI(t, dut)
+	client, err := aftpf.TypedGNMIClient(t, dut, nil)
 	if err != nil {
 		return err
 	}
-	var updates []*gpb.Update
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	batch := &ygnmi.SetBatch{}
 	if v4Policy != "" {
-		updates = append(updates, &gpb.Update{
-			Path: globalFilterPolicyPath(niName, "ipv4-policy"),
-			Val:  policyStringValue(dut, v4Policy),
-		})
+		ygnmi.BatchUpdate(batch, filter.Ipv4Policy().Config(), v4Policy)
 	}
 	if v6Policy != "" {
-		updates = append(updates, &gpb.Update{
-			Path: globalFilterPolicyPath(niName, "ipv6-policy"),
-			Val:  policyStringValue(dut, v6Policy),
-		})
+		ygnmi.BatchUpdate(batch, filter.Ipv6Policy().Config(), v6Policy)
 	}
-	req := &gpb.SetRequest{Update: updates}
-	t.Logf("Sending AFT global-filter negative-check gNMI SetRequest: %v", req)
-	_, setErr := client.Set(context.Background(), req)
+	t.Logf("Sending typed AFT global-filter negative-check Set batch: %s", batch)
+	_, setErr := batch.Set(context.Background(), client, ygnmi.WithEncoding(aftpf.ConfigEncoding(dut)))
 	if setErr == nil {
 		if wantCode == codes.OK {
 			return nil
@@ -382,47 +376,27 @@ func deletePolicyExpectCode(t *testing.T, dut *ondatra.DUTDevice, policyName str
 // readGlobalFilterPolicy checks the configured policy, not the streamed state.
 func readGlobalFilterPolicy(t *testing.T, dut *ondatra.DUTDevice, niName, leaf string) (string, error) {
 	t.Helper()
-	client, err := dialGNMI(t, dut)
+	client, err := aftpf.TypedGNMIClient(t, dut, nil)
 	if err != nil {
 		return "", err
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	resp, err := client.Get(ctx, &gpb.GetRequest{
-		Prefix:   &gpb.Path{Origin: "openconfig", Target: dut.Name()},
-		Path:     []*gpb.Path{globalFilterPolicyPath(niName, leaf)},
-		Type:     gpb.GetRequest_CONFIG,
-		Encoding: aftpf.ConfigEncoding(dut),
-	})
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	var query ygnmi.ConfigQuery[string]
+	switch leaf {
+	case "ipv4-policy":
+		query = filter.Ipv4Policy().Config()
+	case "ipv6-policy":
+		query = filter.Ipv6Policy().Config()
+	default:
+		return "", fmt.Errorf("unknown global-filter policy leaf %q", leaf)
+	}
+	value, err := ygnmi.Get(ctx, client, query, ygnmi.WithUseGet())
 	if err != nil {
 		return "", fmt.Errorf("read global-filter %s: %w", leaf, err)
 	}
-	for _, notification := range resp.GetNotification() {
-		for _, update := range notification.GetUpdate() {
-			if update.GetVal() == nil {
-				return "", fmt.Errorf("global-filter %s Get returned an empty update: %v", leaf, update)
-			}
-			var value any
-			switch typed := update.GetVal().GetValue().(type) {
-			case *gpb.TypedValue_JsonIetfVal:
-				if err := json.Unmarshal(typed.JsonIetfVal, &value); err != nil {
-					return "", fmt.Errorf("decode global-filter %s: %w", leaf, err)
-				}
-			case *gpb.TypedValue_JsonVal:
-				if err := json.Unmarshal(typed.JsonVal, &value); err != nil {
-					return "", fmt.Errorf("decode global-filter %s: %w", leaf, err)
-				}
-			case *gpb.TypedValue_StringVal:
-				value = typed.StringVal
-			default:
-				return "", fmt.Errorf("unexpected global-filter %s encoding %T", leaf, typed)
-			}
-			if policy, ok := globalFilterPolicyValue(value, leaf); ok {
-				return policy, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("global-filter %s not found in Get response: %v", leaf, resp)
+	return value, nil
 }
 
 // globalFilterPolicyValue accepts either a leaf- or container-valued JSON_IETF Get.
@@ -462,26 +436,20 @@ func deletePolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string) error
 // policy-definition in a single atomic gNMI Set request.
 func deleteGlobalFilterAndPolicyAtomic(t *testing.T, dut *ondatra.DUTDevice, niName, policyName string) error {
 	t.Helper()
-	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Log("Skipping atomic AFT global-filter + policy delete: unsupported on EOS")
-			return nil
-		}
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) && dut.Vendor() == ondatra.ARISTA {
+		t.Log("Skipping atomic AFT global-filter + policy delete: unsupported on EOS")
+		return nil
 	}
-
-	client, err := dialGNMI(t, dut)
+	client, err := aftpf.TypedGNMIClient(t, dut, nil)
 	if err != nil {
 		return err
 	}
-	req := &gpb.SetRequest{
-		Delete: []*gpb.Path{
-			globalFilterPolicyPath(niName, "ipv4-policy"),
-			globalFilterPolicyPath(niName, "ipv6-policy"),
-			policyDefinitionPath(policyName),
-		},
-	}
-	if _, err := client.Set(context.Background(), req); err != nil {
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	batch := &ygnmi.SetBatch{}
+	ygnmi.BatchDelete(batch, filter.Ipv4Policy().Config())
+	ygnmi.BatchDelete(batch, filter.Ipv6Policy().Config())
+	ygnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(policyName).Config())
+	if _, err := batch.Set(context.Background(), client); err != nil {
 		return fmt.Errorf("atomic delete failed: %w", err)
 	}
 	return nil
@@ -694,8 +662,8 @@ type rawAFTStream struct {
 
 // newRawAFTStream opens a raw STREAM ON_CHANGE subscription on
 // afts/global-filter/state, reading notifications in the background.
-// TODO: replace this raw gNMI subscription with the ygot-generated OC path
-// once the afts/global-filter schema is supported in featureprofiles.
+// Its generated OC path selects the subtree; the direct subscription retains
+// notification deletion paths and atomic flags for protocol assertions.
 func newRawAFTStream(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, niName string) (*rawAFTStream, error) {
 	t.Helper()
 	client, err := dialGNMI(t, dut)
@@ -706,20 +674,22 @@ func newRawAFTStream(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 	if err != nil {
 		return nil, fmt.Errorf("subscribe() failed: %w", err)
 	}
+	statePath, _, err := ygnmi.ResolvePath(gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter().Ipv4Policy().State().PathStruct())
+	if err != nil {
+		return nil, fmt.Errorf("resolve generated global-filter state path: %v", err)
+	}
+	statePath.Elem = statePath.Elem[:len(statePath.Elem)-1]
+	prefixLength := len(statePath.Elem) - 2
 	req := &gpb.SubscribeRequest{Request: &gpb.SubscribeRequest_Subscribe{Subscribe: &gpb.SubscriptionList{
 		Mode:     gpb.SubscriptionList_STREAM,
 		Encoding: gpb.Encoding_PROTO,
 		Prefix: &gpb.Path{
-			Origin: "openconfig",
+			Origin: "openconfig", // ResolvePath returns elements; the transport supplies the origin.
 			Target: dut.Name(),
-			Elem: []*gpb.PathElem{
-				{Name: "network-instances"},
-				{Name: "network-instance", Key: map[string]string{"name": niName}},
-				{Name: "afts"},
-			},
+			Elem:   statePath.Elem[:prefixLength],
 		},
 		Subscription: []*gpb.Subscription{{
-			Path: &gpb.Path{Elem: []*gpb.PathElem{{Name: "global-filter"}, {Name: "state"}}},
+			Path: &gpb.Path{Elem: statePath.Elem[prefixLength:]},
 			Mode: gpb.SubscriptionMode_ON_CHANGE,
 		}},
 	}}}

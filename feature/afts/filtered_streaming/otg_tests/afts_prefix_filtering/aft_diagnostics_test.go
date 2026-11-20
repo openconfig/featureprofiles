@@ -167,8 +167,9 @@ func (d aftFilterDiagnostics) capture(t *testing.T, dut *ondatra.DUTDevice, stag
 		t.Logf("AFT diagnostic global-filter Get unavailable: %v", err)
 		return
 	}
-	path := globalFilterPolicyPath(d.networkInstance, "ipv4-policy")
+	path := globalFilterPolicyPath(t, d.networkInstance, "ipv4-policy")
 	path.Elem = path.Elem[:len(path.Elem)-2] // Read config and state together.
+	path.Origin = ""                         // The request prefix supplies the OpenConfig origin.
 	readCtx, readCancel := context.WithDeadline(ctx, time.Now().Add(10*time.Second))
 	defer readCancel()
 	request := &gpb.GetRequest{

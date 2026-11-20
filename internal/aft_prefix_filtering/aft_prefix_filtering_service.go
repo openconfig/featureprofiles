@@ -21,7 +21,6 @@ package aft_prefix_filtering_service
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"regexp"
@@ -46,8 +45,6 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -689,7 +686,7 @@ func parseCiscoBGPPrefixCounts(output string) (uint64, uint64, error) {
 }
 
 // DialGNMI returns a shared raw gNMI client, dialing it once and caching it
-// for reuse. It is needed for raw paths that are not present in the OC tree.
+// for reuse by AFT notification collectors and typed configuration clients.
 func DialGNMI(t *testing.T, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
 	t.Helper()
 	gnmiOnce.Do(func() {
@@ -706,21 +703,18 @@ func DialGNMI(t *testing.T, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
 	return gnmiClient, gnmiErr
 }
 
-// globalFilterPolicyPath builds the raw OpenConfig path for an AFT
-// global-filter policy leaf. Raw paths are required until the generated
-// ondatra OC bindings include the openconfig-aft-global-filter augment.
-func globalFilterPolicyPath(niName, leaf string) *gpb.Path {
-	return &gpb.Path{
-		Origin: "openconfig",
-		Elem: []*gpb.PathElem{
-			{Name: "network-instances"},
-			{Name: "network-instance", Key: map[string]string{"name": niName}},
-			{Name: "afts"},
-			{Name: "global-filter"},
-			{Name: "config"},
-			{Name: leaf},
-		},
+// TypedGNMIClient wraps the selected transport for generated OC queries. Reboot
+// tests can supply their refreshed connection instead of the shared transport.
+func TypedGNMIClient(t *testing.T, dut *ondatra.DUTDevice, transport gpb.GNMIClient) (*ygnmi.Client, error) {
+	t.Helper()
+	if transport == nil {
+		var err error
+		transport, err = DialGNMI(t, dut)
+		if err != nil {
+			return nil, err
+		}
 	}
+	return ygnmi.NewClient(transport, ygnmi.WithTarget(dut.Name()))
 }
 
 // ConfigEncoding selects XR's required configuration encoding while retaining
@@ -730,34 +724,6 @@ func ConfigEncoding(dut *ondatra.DUTDevice) gpb.Encoding {
 		return gpb.Encoding_JSON_IETF
 	}
 	return gpb.Encoding_JSON
-}
-
-// globalFilterPolicyUpdates builds updates for the non-empty policy names in
-// cfg. Sending both updates in one SetRequest applies dual-stack policy changes
-// atomically from the client's perspective.
-func globalFilterPolicyUpdates(cfg ConfigureGlobalFilterPoliciesParams) ([]*gpb.Update, error) {
-	var updates []*gpb.Update
-	if cfg.V4Policy != "" {
-		policyJSON, err := json.Marshal(cfg.V4Policy)
-		if err != nil {
-			return nil, fmt.Errorf("marshal IPv4 global-filter policy %q: %w", cfg.V4Policy, err)
-		}
-		updates = append(updates, &gpb.Update{
-			Path: globalFilterPolicyPath(cfg.VRFName, "ipv4-policy"),
-			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: policyJSON}},
-		})
-	}
-	if cfg.V6Policy != "" {
-		policyJSON, err := json.Marshal(cfg.V6Policy)
-		if err != nil {
-			return nil, fmt.Errorf("marshal IPv6 global-filter policy %q: %w", cfg.V6Policy, err)
-		}
-		updates = append(updates, &gpb.Update{
-			Path: globalFilterPolicyPath(cfg.VRFName, "ipv6-policy"),
-			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: policyJSON}},
-		})
-	}
-	return updates, nil
 }
 
 // AFTDeleteGlobalFilter deletes both global-filter policy leaves for the given network-instance.
@@ -771,14 +737,15 @@ func AFTDeleteGlobalFilter(t *testing.T, dut *ondatra.DUTDevice, niName string) 
 		}
 	}
 
-	client, err := DialGNMI(t, dut)
+	client, err := TypedGNMIClient(t, dut, nil)
 	if err != nil {
 		return err
 	}
-	_, err = client.Set(context.Background(), &gpb.SetRequest{Delete: []*gpb.Path{
-		globalFilterPolicyPath(niName, "ipv4-policy"),
-		globalFilterPolicyPath(niName, "ipv6-policy"),
-	}})
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	batch := &ygnmi.SetBatch{}
+	ygnmi.BatchDelete(batch, filter.Ipv4Policy().Config())
+	ygnmi.BatchDelete(batch, filter.Ipv6Policy().Config())
+	_, err = batch.Set(context.Background(), client)
 	if err != nil {
 		return fmt.Errorf("failed to delete AFT global-filter policies from network-instance %q: %w", niName, err)
 	}
@@ -937,36 +904,36 @@ func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg Con
 		}
 	}
 
-	updates, err := globalFilterPolicyUpdates(cfg)
-	if err != nil {
-		t.Fatalf("Failed to encode AFT global-filter policies: %v", err)
-	}
-	if len(updates) == 0 {
+	if cfg.V4Policy == "" && cfg.V6Policy == "" {
 		return
-	}
-	if dut.Vendor() != ondatra.CISCO {
-		// JSON_IETF addresses XR's encoding restriction. Preserve JSON on
-		// other vendors rather than changing their required capabilities.
-		for _, update := range updates {
-			update.Val = &gpb.TypedValue{Value: &gpb.TypedValue_JsonVal{JsonVal: update.GetVal().GetJsonIetfVal()}}
-		}
 	}
 	client, createdAt := cfg.Client, cfg.ClientCreatedAt
 	if client == nil {
+		var err error
 		client, err = DialGNMI(t, dut)
 		if err != nil {
 			t.Fatalf("Failed to dial gNMI while configuring AFT global-filter policies: %v", err)
 		}
 		createdAt = gnmiClientCreatedAt
 	}
-	request := &gpb.SetRequest{Update: updates}
-	t.Logf("Sending AFT global-filter gNMI SetRequest: %v", request)
+	typedClient, err := TypedGNMIClient(t, dut, client)
+	if err != nil {
+		t.Fatalf("Failed to create typed AFT configuration client: %v", err)
+	}
+	filter := gnmi.OC().NetworkInstance(cfg.VRFName).Afts().GlobalFilter()
+	batch := &ygnmi.SetBatch{}
+	if cfg.V4Policy != "" {
+		ygnmi.BatchUpdate(batch, filter.Ipv4Policy().Config(), cfg.V4Policy)
+	}
+	if cfg.V6Policy != "" {
+		ygnmi.BatchUpdate(batch, filter.Ipv6Policy().Config(), cfg.V6Policy)
+	}
+	t.Logf("Sending typed AFT global-filter Set batch: %s", batch)
 	started := time.Now()
 	t.Logf("AFT global-filter Set start: UTC=%s NI=%s client=%p createdUTC=%s", started.UTC().Format(time.RFC3339Nano), cfg.VRFName, client, createdAt.UTC().Format(time.RFC3339Nano))
-	var remote peer.Peer
-	response, err := client.Set(context.Background(), request, grpc.Peer(&remote))
-	t.Logf("AFT global-filter Set end: UTC=%s NI=%s elapsed=%v peer=%v status=%s error=%v response=%v",
-		time.Now().UTC().Format(time.RFC3339Nano), cfg.VRFName, time.Since(started), remote.Addr, status.Code(err), err, response)
+	response, err := batch.Set(context.Background(), typedClient, ygnmi.WithEncoding(ConfigEncoding(dut)))
+	t.Logf("AFT global-filter Set end: UTC=%s NI=%s elapsed=%v status=%s error=%v response=%v",
+		time.Now().UTC().Format(time.RFC3339Nano), cfg.VRFName, time.Since(started), status.Code(err), err, response)
 	if err != nil {
 		if cfg.OnSetFailure != nil {
 			cfg.OnSetFailure(err)

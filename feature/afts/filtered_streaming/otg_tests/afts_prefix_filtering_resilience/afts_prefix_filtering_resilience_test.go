@@ -833,69 +833,43 @@ func isEndpointUnreachableError(err error) bool {
 func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Policy, wantIPv6Policy string) {
 	t.Helper()
 	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
+		if dut.Vendor() == ondatra.ARISTA {
 			aftpf.VerifyGlobalFilterPoliciesCLI(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: wantIPv4Policy, V6Policy: wantIPv6Policy})
 		}
-	} else {
-		// network-instance is a keyed list, so the query must be scoped to a
-		// single instance. Without the [name=...] key the DUT would either
-		// reject the request or return the global-filter policies of every
-		// network instance, and the last notification received would
-		// non-deterministically overwrite the values checked below.
-		niName := deviations.DefaultNetworkInstance(dut)
-		ocPolicyConfigPathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv4-policy", niName)
-		ocPolicyConfigPathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv6-policy", niName)
-		ocPolicyStatePathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv4-policy", niName)
-		ocPolicyStatePathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv6-policy", niName)
-		gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
-		if err != nil {
-			t.Fatalf("Failed to dial GNMI: %v", err)
-		}
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		configReq := &gpb.GetRequest{
-			Prefix: &gpb.Path{Origin: "openconfig", Target: dut.Name()},
-			Path: []*gpb.Path{
-				gnmiPath(t, ocPolicyConfigPathV4),
-				gnmiPath(t, ocPolicyConfigPathV6),
-			},
-			Type:     gpb.GetRequest_CONFIG,
-			Encoding: aftpf.ConfigEncoding(dut),
-		}
-		configResp, err := gnmiClient.Get(ctx, configReq)
-		if err != nil {
-			t.Fatalf("GNMI Get for global-filter config failed: %v", err)
-		}
-		stateReq := &gpb.GetRequest{
-			Prefix: &gpb.Path{Origin: "openconfig", Target: dut.Name()},
-			Path: []*gpb.Path{
-				gnmiPath(t, ocPolicyStatePathV4),
-				gnmiPath(t, ocPolicyStatePathV6),
-			},
-			Type:     gpb.GetRequest_STATE,
-			Encoding: aftpf.ConfigEncoding(dut),
-		}
-		stateResp, err := gnmiClient.Get(ctx, stateReq)
-		if err != nil {
-			t.Fatalf("GNMI Get for global-filter state failed: %v", err)
-		}
-		gotConfigIPv4Policy, gotConfigIPv6Policy := globalFilterPoliciesFromGet(t, configResp)
-		gotStateIPv4Policy, gotStateIPv6Policy := globalFilterPoliciesFromGet(t, stateResp)
-		if gotConfigIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 config policy mismatch got=%q want=%q", gotConfigIPv4Policy, wantIPv4Policy)
-		}
-		if gotConfigIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 config policy mismatch got=%q want=%q", gotConfigIPv6Policy, wantIPv6Policy)
-		}
-		if gotStateIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 state policy mismatch got=%q want=%q", gotStateIPv4Policy, wantIPv4Policy)
-		}
-		if gotStateIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 state policy mismatch got=%q want=%q", gotStateIPv6Policy, wantIPv6Policy)
-		}
-		t.Logf("Verified persisted global-filter config/state policies for %q: ipv4=%q ipv6=%q", niName, gotConfigIPv4Policy, gotConfigIPv6Policy)
+		return
 	}
+	niName := deviations.DefaultNetworkInstance(dut)
+	transport, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI: %v", err)
+	}
+	client, err := aftpf.TypedGNMIClient(t, dut, transport)
+	if err != nil {
+		t.Fatalf("Failed to create typed GNMI client: %v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	checks := []struct {
+		name  string
+		query ygnmi.SingletonQuery[string]
+		want  string
+	}{
+		{"IPv4 config", filter.Ipv4Policy().Config(), wantIPv4Policy},
+		{"IPv6 config", filter.Ipv6Policy().Config(), wantIPv6Policy},
+		{"IPv4 state", filter.Ipv4Policy().State(), wantIPv4Policy},
+		{"IPv6 state", filter.Ipv6Policy().State(), wantIPv6Policy},
+	}
+	for _, check := range checks {
+		got, err := ygnmi.Get(ctx, client, check.query, ygnmi.WithUseGet())
+		if err != nil {
+			t.Fatalf("Typed GNMI Get for global-filter %s failed: %v", check.name, err)
+		}
+		if got != check.want {
+			t.Fatalf("%s policy mismatch got=%q want=%q", check.name, got, check.want)
+		}
+	}
+	t.Logf("Verified persisted global-filter config/state policies for %q: ipv4=%q ipv6=%q", niName, wantIPv4Policy, wantIPv6Policy)
 }
 
 // typedStringLeaves handles both scalar and container JSON_IETF responses.
@@ -972,34 +946,6 @@ func notificationUpdatePath(t *testing.T, prefix, path *gpb.Path) string {
 		t.Fatalf("Invalid update path: %v", err)
 	}
 	return strings.TrimRight(prefixText, "/") + "/" + strings.TrimLeft(pathText, "/")
-}
-
-func globalFilterPoliciesFromGet(t *testing.T, response *gpb.GetResponse) (string, string) {
-	t.Helper()
-	policies := map[string]string{}
-	for _, notification := range response.GetNotification() {
-		for _, update := range notification.GetUpdate() {
-			path := notificationUpdatePath(t, notification.GetPrefix(), update.GetPath())
-			for _, leaf := range []string{"ipv4-policy", "ipv6-policy"} {
-				values, err := typedStringLeaves(update.GetVal(), leaf, path)
-				if err != nil {
-					t.Fatalf("Decode global-filter %s at %s: %v", leaf, path, err)
-				}
-				for _, value := range values {
-					if old, present := policies[leaf]; present && old != value {
-						t.Fatalf("Conflicting %s values: %q and %q", leaf, old, value)
-					}
-					policies[leaf] = value
-				}
-			}
-		}
-	}
-	for _, leaf := range []string{"ipv4-policy", "ipv6-policy"} {
-		if _, present := policies[leaf]; !present {
-			t.Fatalf("Get response is missing global-filter %s: %v", leaf, response)
-		}
-	}
-	return policies["ipv4-policy"], policies["ipv6-policy"]
 }
 
 // verifiedDefaultPeerValidator accepts the exact expected global next hop,
