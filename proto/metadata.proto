@@ -50,6 +50,9 @@ message Metadata {
     TESTBED_DUT_8_LOOP_2_ATE = 18;
     TESTBED_ATE_DUT1_4LINKS_DUT2_ATE = 19;
     TESTBED_DUT_DUT_ATE_8LINKS = 20;
+    TESTBED_DUT_1_LOOP_100G = 21;
+    TESTBED_DUT_1_LOOP_400G = 22;
+    TESTBED_DUT_1_LOOP_800G = 23;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -1622,6 +1625,9 @@ message Metadata {
     // for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
+
+    // Expected minimum PacketGeneratorCapabilities.max_bps for packet link qualification.
+    uint64 plq_generator_capabilities_max_bps = 490;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
