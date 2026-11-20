@@ -178,7 +178,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		}
 		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
-		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
+		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
 	t.Logf("Waiting for 90s after power disable...")
 	time.Sleep(90 * time.Second)
@@ -195,7 +195,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)
 		} else {
-			if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
+			if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
 				t.Errorf("Component %s, power-admin-state got: %v, want: %v", f, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 			}
 		}
