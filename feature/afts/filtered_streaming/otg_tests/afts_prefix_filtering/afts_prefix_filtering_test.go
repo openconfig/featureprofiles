@@ -525,11 +525,13 @@ func runPrefixSetIteration(t *testing.T, dut *ondatra.DUTDevice, tc prefixSetIte
 	} else {
 		v6Policy = tc.policyName
 	}
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+	policyCfg := aftpf.ConfigureGlobalFilterPoliciesParams{
 		V4Policy: v4Policy,
 		V6Policy: v6Policy,
 		VRFName:  ni,
-	})
+	}
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, policyCfg)
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, policyCfg)
 
 	rawStream, rawErr := newRawAFTStream(ctx, t, dut, ni)
 	if rawErr != nil {
@@ -749,6 +751,10 @@ func testNonExistentPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		V6Policy: "",
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyNotYetExist,
+		VRFName:  ni,
+	})
 
 	wantPrefixes := map[string]bool{matchPrefix: true}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
@@ -786,6 +792,7 @@ func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
 		V6Policy: "",
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, VRFName: ni})
 
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
@@ -794,7 +801,7 @@ func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
 		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
-	}, nil, nil)
+	}, nil, []string{"100.64.0.0/24"})
 
 	if err := deletePolicyExpectCode(t, dut, policyPfxSetA, codes.FailedPrecondition); err != nil {
 		t.Errorf("Policy-still-referenced check: %v", err)
@@ -839,7 +846,8 @@ func testPolicyDeletion(t *testing.T, dut *ondatra.DUTDevice) {
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		Stop: aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes,
+			map[string]bool{"100.64.0.0/24": true},
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
 	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, []string{"100.64.0.0/24"})
@@ -876,6 +884,7 @@ func testChangeReferencedPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 		V6Policy: "",
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: policyPfxSetA, VRFName: ni})
 
 	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
@@ -885,7 +894,7 @@ func testChangeReferencedPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
-	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, nil)
+	}, []string{"198.51.100.0/24", "203.0.113.0/28"}, []string{"100.64.0.0/24"})
 
 	if err := updatePolicyStatementPrefixSet(t, dut, policyPfxSetA, defaultStatementName, v6PfxSetB); err != nil {
 		t.Errorf("Failed to swap prefix-set reference: %v", err)
@@ -938,6 +947,7 @@ func testMultiStatementPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		V6Policy: "",
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: policyMultiStmt, VRFName: ni})
 
 	wantPrefixes := map[string]bool{"198.51.100.0/24": true, "203.0.113.0/28": true, extraPrefix: true}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
@@ -961,13 +971,20 @@ func testDenyActionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	defer cancel()
 	ni := deviations.DefaultNetworkInstance(dut)
 
+	t.Cleanup(func() {
+		if err := deleteGlobalFilter(t, dut, ni); err != nil {
+			t.Errorf("Cleanup: failed to delete global-filter: %v", err)
+		}
+	})
 	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
 		V4Policy: policyDenyPfxSetA,
 		V6Policy: "",
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: policyDenyPfxSetA, VRFName: ni})
 
 	wantPrefixes := map[string]bool{"100.64.0.0/24": true}
+	denyPrefixes := []string{"198.51.100.0/24", "203.0.113.0/28"}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
@@ -975,11 +992,7 @@ func testDenyActionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
 			map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}),
 		Timeout: subscriptionWait,
-	}, []string{"100.64.0.0/24"}, []string{"198.51.100.0/24", "203.0.113.0/28"})
-
-	if err := deleteGlobalFilter(t, dut, ni); err != nil {
-		t.Errorf("Cleanup: failed to delete global-filter: %v", err)
-	}
+	}, []string{"100.64.0.0/24"}, denyPrefixes)
 }
 
 // testNonPrefixSetMatchCriteria implements AFT-6.1.7.
@@ -993,6 +1006,7 @@ func testNonPrefixSetMatchCriteria(t *testing.T, dut *ondatra.DUTDevice) {
 		V6Policy: "",
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: policyTagMatch, VRFName: ni})
 
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{

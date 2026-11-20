@@ -599,6 +599,11 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 			aftpf.VerifyGlobalFilterPoliciesCLI(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: wantIPv4Policy, V6Policy: wantIPv6Policy})
 		}
 	} else {
+		aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+			V4Policy: wantIPv4Policy,
+			V6Policy: wantIPv6Policy,
+			VRFName:  deviations.DefaultNetworkInstance(dut),
+		})
 		// network-instance is a keyed list, so the query must be scoped to a
 		// single instance. Without the [name=...] key the DUT would either
 		// reject the request or return the global-filter policies of every
@@ -1058,10 +1063,10 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 			if tc.ipv4 {
 				aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: tc.policyName, V6Policy: "", VRFName: deviations.DefaultNetworkInstance(dut)})
-				stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, nil)
+				stoppingCondition = aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, aftpf.PrefixSet(unmatchedPrefixes), map[string]bool{atePort1.IPv4: true}, nil)
 			} else {
 				aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: "", V6Policy: tc.policyName, VRFName: deviations.DefaultNetworkInstance(dut)})
-				stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, map[string]bool{atePort1.IPv6: true})
+				stoppingCondition = aftcache.InitialSyncStoppingConditionWithAbsentPrefixes(t, dut, wantPrefixes, aftpf.PrefixSet(unmatchedPrefixes), nil, map[string]bool{atePort1.IPv6: true})
 			}
 			// Measure synchronization time
 			start := time.Now()
@@ -1164,15 +1169,19 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	defer cancel()
 	// Configure NI-specific AFT filters
 	t.Log("Configuring per-network-instance AFT filters")
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: ipv4Policy, V6Policy: ipv6Policy, VRFName: deviations.DefaultNetworkInstance(dut)})
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: vrfAPolicy, V6Policy: vrfAPolicy, VRFName: vrfName})
+	defaultFilter := aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: ipv4Policy, V6Policy: ipv6Policy, VRFName: deviations.DefaultNetworkInstance(dut)}
+	vrfFilter := aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: vrfAPolicy, V6Policy: vrfAPolicy, VRFName: vrfName}
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, defaultFilter)
+	aftpf.ConfigureGlobalFilterPolicies(t, dut, vrfFilter)
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, defaultFilter)
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, vrfFilter)
 	// Expected prefixes
 	defaultWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: nil, PfxCount: pfxCount})
-	vrfWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1}, V6Prefixes: nil, PfxCount: pfxCount})
+	vrfWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchVrfPfx1}, V6Prefixes: nil, PfxCount: pfxCount})
 	// Collector-1 (DEFAULT)
 	collector1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	// Collector-2 (VRF-A)
-	collector2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	collector2 := newAFTStreamSessionForIPv4Route(ctx, t, dut, vrfName, matchVrfPfx1)
 	// Initial sync validation
 	t.Log("Validating initial filtered AFT state")
 	defaultStop := aftcache.InitialSyncStoppingCondition(t, dut, defaultWant, map[string]bool{atePort1.IPv4: true}, nil)
@@ -1238,7 +1247,7 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Collector 2's stream, so re-establish the subscription and validate the
 	// full set of VRF-A prefixes after SYNC on the new stream.
 	t.Log("Re-establishing Collector2 subscription after the VRF-A filter policy change")
-	collector2 = reestablishAFTSession(ctx, t, dut)
+	collector2 = newAFTStreamSessionForIPv4Route(ctx, t, dut, vrfName, matchVrfPfx1)
 	// Collector2 should now receive all VRF-A routes within 60 seconds.
 	t.Log("Waiting for Collector2 to receive all VRF-A routes")
 	wantAllVRF := []string{matchPrefixAft1, matchVrfPfx1, matchVrfPfx3, matchVrfPfx2}
@@ -1301,13 +1310,25 @@ func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	session.ListenUntil(ctx, t, timeout, stoppingCondition)
 }
 
-// reestablishAFTSession dials a new gNMI client and returns a fresh AFT stream
-// session. It is used after a global-filter policy reconfiguration, which the
-// DUT is allowed to answer by terminating the existing AFT subscription. The
-// previous session's stream may therefore already be closed, and continuing to
-// listen on it would fail instead of validating the new filter behaviour, so
-// the verification is always performed on a re-established subscription.
-func reestablishAFTSession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *aftcache.AFTStreamSession {
+// newAFTStreamSessionForIPv4Route creates an AFT stream for the given route
+// network instance and subscribes to supporting next-hop objects in the
+// network instance referenced by the route's next-hop-group-network-instance.
+func newAFTStreamSessionForIPv4Route(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, routeNetworkInstance, routePrefix string) *aftcache.AFTStreamSession {
 	t.Helper()
-	return aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	route, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(routeNetworkInstance).Afts().Ipv4Entry(routePrefix).State(), subscriptionWait,
+		func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			v, present := val.Val()
+			return present && v.GetNextHopGroup() != 0
+		}).Await(t)
+	if !ok {
+		t.Fatalf("AFT entry for prefix %s is not present in network instance %s", routePrefix, routeNetworkInstance)
+	}
+	routeEntry, _ := route.Val()
+	nextHopNetworkInstance := routeEntry.GetNextHopGroupNetworkInstance()
+	if nextHopNetworkInstance == "" {
+		// An omitted next-hop-group-network-instance falls back to the default network instance.
+		nextHopNetworkInstance = deviations.DefaultNetworkInstance(dut)
+	}
+	client := aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx})
+	return aftcache.NewAFTStreamSessionForNetworkInstances(ctx, t, client, dut, routeNetworkInstance, nextHopNetworkInstance)
 }
