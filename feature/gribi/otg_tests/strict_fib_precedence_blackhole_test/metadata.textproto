@@ -5,3 +5,16 @@ uuid: "3c78e2d4-fb53-446d-9187-51c851af1188"
 plan_id: "TE-1.22"
 description: "Traffic Blackhole on gRIBI Invalid Next-Hop (Strict FIB Precedence)"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    default_bgp_instance_name: "BGP"
+    static_protocol_name: "STATIC"
+    interface_enabled: true
+    gribi_mac_override_static_arp_static_route: true
+  }
+}
