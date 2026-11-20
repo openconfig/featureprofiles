@@ -164,7 +164,7 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 		afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
 	}
 	localAddressLeaf := dutLoopback.IPv4
-	if bs.DUT.Vendor() == ondatra.CISCO {
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(bs.DUT) {
 		localAddressLeaf = lb
 	}
 	// dutPort2 -> atePort2 peer (ibgp session)
