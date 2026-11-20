@@ -35,31 +35,9 @@ const (
 func ConfigureHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	ciscoConfig := `
-		hw-module profile route scale lpm tcam-banks
-		customshowtech GRPC_CUSTOM
-		command show health gsp
-		command show health sysdb
-		command show tech-support gsp
-		command show tech-support cfgmgr
-		command show tech-support ofa
-		command show tech-support pfi
-		command show tech-support spi
-		command show tech-support mgbl
-		command show tech-support sysdb
-		command show tech-support appmgr
-		command show tech-support fabric
-		command show tech-support yserver
-		command show tech-support interface
-		command show tech-support platform-fwd
-		command show tech-support linux networking
-		command show tech-support ethernet interfaces
-		command show tech-support fabric link-include
-		command show tech-support p2p-ipc process appmgr
-		command show tech-support insight include-database
-		command show tech-support lpts
-		command show tech-support parser
-		command show tech-support telemetry model-driven
 		lpts pifib hardware police flow tpa rate 20000 
+		hw-module profile route scale lpm tcam-banks
+		hw-module profile cef iptunnel scale
 		`
 	GnmiCLIConfig(t, dut, ciscoConfig)
 	RebootDUT(t, dut)
@@ -71,6 +49,7 @@ func ConfigureDefaultHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	ciscoConfig := `
 	    no hw-module profile route scale lpm tcam-banks
+		no hw-module profile cef iptunnel scale
 		`
 	GnmiCLIConfig(t, dut, ciscoConfig)
 	RebootDUT(t, dut)
