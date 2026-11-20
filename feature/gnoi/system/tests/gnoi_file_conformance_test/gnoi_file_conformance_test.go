@@ -636,7 +636,7 @@ func verifyFileStat(ctx context.Context, t *testing.T, fc fpb.FileClient, spec f
 	t.Logf("File.Stat(%q): path=%q size=%d permissions=%d umask=%d last_modified=%d",
 		spec.path, info.GetPath(), info.GetSize(), info.GetPermissions(), info.GetUmask(), info.GetLastModified())
 
-	if got := info.GetPath(); got != spec.path && path.Base(got) != spec.name {
+	if got := info.GetPath(); got != spec.path && baseName(got) != spec.name {
 		t.Errorf("File.Stat(%q) StatInfo.path = %q, want %q", spec.path, got, spec.path)
 	}
 	if gotSize, wantSize := info.GetSize(), uint64(len(spec.payload)); gotSize != wantSize {
@@ -675,6 +675,15 @@ func permissionsMatch(want, got, umask uint32) (uint32, bool) {
 	return uint32(maskedDigits), got == uint32(maskedDigits)
 }
 
+// baseName returns the final element of a DUT file path, handling both
+// "/dir/name" and "<device>:name" (for example "harddisk:file.txt") forms.
+func baseName(p string) string {
+	if i := strings.LastIndexAny(p, "/:"); i >= 0 {
+		return p[i+1:]
+	}
+	return p
+}
+
 // verifyDirectoryStat checks gnoi.file.File.Stat on the parent scratch
 // directory and confirms all expected files are listed with matching byte sizes.
 func verifyDirectoryStat(ctx context.Context, t *testing.T, fc fpb.FileClient, scratchDir string, specs []fileSpec) {
@@ -685,13 +694,7 @@ func verifyDirectoryStat(ctx context.Context, t *testing.T, fc fpb.FileClient, s
 	}
 	foundByName := make(map[string]*fpb.StatInfo)
 	for _, st := range resp.GetStats() {
-		// Index by the final path element, also handling "<device>:<name>"
-		// style entries (for example "harddisk:file.txt").
-		name := st.GetPath()
-		if i := strings.LastIndexAny(name, "/:"); i >= 0 {
-			name = name[i+1:]
-		}
-		foundByName[name] = st
+		foundByName[baseName(st.GetPath())] = st
 	}
 	for _, spec := range specs {
 		st, ok := foundByName[spec.name]
@@ -954,6 +957,8 @@ func TestGNOIFileConformance(t *testing.T) {
 			case isRPCTimeout(recvErr):
 				t.Errorf("gnoi.file.File.Get(%q) did not complete within %v: %v, want NOT_FOUND error", incompletePath, rpcTimeout, recvErr)
 			}
+		} else if isRPCTimeout(getErr) {
+			t.Errorf("gnoi.file.File.Get(%q) did not complete within %v: %v, want NOT_FOUND error", incompletePath, rpcTimeout, getErr)
 		}
 
 		t.Log("gNOI-5.4.2 - Step 3: Verify existing committed baseline files from gNOI-5.4.1 remain intact")
