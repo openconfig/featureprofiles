@@ -616,6 +616,12 @@ func TestTC5ShortDOWN(t *testing.T) {
 		Down: ygot.Uint32(5000),
 	}
 
+	t.Cleanup(func() {
+		gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1Intf.Name()).HoldTime().Config(), &oc.Interface_HoldTime{
+			Up:   ygot.Uint32(0),
+			Down: ygot.Uint32(0),
+		})
+	})
 	t.Run("Update hold timer configs down", func(t *testing.T) {
 		intfPath := gnmi.OC().Interface(dutPort1Intf.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
@@ -625,7 +631,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 	t.Run("Flap OTG Interfaces", func(t *testing.T) {
 
 		t.Log("Verify Interface State before TC Start")
-		verifyPortsStatus(t, dut, "UP", 10*time.Second)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 		// shutting down OTG interface to emulate the RF
 		t.Log("Shutdown OTG Interface")
 		change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
@@ -639,6 +645,9 @@ func TestTC5ShortDOWN(t *testing.T) {
 	})
 
 	t.Run("Verify Short Down Results", func(t *testing.T) {
+		if change1 == nil || change1.LastChange == nil {
+			t.Fatalf("Bypassing verification step: initial state pointer 'change1' or 'change1.LastChange' failed to populate in previous subtest.")
+		}
 
 		// Start building the log message
 		logMessage := "Interface Status Timeline\n" +

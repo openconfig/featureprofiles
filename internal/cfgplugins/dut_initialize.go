@@ -17,6 +17,8 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +41,7 @@ type VRFConfig struct {
 const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
+	FeatureVrfSelectionDecap
 	FeaturePolicyForwarding
 	FeatureEnableAFTSummaries
 	FeatureNGPR
@@ -52,6 +55,10 @@ const (
 	FeatureHierarchicalFIB
 	FeatureSecondaryDefaultLookup
 	FeatureAnpf
+	FeatureHighScale
+	FeatureLoadBalanceHashReset
+	FeatureLoadBalanceHashPerturb
+	FeatureVrfSelectionFallbackDecap
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -195,7 +202,7 @@ hardware tcam
 
 	aristaTcamProfileVrfSelectionExtended = `
 hardware tcam
-   profile vrf-selection-with-ip6-sip
+   profile vrf-selection-with-extended-hashing
       feature acl port ip
          sequence 45
          key size limit 160
@@ -233,13 +240,13 @@ hardware tcam
          packet ipv4 forwarding bridged
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv4 mpls ipv4 forwarding mpls decap
          packet ipv4 mpls ipv6 forwarding mpls decap
          packet ipv4 non-vxlan forwarding routed decap
          packet ipv4 vxlan forwarding bridged decap
          packet ipv6 forwarding bridged
          packet ipv6 forwarding routed
-         packet ipv6 forwarding routed decap
          packet ipv6 forwarding routed multicast
          packet ipv6 ipv6 forwarding routed decap
          packet mpls forwarding bridged decap
@@ -284,6 +291,8 @@ hardware tcam
          sequence 85
       feature forwarding-destination mpls
          sequence 100
+      feature load-balance hash extended
+         packet all-active
       feature mirror ip
          sequence 80
          key size limit 160
@@ -341,6 +350,7 @@ hardware tcam
          sequence 70
          key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
          action set-dscp set-policer set-tc
+         packet ipv4 ipv6 forwarding routed decap
          packet ipv6 forwarding routed
       feature tunnel vxlan
          sequence 50
@@ -349,13 +359,12 @@ hardware tcam
          packet ipv4 vxlan forwarding bridged decap
       feature vrf selection
          port qualifier size 8 bits
-      feature vrf selection extended
 	  !
-	system profile vrf-selection-with-ip6-sip
+	system profile vrf-selection-with-extended-hashing
 `
 
 	nokiaSecondaryDefaultLookup = `
-platform resource_management mdb-profile id 2
+platform resource-management mdb-profile id 2
 system datapath secondary-default-lookup admin-state enable
 `
 
@@ -1498,28 +1507,208 @@ router general
 !
    `
 
+const aristaVrfSelectionDecap = `
+vrf selection policy
+   next-hop decapsulation vrf
+!
+`
+
+const aristaVrfSelectionFallbackDecap = `
+vrf selection policy
+   next-hop fallback decapsulation vrf
+!
+`
+
+const ciscoHighScale = `no hw-module profile cef cbf forward-class-list 0 5
+no hw-module profile cef sropt enable
+no hw-module profile cef dark-bw enable
+no hw-module profile cef te-tunnel highscale-no-ldp-over-te
+no hw-module profile route scale ipv6-unicast connected-prefix high
+hw-module profile cef hash ip-field-duplication
+hw-module profile pbr vrf-redirect
+hw-module profile qos qos-stats-push-collection
+hw-module profile cef iptunnel scale
+hw-module profile npu-compatibility Q200
+hw-module local-station-mac 0010.0010.0010`
+
+const aristaLoadBalanceHashReset = `load-balance policies
+   load-balance sand profile default
+      default ecmp hash seed
+      default ecmp hash polynomial
+      default port-channel hash seed
+      default port-channel hash polynomial
+`
+
+const aristaLoadBalanceHashPerturb = `load-balance policies
+   load-balance sand profile default
+      ecmp hash seed %d
+      ecmp hash polynomial %d
+      port-channel hash seed %d
+      port-channel hash polynomial %d
+`
+
+const nokiaLoadBalanceHashReset = "system load-balancing hash-options hash-seed generate-from-mac"
+
+const nokiaLoadBalanceHashPerturb = "system load-balancing hash-options hash-seed %d"
+
+// juniperLoadBalanceHashReset deletes the explicit ECMP/LAG hash-seed under
+// forwarding-options enhanced-hash-key so Junos reverts to deriving the seed
+// from the chassis MAC address without disturbing sibling enhanced-hash-key
+// stanzas.
+const juniperLoadBalanceHashReset = `forwarding-options {
+    enhanced-hash-key {
+        delete: hash-seed;
+    }
+}
+`
+
+// juniperLoadBalanceHashPerturb sets an explicit ECMP/LAG hash seed on Junos
+// (Evolved) PTX platforms.
+const juniperLoadBalanceHashPerturb = `forwarding-options {
+    enhanced-hash-key {
+        hash-seed %d;
+    }
+}
+`
+
+var juniperHashSeedRE = regexp.MustCompile(`\bhash-seed"?\s*:?\s*"?(\d+)\b`)
+
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
-		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
-		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
-		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
-		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
-		FeatureNGPR:                   aristaNGPRTcamProfile,
-		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
-		FeatureQOSIn:                  aristaQOSTcamIn,
-		FeatureACLCounters:            aristaTCAMACLCounters,
-		FeatureAnPF:                   aristaAnPF,
-		FeatureIngressARP:             aristaIngressARP,
-		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
-		FeatureCFM:                    aristaTcamProfileCFM,
-		FeatureAnpf:                   aristaAnpfTcamProfile,
-		FeatureHierarchicalFIB:        aristaHierarchicalFIB,
+		FeatureMplsTracking:              aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended:      aristaTcamProfileVrfSelectionExtended,
+		FeatureVrfSelectionDecap:         aristaVrfSelectionDecap,
+		FeatureVrfSelectionFallbackDecap: aristaVrfSelectionFallbackDecap,
+		FeaturePolicyForwarding:          aristaTcamProfilePolicyForwarding,
+		FeatureEnableAFTSummaries:        aristaEnableAFTSummaries,
+		FeatureNGPR:                      aristaNGPRTcamProfile,
+		FeatureTTLPolicyForwarding:       aristaTcamProfilePreserveTTL,
+		FeatureQOSIn:                     aristaQOSTcamIn,
+		FeatureACLCounters:               aristaTCAMACLCounters,
+		FeatureAnPF:                      aristaAnPF,
+		FeatureIngressARP:                aristaIngressARP,
+		FeatureOptimizeFIBAndCounters:    aristaOptimizeFIBAndCounters,
+		FeatureCFM:                       aristaTcamProfileCFM,
+		FeatureAnpf:                      aristaAnpfTcamProfile,
+		FeatureHierarchicalFIB:           aristaHierarchicalFIB,
+		FeatureLoadBalanceHashReset:      aristaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb:    aristaLoadBalanceHashPerturb,
 	}
 
 	nokiaHardwareInitMap = map[FeatureType]string{
 		FeatureSecondaryDefaultLookup: nokiaSecondaryDefaultLookup,
+		FeatureLoadBalanceHashReset:   nokiaLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb: nokiaLoadBalanceHashPerturb,
+	}
+
+	ciscoHardwareInitMap = map[FeatureType]string{
+		FeatureHighScale: ciscoHighScale,
+	}
+
+	juniperHardwareInitMap = map[FeatureType]string{
+		FeatureLoadBalanceHashReset:   juniperLoadBalanceHashReset,
+		FeatureLoadBalanceHashPerturb: juniperLoadBalanceHashPerturb,
 	}
 )
+
+// JuniperLoadBalanceHashSeed queries the active enhanced-hash-key hash-seed on
+// a Juniper DUT. It returns (seed, true) when an explicit hash-seed statement
+// is configured, or (0, false) when unset (Junos derives the seed from the
+// chassis MAC address).
+func JuniperLoadBalanceHashSeed(t *testing.T, dut *ondatra.DUTDevice) (int, bool) {
+	t.Helper()
+	const showCmd = "show configuration forwarding-options enhanced-hash-key hash-seed"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var raw string
+	var queried bool
+	var lastErr error
+	gnmiClient := dut.RawAPIs().GNMI(t)
+
+	cliReq := &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Origin: "cli",
+			Elem:   []*gpb.PathElem{{Name: showCmd}},
+		}},
+		Encoding: gpb.Encoding_ASCII,
+	}
+	if resp, err := gnmiClient.Get(ctx, cliReq); err == nil {
+		queried = true
+		for _, notif := range resp.GetNotification() {
+			for _, upd := range notif.GetUpdate() {
+				if s := upd.GetVal().GetAsciiVal(); s != "" {
+					raw = s
+					break
+				}
+			}
+		}
+	} else {
+		lastErr = err
+	}
+
+	if !queried {
+		for _, origin := range []string{"junos", "native", ""} {
+			cfgReq := &gpb.GetRequest{
+				Path: []*gpb.Path{{
+					Origin: origin,
+					Elem: []*gpb.PathElem{
+						{Name: "configuration"},
+						{Name: "forwarding-options"},
+						{Name: "enhanced-hash-key"},
+					},
+				}},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			}
+			resp, err := gnmiClient.Get(ctx, cfgReq)
+			if err != nil {
+				if strings.Contains(err.Error(), "code = NotFound") {
+					queried = true
+					break
+				}
+				lastErr = err
+				continue
+			}
+			queried = true
+			for _, notif := range resp.GetNotification() {
+				for _, upd := range notif.GetUpdate() {
+					if b := upd.GetVal().GetJsonIetfVal(); len(b) > 0 {
+						raw = string(b)
+						break
+					}
+					if b := upd.GetVal().GetJsonVal(); len(b) > 0 {
+						raw = string(b)
+						break
+					}
+				}
+			}
+			break
+		}
+	}
+
+	if !queried {
+		res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, showCmd)
+		if err != nil {
+			t.Fatalf("Unable to query initial Juniper enhanced-hash-key hash-seed via gNMI or CLI: %v (last gNMI error: %v)", err, lastErr)
+		}
+		raw = res.Output()
+	}
+
+	if strings.TrimSpace(raw) == "" {
+		return 0, false
+	}
+	m := juniperHashSeedRE.FindStringSubmatch(raw)
+	if len(m) < 2 {
+		return 0, false
+	}
+	seed, err := strconv.Atoi(m[1])
+	if err != nil {
+		t.Fatalf("Unable to parse Juniper enhanced-hash-key hash-seed from %q: %v", raw, err)
+	}
+	return seed, true
+}
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
 	gpbSetRequest := &gpb.SetRequest{
@@ -1549,6 +1738,10 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		return aristaTcamProfileMap[feature]
 	case ondatra.NOKIA:
 		return nokiaHardwareInitMap[feature]
+	case ondatra.CISCO:
+		return ciscoHardwareInitMap[feature]
+	case ondatra.JUNIPER:
+		return juniperHardwareInitMap[feature]
 	default:
 		return ""
 	}
@@ -1576,6 +1769,7 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 			loadBalanceCliConfig := `
 			load-balance policies
          load-balance sand profile default
+		 	fields ipv4 outer dst-ip protocol src-ip
             fields ipv6 outer dst-ip flow-label next-header src-ip
             fields l4 outer dst-port src-port
             no fields mpls
