@@ -13,6 +13,7 @@ platform_exceptions: {
     gnoi_subcomponent_path: true
     interface_enabled: true
     default_network_instance: "default"
+    isis_instance_enabled_required: true
   }
 }
 platform_exceptions: {
@@ -21,5 +22,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    gnmi_expand_wildcard_paths_in_get_responses_required: true
   }
 }
