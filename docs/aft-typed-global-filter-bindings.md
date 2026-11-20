@@ -43,21 +43,21 @@ The bindings update is part of the checkout through `go.mod` and `go.sum`.
 The build must preserve that replacement and use Go 1.26.3 or later; no manual
 binding regeneration or private Ondatra checkout is needed.
 
-Select this PR from `b4firex/featureprofiles`. The B4 Jenkins `Public` repository
-choice defaults to `openconfig/featureprofiles`, so a PR number in the B4FireX
-fork also requires selecting the fork's repository URL. In an existing B4
-runlist, the source settings are:
+Select the upstream PR in `openconfig/featureprofiles`. Its source branch is
+hosted in the B4FireX fork. In Jenkins, choose `Public` and enter the upstream
+number in `Test PR`. For an existing B4 runlist, the equivalent source settings
+are:
 
 ```yaml
 internal_test: false
-test_repo_url: https://github.com/b4firex/featureprofiles.git
+test_repo_url: https://github.com/openconfig/featureprofiles.git
 ```
 
-Select this PR's number with the job's Test PR setting. Clear the old internal
-`test_branch` and any explicit test revision, and leave the job's Test branch
-and Test commit hash fields empty. Keep the existing AFT package selections
-and the intended testbed/image profile. A source selection that still points
-to the internal branch will not exercise these changes.
+Select the upstream PR's number with the job's Test PR setting. Clear the old
+internal `test_branch`, any explicit test revision, and any repository override
+that points to the fork. Leave the job's Test branch and Test commit hash fields
+empty. Keep the existing AFT package selections and intended testbed/image
+profile.
 
 Use the established B4 SIM runtime profile described below when reproducing
 the local simulator results. The module pin supplies the bindings; the normal
