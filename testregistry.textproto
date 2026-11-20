@@ -544,6 +544,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/tests/p4rt_device_down_test/p4rt_device_down_test.go"
 }
 test: {
+  id: "P4RT-1.4"
+  description: "P4RT PacketIn and gRIBI Get Continuity across Supervisor Switchover"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_supervisor_switchover_test/README.md"
+}
+test: {
   id: "P4RT-2.1"
   description: "P4RT Election"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/tests/p4rt_election/README.md"
