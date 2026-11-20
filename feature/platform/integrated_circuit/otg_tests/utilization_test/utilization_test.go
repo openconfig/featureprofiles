@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
@@ -48,17 +49,8 @@ const (
 )
 
 var (
-	fibResource = map[ondatra.Vendor]string{
-		ondatra.ARISTA: "Routing/Resource6",
-		ondatra.NOKIA:  "ip-lpm-routes",
-		ondatra.CISCO:  "central_em_0",
-	}
-	chassisFIBResources = []string{
-		"Routing/Resource1", "Routing/Resource2", "Routing/Resource3",
-		"Routing/Resource4", "Routing/Resource5", "Routing/Resource6",
-		"Routing2/Resource1", "Routing2/Resource2", "Routing2/Resource3",
-		"Routing2/Resource4", "Routing2/Resource5", "Routing2/Resource6",
-	}
+	aristaPlatform string
+
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
@@ -108,6 +100,33 @@ func (u *utilization) percent() uint8 {
 	return uint8(u.used * 100 / (u.used + u.free))
 }
 
+func getFibResource(t *testing.T, dut *ondatra.DUTDevice) string {
+	fibResource := map[ondatra.Vendor]string{
+		ondatra.NOKIA: "ip-lpm-routes",
+		ondatra.CISCO: "central_em_0",
+	}
+	if dut.Vendor() == ondatra.ARISTA {
+		if aristaPlatform == "strata" {
+			return "ALPM"
+		}
+		return "Routing/Resource6"
+	}
+	return fibResource[dut.Vendor()]
+}
+
+func getChassisFibResources(t *testing.T, dut *ondatra.DUTDevice) []string {
+	chassisFIBResources := []string{
+		"Routing/Resource1", "Routing/Resource2", "Routing/Resource3",
+		"Routing/Resource4", "Routing/Resource5", "Routing/Resource6",
+		"Routing2/Resource1", "Routing2/Resource2", "Routing2/Resource3",
+		"Routing2/Resource4", "Routing2/Resource5", "Routing2/Resource6",
+	}
+	if dut.Vendor() == ondatra.ARISTA && aristaPlatform == "strata" {
+		return []string{"ALPM"}
+	}
+	return chassisFIBResources
+}
+
 func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
 	if functionalTranslatorName == "" {
 		return nil
@@ -144,6 +163,9 @@ func TestMain(m *testing.M) {
 
 func TestResourceUtilization(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if dut.Vendor() == ondatra.ARISTA {
+		aristaPlatform = helpers.AristaPlatform(t, dut)
+	}
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
@@ -151,8 +173,13 @@ func TestResourceUtilization(t *testing.T) {
 	otgV6Peer, otgPort1, otgConfig := configureOTG(t, otg)
 
 	verifyBgpTelemetry(t, dut)
-	gnmi.Replace(t, dut, gnmi.OC().System().Utilization().Resource(fibResource[dut.Vendor()]).Config(), &oc.System_Utilization_Resource{
-		Name:                    ygot.String(fibResource[dut.Vendor()]),
+
+	resName := getFibResource(t, dut)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().System().Utilization().Resource(resName).Config())
+	})
+	gnmi.Replace(t, dut, gnmi.OC().System().Utilization().Resource(resName).Config(), &oc.System_Utilization_Resource{
+		Name:                    ygot.String(resName),
 		UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
 		UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
 	})
@@ -182,7 +209,7 @@ func TestResourceUtilization(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
 				if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
-					if got, want := beforeUtzs[c].name, fibResource[dut.Vendor()]; got != want {
+					if got, want := beforeUtzs[c].name, resName; got != want {
 						t.Errorf("Resource name mismatch! got: %s, want: %s", got, want)
 					}
 				}
@@ -237,7 +264,7 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 		return awaitChassisUtilization(t, dut, predicate)
 	}
 
-	resName := fibResource[dut.Vendor()]
+	resName := getFibResource(t, dut)
 	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
 		resName += "/-"
 	}
@@ -288,11 +315,11 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 	}
 }
 
-func chassisAggregateUtilization(t *testing.T, dut *ondatra.DUTDevice) *utilization {
+func chassisAggregateUtilization(t *testing.T, dut *ondatra.DUTDevice, chassisFibResources []string) *utilization {
 	t.Helper()
 	var totalUsed, totalFree uint64
 	var found bool
-	for _, resName := range chassisFIBResources {
+	for _, resName := range chassisFibResources {
 		val, present := gnmi.Lookup(t, dut, gnmi.OC().Component("Chassis").Chassis().Utilization().Resource(resName).State()).Val()
 		if !present {
 			continue
@@ -310,13 +337,14 @@ func chassisAggregateUtilization(t *testing.T, dut *ondatra.DUTDevice) *utilizat
 
 func awaitChassisUtilization(t *testing.T, dut *ondatra.DUTDevice, predicate func(uint8) bool) *utilization {
 	t.Helper()
+	chassisFibResources := getChassisFibResources(t, dut)
 	deadline := time.After(2 * time.Minute)
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	var last *utilization
 	for {
-		u := chassisAggregateUtilization(t, dut)
+		u := chassisAggregateUtilization(t, dut, chassisFibResources)
 		last = u
 		if predicate(u.percent()) {
 			return u
@@ -335,13 +363,14 @@ func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string)
 	utzs := map[string]*utilization{}
 
 	if deviations.UseChassisAggregateUtilization(dut) {
+		chassisFibResources := getChassisFibResources(t, dut)
 		for _, c := range comps {
-			utzs[c] = chassisAggregateUtilization(t, dut)
+			utzs[c] = chassisAggregateUtilization(t, dut, chassisFibResources)
 		}
 		return utzs
 	}
 
-	resName := fibResource[dut.Vendor()]
+	resName := getFibResource(t, dut)
 	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
 		resName += "/-"
 	}
