@@ -1,4 +1,4 @@
-# gNMI-2: gnmi_subscriptionlist_test
+# GNMI-2: gnmi_subscriptionlist_test
 
 ## Summary
 This is to test for gNMI `Subscription` to multiple paths with different `SubscriptionMode` in a single `SubscriptionRequest` message using the `Subscriptionlist` field. Goal here is to,

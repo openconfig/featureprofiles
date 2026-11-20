@@ -148,13 +148,18 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_dynamic/afts_prefix_filtering_dynamic_test.go"
 }
 test: {
-  id: "Authz-1.0"
+  id: "ATTESTZ-1"
+  description: "General enrollz and attestz tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_and_attestz/README.md"
+}
+test: {
+  id: "AUTHZ-1.0"
   description: "General Authz (1-4) tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/authz/tests/authz/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/authz/tests/authz/authz1_4_test.go"
 }
 test: {
-  id: "Authz-5"
+  id: "AUTHZ-5"
   description: "gRPC Server Per-RPC Statistics YANG State Bounding"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/authz/tests/grpc_rpc_statistics_bounding/README.md"
 }
@@ -177,9 +182,46 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_post_policy_test/bmp_post_policy_test.go"
 }
 test: {
+  id: "BOOTZ-1.0"
+  description: "General bootz bootstrap tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/bootz_test.go"
+}
+test: {
+  id: "CERTZ-1"
+  description: "gNSI Client Certificate Tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/client_certificates_test.go"
+}
+test: {
+  id: "CERTZ-2"
+  description: "Server Certificate"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
+}
+test: {
+  id: "CERTZ-3"
+  description: "Server Certificate Rotation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificate_rotation/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificate_rotation/server_certificate_rotation_test.go"
+}
+test: {
   id: "CERTZ-4"
-  description: "gNSI Trust Bundle"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/tests/trust_bundle/README.md"
+  description: "Trust Bundle"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle/trustbundle_test.go"
+}
+test: {
+  id: "CERTZ-5"
+  description: "Trust Bundle Rotation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle_rotation/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle_rotation/trust_bundle_rotation_test.go"
+}
+test: {
+  id: "CERTZ-6"
+  description: "gNSI Client Certificate Baseline Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
 }
 test: {
   id: "CFM-1.1"
@@ -212,67 +254,31 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_arp_policing/ingress_arp_policing_test.go"
 }
 test: {
-  id: "Certz-1"
-  description: "gNSI Client Certificate Tests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/client_certificates/client_certificates_test.go"
-}
-test: {
-  id: "Certz-2"
-  description: "Server Certificate"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificates/server_certificates_test.go"
-}
-test: {
-  id: "Certz-3"
-  description: "Server Certificate Rotation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificate_rotation/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/server_certificate_rotation/server_certificate_rotation_test.go"
-}
-test: {
-  id: "Certz-4"
-  description: "Trust Bundle"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle/trustbundle_test.go"
-}
-test: {
-  id: "Certz-5"
-  description: "Trust Bundle Rotation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle_rotation/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/trust_bundle_rotation/trust_bundle_rotation_test.go"
-}
-test: {
-  id: "Certz-6"
-  description: "gNSI Client Certificate Baseline Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/certz/tests/baseline/certz_baseline_test.go"
-}
-test: {
-  id: "Credentialz-1"
+  id: "CREDENTIALZ-1"
   description: "Password console login"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/password_console_login/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/password_console_login/password_console_login_test.go"
 }
 test: {
-  id: "Credentialz-2"
+  id: "CREDENTIALZ-2"
   description: "SSH Password Login Disallowed"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/ssh_password_login_disallowed/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/ssh_password_login_disallowed/ssh_password_login_disallowed_test.go"
 }
 test: {
-  id: "Credentialz-3"
+  id: "CREDENTIALZ-3"
   description: "Host Certificates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/host_certificates/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/host_certificates/host_certificates_test.go"
 }
 test: {
-  id: "Credentialz-4"
+  id: "CREDENTIALZ-4"
   description: "SSH Public Key Authentication"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/ssh_public_key_authentication/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/ssh_public_key_authentication/ssh_public_key_authentication_test.go"
 }
 test: {
-  id: "Credentialz-5"
+  id: "CREDENTIALZ-5"
   description: "Hiba Authentication"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/hiba_authentication/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/credentialz/tests/hiba_authentication/hiba_authentication_test.go"
@@ -397,6 +403,24 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_two_rate_three_color_with_classifier/ingress_police_two_rate_three_color_with_classifier_test.go"
 }
 test: {
+  id: "ENROLLZ-1"
+  description: "enrollz test for TPM 2.0 HMAC-based Enrollment flow"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/enrollz_tpm20_hmac_test.go"
+}
+test: {
+  id: "ENROLLZ-2"
+  description: "enrollz test for TPM 1.2 Enrollment flow"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/enrollz_tpm12_test.go"
+}
+test: {
+  id: "EXAMPLE-0.1"
+  description: "Topology Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/example/tests/topology_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/example/tests/topology_test/topology_test.go"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
@@ -409,25 +433,285 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fpga/tests/fpga_status_test/fpga_status_test.go"
 }
 test: {
+  id: "GNMI-1.1"
+  description: "cli Origin"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/cli_origin_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/cli_origin_test/cli_origin_test.go"
+}
+test: {
+  id: "GNMI-1.10"
+  description: "Telemetry: Basic Check"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_basic_check_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_basic_check_test/telemetry_basic_check_test.go"
+}
+test: {
+  id: "GNMI-1.11"
+  description: "Telemetry: Interface Packet Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_packet_counters_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go"
+}
+test: {
+  id: "GNMI-1.12"
+  description: "Mixed OpenConfig/CLI Origin"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test/mixed_oc_cli_origin_support_test.go"
+}
+test: {
+  id: "GNMI-1.13"
+  description: "Optics Telemetry, Instant, threshold, and miscellaneous static info"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/optics_power_and_bias_current_test.go"
+}
+test: {
+  id: "GNMI-1.14"
+  description: "OpenConfig metadata consistency during large config push"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/large_set_consistency_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/large_set_consistency_test/large_set_consistency_test.go"
+}
+test: {
+  id: "GNMI-1.15"
+  description: "Set Requests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_set_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_set_test/gnmi_set_test.go"
+}
+test: {
+  id: "GNMI-1.16"
+  description: "Fabric redundnacy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/fabric_redundancy_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/fabric_redundancy_test/fabric_redundancy_test.go"
+}
+test: {
+  id: "GNMI-1.17"
+  description: "Controller card redundancy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/controller_card_redundancy_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/controller_card_redundancy_test/controller_card_redundancy_test.go"
+}
+test: {
+  id: "GNMI-1.18"
+  description: "gNMI subscribe with sample mode for backplane capacity counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/sampled_backplane_capacity_counters_test.go"
+}
+test: {
+  id: "GNMI-1.19"
+  description: "ConfigPush and ConfigPull after Control Card switchover"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/SetRequest_GetRequest_controller_card_switchover/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/SetRequest_GetRequest_controller_card_switchover/SetRequest_GetRequest_controller_card_switchover_test.go"
+}
+test: {
+  id: "GNMI-1.2"
+  description: "Benchmarking: Full Configuration Replace"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/full_configuration_replace_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/full_configuration_replace_test/full_configuration_replace_test.go"
+}
+test: {
+  id: "GNMI-1.20"
+  description: "Telemetry: Optics Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_thresholds_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_thresholds_test/optics_thresholds_test.go"
+}
+test: {
+  id: "GNMI-1.21"
+  description: "Integrated Circuit Hardware Resource Utilization Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/utilization_test.go"
+}
+test: {
+  id: "GNMI-1.22"
+  description: "Controller card port attributes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
+}
+test: {
+  id: "GNMI-1.23"
+  description: "Telemetry: Aggregate Interface Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/aggregate_interface_counters_test.go"
+}
+test: {
+  id: "GNMI-1.24"
+  description: "gNMI Leaf-List Update Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/leaflist_update_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/leaflist_update_test/leaflist_update_test.go"
+}
+test: {
+  id: "GNMI-1.25"
+  description: "Telemetry: Interface Last Change Timestamp"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/telemetry_interface_last_change_test.go"
+}
+test: {
+  id: "GNMI-1.26"
+  description: "Carrier Transitions Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
+}
+test: {
+  id: "GNMI-1.27"
+  description: "gNMI Sample Mode Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_sample_mode_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_sample_mode_test/gnmi_sample_mode_test.go"
+}
+test: {
+  id: "GNMI-1.28"
+  description: "Telemetry: Interface openconfig validation."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
+}
+test: {
+  id: "GNMI-1.29"
+  description: "Pipeline Counters Drops Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/pipeline_counters_drop_test.go"
+}
+test: {
+  id: "GNMI-1.3"
+  description: "Benchmarking: Drained Configuration Convergence Time"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/drained_configuration_convergence_time_bgp_test.go"
+}
+test: {
+  id: "GNMI-1.30"
+  description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
+}
+test: {
+  id: "GNMI-1.4"
+  description: "Telemetry: Inventory"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/telemetry_inventory_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/telemetry_inventory_test/telemetry_inventory_test.go"
+}
+test: {
+  id: "GNMI-1.5"
+  description: "Telemetry: Port Speed Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_port_speed_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_port_speed_test/telemetry_port_speed_test.go"
+}
+test: {
+  id: "GNMI-1.6"
+  description: "System gRPC Servers running in more than one network-instance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_ni_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_ni_test/gnmi_ni_test.go"
+}
+test: {
+  id: "GNMI-1.7"
+  description: "gNMI Resiliency Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/gnmi_resiliency_test/README.md"
+}
+test: {
+  id: "GNMI-1.8"
+  description: "Configuration Metadata-only Retrieve and Replace"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/annotation_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/annotation_test/annotation_test.go"
+}
+test: {
+  id: "GNMI-1.9"
+  description: "Get requests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/system_gnmi_get_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/system_gnmi_get_test/system_gnmi_get_test.go"
+}
+test: {
+  id: "GNMI-2"
+  description: "gnmi_subscriptionlist_test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/gnmi_subscriptionlist_test.go"
+}
+test: {
+  id: "GNMI-3"
+  description: "union_replace"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/union_replace_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/union_replace_test/union_replace_test.go"
+}
+test: {
+  id: "GNOI-2.1"
+  description: "Packet-based Link Qualification on 100G and 400G links"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/packet_link_qualification_test.go"
+}
+test: {
+  id: "GNOI-3.1"
+  description: "Complete Chassis Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/complete_chassis_reboot/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/complete_chassis_reboot/complete_chassis_reboot_test.go"
+}
+test: {
+  id: "GNOI-3.2"
+  description: "Per-Component Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/per_component_reboot_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/per_component_reboot_test/per_component_reboot_test.go"
+}
+test: {
+  id: "GNOI-3.3"
+  description: "Supervisor Switchover"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/supervisor_switchover_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go"
+}
+test: {
+  id: "GNOI-3.4"
+  description: "Chassis Reboot Status and Reboot Cancellation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/chassis_reboot_status_and_cancel_test.go"
+}
+test: {
+  id: "GNOI-4.1"
+  description: "Software Upgrade"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/os/tests/osinstall/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/os/tests/osinstall/osinstall_test.go"
+}
+test: {
+  id: "GNOI-5.1"
+  description: "Ping Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/ping_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/ping_test/ping_test.go"
+}
+test: {
+  id: "GNOI-5.2"
+  description: "Traceroute Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/traceroute_test.go"
+}
+test: {
+  id: "GNOI-5.3"
+  description: "Copying Debug Files"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/copying_debug_files_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/copying_debug_files_test/copying_debug_files_test.go"
+}
+test: {
+  id: "GNOI-6.1"
+  description: "Factory Reset"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/factory_reset_test.go"
+}
+test: {
+  id: "GNOI-7.1"
+  description: "BootConfig"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/secure_boot/tests/bootconfig/README.md"
+}
+test: {
+  id: "GNPSI-1"
+  description: "Sampling and Subscription Check"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/sampling_and_subscription_check_test.go"
+}
+test: {
   id: "HA-1.0"
   description: "Telemetry: Firewall High Availability."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/telemetry_high_availability_test.go"
 }
 test: {
-  id: "Hashing-1.0"
+  id: "HASHING-1.0"
   description: "Dataplane Hashing with Physical Loopbacks"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hashing_test/hashing_test.go"
 }
 test: {
-  id: "Health-1.1"
+  id: "HEALTH-1.1"
   description: "Generic Health Check"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/health/tests/system_generic_health_check/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/health/tests/system_generic_health_check/system_generic_health_check_test.go"
 }
 test: {
-  id: "Health-1.2"
+  id: "HEALTH-1.2"
   description: "Healthz component status paths"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
 }
@@ -620,6 +904,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/lldp_packetout_test/lldp_packetout_test.go"
 }
 test: {
+  id: "PATHZ-1"
+  description: "Path-level Authorization (1-4) tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
+}
+test: {
   id: "PF-1.1"
   description: "IPv4/IPv6 policy-forwarding to indirect NH matching DSCP/TC."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop/README.md"
@@ -789,11 +1078,6 @@ test: {
   description: "OnChange Subscription Test for Breakout Interfaces"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_subscription_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_subscription_test/breakout_subscription_test.go"
-}
-test: {
-  id: "Pathz-1"
-  description: "Path-level Authorization (1-4) tests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
 }
 test: {
   id: "RELAY-1.1"
@@ -1469,6 +1753,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/egress_node_forwading_test.go"
 }
 test: {
+  id: "STORAGE-1.1"
+  description: "Storage File System Check"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/storage/README.md"
+}
+test: {
   id: "SYS-1.1"
   description: "Test default COPP policy thresholds for Arista"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/control_plane_traffic/otg_tests/default_copp_test/README.md"
@@ -1503,36 +1792,31 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/sso_extended_stability_test/sso_extended_stability_test.go"
 }
 test: {
-  id: "Storage-1.1"
-  description: "Storage File System Check"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/storage/README.md"
-}
-test: {
-  id: "System-1.1"
+  id: "SYSTEM-1.1"
   description: "System banner test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_banner_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_banner_test/system_banner_test.go"
 }
 test: {
-  id: "System-1.2"
+  id: "SYSTEM-1.2"
   description: "System g protocol test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_g_protocol_test.go"
 }
 test: {
-  id: "System-1.3"
+  id: "SYSTEM-1.3"
   description: "System hostname test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/hostname_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/hostname_test/hostname_test.go"
 }
 test: {
-  id: "System-1.4"
+  id: "SYSTEM-1.4"
   description: "System time test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_time_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_time_test/system_time_test.go"
 }
 test: {
-  id: "System-1.5"
+  id: "SYSTEM-1.5"
   description: "System software-version test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_software_version/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_software_version/system_software_version_test.go"
@@ -2103,293 +2387,4 @@ test: {
   description: "uRPF validation from non-default network-instance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/urpf/otg_tests/urpf_vrf_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/urpf/otg_tests/urpf_vrf_test/urpf_vrf_test.go"
-}
-test: {
-  id: "attestz-1"
-  description: "General enrollz and attestz tests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_and_attestz/README.md"
-}
-test: {
-  id: "bootz-1.0"
-  description: "General bootz bootstrap tests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/bootz_test.go"
-}
-test: {
-  id: "enrollz-1"
-  description: "enrollz test for TPM 2.0 HMAC-based Enrollment flow"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/enrollz_tpm20_hmac_test.go"
-}
-test: {
-  id: "enrollz-2"
-  description: "enrollz test for TPM 1.2 Enrollment flow"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/enrollz_tpm12_test.go"
-}
-test: {
-  id: "example-0.1"
-  description: "Topology Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/example/tests/topology_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/example/tests/topology_test/topology_test.go"
-}
-test: {
-  id: "gNMI-1.1"
-  description: "cli Origin"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/cli_origin_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/cli_origin_test/cli_origin_test.go"
-}
-test: {
-  id: "gNMI-1.10"
-  description: "Telemetry: Basic Check"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_basic_check_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_basic_check_test/telemetry_basic_check_test.go"
-}
-test: {
-  id: "gNMI-1.11"
-  description: "Telemetry: Interface Packet Counters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_packet_counters_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_packet_counters_test/telemetry_interface_packet_counters_test.go"
-}
-test: {
-  id: "gNMI-1.12"
-  description: "Mixed OpenConfig/CLI Origin"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test/mixed_oc_cli_origin_support_test.go"
-}
-test: {
-  id: "gNMI-1.13"
-  description: "Optics Telemetry, Instant, threshold, and miscellaneous static info"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/optics_power_and_bias_current_test.go"
-}
-test: {
-  id: "gNMI-1.14"
-  description: "OpenConfig metadata consistency during large config push"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/large_set_consistency_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/large_set_consistency_test/large_set_consistency_test.go"
-}
-test: {
-  id: "gNMI-1.15"
-  description: "Set Requests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_set_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_set_test/gnmi_set_test.go"
-}
-test: {
-  id: "gNMI-1.16"
-  description: "Fabric redundnacy test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/fabric_redundancy_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/fabric_redundancy_test/fabric_redundancy_test.go"
-}
-test: {
-  id: "gNMI-1.17"
-  description: "Controller card redundancy test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/controller_card_redundancy_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/controller_card_redundancy_test/controller_card_redundancy_test.go"
-}
-test: {
-  id: "gNMI-1.18"
-  description: "gNMI subscribe with sample mode for backplane capacity counters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/sampled_backplane_capacity_counters_test.go"
-}
-test: {
-  id: "gNMI-1.19"
-  description: "ConfigPush and ConfigPull after Control Card switchover"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/SetRequest_GetRequest_controller_card_switchover/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/SetRequest_GetRequest_controller_card_switchover/SetRequest_GetRequest_controller_card_switchover_test.go"
-}
-test: {
-  id: "gNMI-1.2"
-  description: "Benchmarking: Full Configuration Replace"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/full_configuration_replace_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/full_configuration_replace_test/full_configuration_replace_test.go"
-}
-test: {
-  id: "gNMI-1.20"
-  description: "Telemetry: Optics Thresholds"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_thresholds_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_thresholds_test/optics_thresholds_test.go"
-}
-test: {
-  id: "gNMI-1.21"
-  description: "Integrated Circuit Hardware Resource Utilization Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/utilization_test.go"
-}
-test: {
-  id: "gNMI-1.22"
-  description: "Controller card port attributes"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
-}
-test: {
-  id: "gNMI-1.23"
-  description: "Telemetry: Aggregate Interface Counters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/aggregate_interface_counters_test.go"
-}
-test: {
-  id: "gNMI-1.24"
-  description: "gNMI Leaf-List Update Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/leaflist_update_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/leaflist_update_test/leaflist_update_test.go"
-}
-test: {
-  id: "gNMI-1.25"
-  description: "Telemetry: Interface Last Change Timestamp"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/telemetry_interface_last_change_test.go"
-}
-test: {
-  id: "gNMI-1.26"
-  description: "Carrier Transitions Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
-}
-test: {
-  id: "gNMI-1.27"
-  description: "gNMI Sample Mode Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_sample_mode_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_sample_mode_test/gnmi_sample_mode_test.go"
-}
-test: {
-  id: "gNMI-1.28"
-  description: "Telemetry: Interface openconfig validation."
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
-}
-test: {
-  id: "gNMI-1.29"
-  description: "Pipeline Counters Drops Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/pipeline_counters_drop_test.go"
-}
-test: {
-  id: "gNMI-1.3"
-  description: "Benchmarking: Drained Configuration Convergence Time"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/drained_configuration_convergence_time/drained_configuration_convergence_time_bgp_test.go"
-}
-test: {
-  id: "gNMI-1.30"
-  description: "gNMI Telemetry Performance under Dynamic Control Plane Churn"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_under_churn_test/README.md"
-}
-test: {
-  id: "gNMI-1.4"
-  description: "Telemetry: Inventory"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/telemetry_inventory_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/telemetry_inventory_test/telemetry_inventory_test.go"
-}
-test: {
-  id: "gNMI-1.5"
-  description: "Telemetry: Port Speed Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_port_speed_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_port_speed_test/telemetry_port_speed_test.go"
-}
-test: {
-  id: "gNMI-1.6"
-  description: "System gRPC Servers running in more than one network-instance"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_ni_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/gnmi_ni_test/gnmi_ni_test.go"
-}
-test: {
-  id: "gNMI-1.7"
-  description: "gNMI Resiliency Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/gnmi_resiliency_test/README.md"
-}
-test: {
-  id: "gNMI-1.8"
-  description: "Configuration Metadata-only Retrieve and Replace"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/annotation_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/metadata/tests/annotation_test/annotation_test.go"
-}
-test: {
-  id: "gNMI-1.9"
-  description: "Get requests"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/system_gnmi_get_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/system_gnmi_get_test/system_gnmi_get_test.go"
-}
-test: {
-  id: "gNMI-2"
-  description: "gnmi_subscriptionlist_test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/gnmi_subscriptionlist_test.go"
-}
-test: {
-  id: "gNMI-3"
-  description: "union_replace"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/union_replace_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/union_replace_test/union_replace_test.go"
-}
-test: {
-  id: "gNOI-2.1"
-  description: "Packet-based Link Qualification on 100G and 400G links"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/packet_link_qualification_test.go"
-}
-test: {
-  id: "gNOI-3.1"
-  description: "Complete Chassis Reboot"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/complete_chassis_reboot/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/complete_chassis_reboot/complete_chassis_reboot_test.go"
-}
-test: {
-  id: "gNOI-3.2"
-  description: "Per-Component Reboot"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/per_component_reboot_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/per_component_reboot_test/per_component_reboot_test.go"
-}
-test: {
-  id: "gNOI-3.3"
-  description: "Supervisor Switchover"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/supervisor_switchover_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/supervisor_switchover_test/supervisor_switchover_test.go"
-}
-test: {
-  id: "gNOI-3.4"
-  description: "Chassis Reboot Status and Reboot Cancellation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test/chassis_reboot_status_and_cancel_test.go"
-}
-test: {
-  id: "gNOI-4.1"
-  description: "Software Upgrade"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/os/tests/osinstall/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/os/tests/osinstall/osinstall_test.go"
-}
-test: {
-  id: "gNOI-5.1"
-  description: "Ping Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/ping_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/ping_test/ping_test.go"
-}
-test: {
-  id: "gNOI-5.2"
-  description: "Traceroute Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/traceroute_test.go"
-}
-test: {
-  id: "gNOI-5.3"
-  description: "Copying Debug Files"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/copying_debug_files_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/copying_debug_files_test/copying_debug_files_test.go"
-}
-test: {
-  id: "gNOI-6.1"
-  description: "Factory Reset"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/factory_reset_test.go"
-}
-test: {
-  id: "gNOI-7.1"
-  description: "BootConfig"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/secure_boot/tests/bootconfig/README.md"
-}
-test: {
-  id: "gNPSI-1"
-  description: "Sampling and Subscription Check"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/sampling_and_subscription_check_test.go"
 }

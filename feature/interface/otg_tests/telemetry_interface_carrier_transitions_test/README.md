@@ -1,4 +1,4 @@
-# gNMI-1.26: Carrier Transitions Test
+# GNMI-1.26: Carrier Transitions Test
 
 ## Summary
 

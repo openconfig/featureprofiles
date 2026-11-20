@@ -1,4 +1,4 @@
-# gNOI-5.1: Ping Test
+# GNOI-5.1: Ping Test
 
 ## Summary
 

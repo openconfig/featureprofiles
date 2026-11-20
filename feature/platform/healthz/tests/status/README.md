@@ -1,4 +1,4 @@
-# Health-1.2: Healthz component status paths
+# HEALTH-1.2: Healthz component status paths
 
 ## Summary
 

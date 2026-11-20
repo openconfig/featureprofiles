@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "44fed7d9-4c79-4952-8b83-fbd5f7138ae9"
-plan_id: "gNMI-1.4"
+plan_id: "GNMI-1.4"
 description: "Telemetry: Inventory"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {

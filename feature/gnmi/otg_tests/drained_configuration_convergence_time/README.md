@@ -1,4 +1,4 @@
-# gNMI-1.3: Benchmarking: Drained Configuration Convergence Time
+# GNMI-1.3: Benchmarking: Drained Configuration Convergence Time
 
 ## Summary
 

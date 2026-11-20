@@ -1,4 +1,4 @@
-# Authz-1.0: General Authz (1-4) tests
+# AUTHZ-1.0: General Authz (1-4) tests
 
 ## Summary
 

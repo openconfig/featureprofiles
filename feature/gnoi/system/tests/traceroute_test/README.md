@@ -1,4 +1,4 @@
-# gNOI-5.2: Traceroute Test
+# GNOI-5.2: Traceroute Test
 
 ## Summary
 

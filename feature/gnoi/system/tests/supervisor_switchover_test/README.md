@@ -1,4 +1,4 @@
-# gNOI-3.3: Supervisor Switchover
+# GNOI-3.3: Supervisor Switchover
 
 ## Summary
 

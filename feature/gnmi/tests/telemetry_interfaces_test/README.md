@@ -1,4 +1,4 @@
-# gNMI-1.28: Telemetry: Interface openconfig validation.
+# GNMI-1.28: Telemetry: Interface openconfig validation.
 
 ## Summary
 

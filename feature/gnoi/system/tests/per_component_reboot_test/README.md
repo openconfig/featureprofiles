@@ -1,4 +1,4 @@
-# gNOI-3.2: Per-Component Reboot
+# GNOI-3.2: Per-Component Reboot
 
 ## Summary
 

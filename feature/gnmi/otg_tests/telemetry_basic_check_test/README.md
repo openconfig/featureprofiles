@@ -1,4 +1,4 @@
-# gNMI-1.10: Telemetry: Basic Check
+# GNMI-1.10: Telemetry: Basic Check
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# gNMI-1.19: ConfigPush and ConfigPull after Control Card switchover
+# GNMI-1.19: ConfigPush and ConfigPull after Control Card switchover
 
 ## Summary
 This test verifies if a large config can be pushed and/or pulled via gNMI SetRequest/GetRequest within 2 minutes after Control Card switchover.

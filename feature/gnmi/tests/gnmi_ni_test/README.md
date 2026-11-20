@@ -1,4 +1,4 @@
-# gNMI-1.6: System gRPC Servers running in more than one network-instance
+# GNMI-1.6: System gRPC Servers running in more than one network-instance
 
 ## Summary
 

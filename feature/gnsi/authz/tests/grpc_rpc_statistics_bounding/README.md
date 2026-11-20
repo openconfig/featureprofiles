@@ -1,4 +1,4 @@
-# Authz-5: gRPC Server Per-RPC Statistics YANG State Bounding
+# AUTHZ-5: gRPC Server Per-RPC Statistics YANG State Bounding
 
 ## Summary
 

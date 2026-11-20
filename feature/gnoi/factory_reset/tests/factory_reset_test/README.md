@@ -1,4 +1,4 @@
-# gNOI-6.1: Factory Reset
+# GNOI-6.1: Factory Reset
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# gNMI-1.5: Telemetry: Port Speed Test
+# GNMI-1.5: Telemetry: Port Speed Test
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# gNMI-1.7: gNMI Resiliency Test
+# GNMI-1.7: gNMI Resiliency Test
 
 ## Summary
 

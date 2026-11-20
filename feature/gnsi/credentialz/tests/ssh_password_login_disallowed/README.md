@@ -1,4 +1,4 @@
-# Credentialz-2: SSH Password Login Disallowed
+# CREDENTIALZ-2: SSH Password Login Disallowed
 
 ## Summary
 

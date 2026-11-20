@@ -1,4 +1,4 @@
-# Credentialz-1: Password console login
+# CREDENTIALZ-1: Password console login
 
 ## Summary
 

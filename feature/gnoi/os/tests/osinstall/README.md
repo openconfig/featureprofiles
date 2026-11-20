@@ -1,4 +1,4 @@
-# gNOI-4.1: Software Upgrade
+# GNOI-4.1: Software Upgrade
 
 ## Summary
 

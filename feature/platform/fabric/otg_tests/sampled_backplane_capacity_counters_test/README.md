@@ -1,4 +1,4 @@
-# gNMI-1.18: gNMI subscribe with sample mode for backplane capacity counters
+# GNMI-1.18: gNMI subscribe with sample mode for backplane capacity counters
 
 ## Summary
 WBB is required to support gNMI Subscribe with SAMPLE or ON_CHANGE mode for various counters.

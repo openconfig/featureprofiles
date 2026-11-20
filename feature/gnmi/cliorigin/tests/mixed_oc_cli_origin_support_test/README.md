@@ -1,4 +1,4 @@
-# gNMI-1.12: Mixed OpenConfig/CLI Origin
+# GNMI-1.12: Mixed OpenConfig/CLI Origin
 
 ## Summary
 

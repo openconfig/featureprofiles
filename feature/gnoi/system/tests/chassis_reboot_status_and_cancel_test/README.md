@@ -1,4 +1,4 @@
-# gNOI-3.4: Chassis Reboot Status and Reboot Cancellation
+# GNOI-3.4: Chassis Reboot Status and Reboot Cancellation
 
 ## Summary
 

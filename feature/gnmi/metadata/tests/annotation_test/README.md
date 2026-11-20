@@ -1,4 +1,4 @@
-# gNMI-1.8: Configuration Metadata-only Retrieve and Replace
+# GNMI-1.8: Configuration Metadata-only Retrieve and Replace
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# example-0.1: Topology Test
+# EXAMPLE-0.1: Topology Test
 
 ## Summary
 

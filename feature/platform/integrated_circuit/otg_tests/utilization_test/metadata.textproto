@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "9ff3be0d-84aa-4513-8a6c-bfe497a8ae9e"
-plan_id: "gNMI-1.21"
+plan_id: "GNMI-1.21"
 description: "Integrated Circuit Hardware Resource Utilization Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
