@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "3b7f131b-d2a9-4c19-af3b-1d57c0f1bb85"
+plan_id: "TE-1.24"
+description: "gNOI Operations During gRIBI and P4RT Programming"
+testbed: TESTBED_DUT_ATE_4LINKS
