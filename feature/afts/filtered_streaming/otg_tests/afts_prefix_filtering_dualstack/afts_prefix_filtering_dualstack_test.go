@@ -16,6 +16,7 @@ package aftsprefixfilteringdualstack_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	aftpf "github.com/openconfig/featureprofiles/internal/aft_prefix_filtering"
@@ -103,6 +104,30 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	batch.Set(t, dut)
 }
 
+// ciscoDualStackNextHopsMatch is used only by the Cisco collector. Resolution
+// must produce at least one NH object, including for testbed-provided defaults.
+// Default NH addresses are deliberately unconstrained (including interface NHs
+// with an unspecified address). Every other prefix retains exact ATE IP checks.
+func ciscoDualStackNextHopsMatch(prefix string, nextHops []*aftcache.NextHop, wantIPv4, wantIPv6 string) bool {
+	if len(nextHops) == 0 {
+		return false
+	}
+	isDefault := prefix == defaultV4Route || prefix == defaultV6Route
+	want := wantIPv4
+	if strings.Contains(prefix, ":") {
+		want = wantIPv6
+	}
+	for _, nextHop := range nextHops {
+		if nextHop == nil {
+			return false
+		}
+		if !isDefault && nextHop.IP != want {
+			return false
+		}
+	}
+	return true
+}
+
 // testSimultaneousDualStackPolicy implements AFT-6.2.1.
 func testSimultaneousDualStackPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -122,12 +147,22 @@ func testSimultaneousDualStackPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		wantPrefixes[p] = true
 	}
 	collector := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
+		map[string]bool{aftpf.ATEPort1.IPv4: true}, map[string]bool{aftpf.ATEPort1.IPv6: true})
+	if dut.Vendor() == ondatra.CISCO {
+		// Default routes come from the testbed, not ConfigureBaseRoutes. Require
+		// their AFT entries and resolved NH objects, but do not assume ATE IPs.
+		// The five test-created matching prefixes retain exact ATE NH checks.
+		stoppingCondition = aftcache.InitialSyncStoppingConditionWithNextHopValidator(t, dut, wantPrefixes,
+			func(prefix string, nextHops []*aftcache.NextHop) (bool, error) {
+				return ciscoDualStackNextHopsMatch(prefix, nextHops, aftpf.ATEPort1.IPv4, aftpf.ATEPort1.IPv6), nil
+			})
+	}
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes,
-			map[string]bool{aftpf.ATEPort1.IPv4: true}, map[string]bool{aftpf.ATEPort1.IPv6: true}),
-		Timeout: aftpf.AFTSubscriptionWait,
+		Stop:      stoppingCondition,
+		Timeout:   aftpf.AFTSubscriptionWait,
 	}, allMatch, nonMatchPrefixes)
 
 	t.Logf("AFT-6.2.1 - Swap policies: IPv4 policy %s and IPv6 policy %s match nothing", policyPfxSetB, policyPfxSetA)
@@ -137,14 +172,31 @@ func testSimultaneousDualStackPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		VRFName:  ni,
 	})
 
+	wantDeleted := map[string]bool{}
+	var presentAfterSwap, absentAfterSwap []string
+	for _, prefix := range allMatch {
+		// Cisco-specific: AFT prefixes covering IP next-hop addresses are
+		// implicitly included and therefore made visible. The two
+		// default routes cover all addresses in their respective families,
+		// so require them to remain present after the swap. Only the five
+		// test-created matching routes are expected to receive deletions.
+		if dut.Vendor() == ondatra.CISCO && (prefix == defaultV4Route || prefix == defaultV6Route) {
+			presentAfterSwap = append(presentAfterSwap, prefix)
+			continue
+		}
+		wantDeleted[prefix] = true
+		absentAfterSwap = append(absentAfterSwap, prefix)
+	}
+	t.Logf("AFT-6.2.1 - After policy swap: expect present=%v absent=%v", presentAfterSwap, absentAfterSwap)
+
 	// Reuse the same streaming session so the policy swap is observed as
 	// streamed deletions rather than a fresh re-subscription.
 	aftpf.CollectAndVerify(t, dut, aftpf.RunCollectorParams{
 		Ctx:       context.Background(),
 		Collector: collector,
-		Stop:      aftcache.DeletionStoppingCondition(t, dut, wantPrefixes),
+		Stop:      aftcache.DeletionStoppingCondition(t, dut, wantDeleted),
 		Timeout:   aftpf.AFTSubscriptionWait,
-	}, nil, allMatch)
+	}, presentAfterSwap, absentAfterSwap)
 
 	if err := aftpf.AFTDeleteGlobalFilter(t, dut, ni); err != nil {
 		t.Errorf("Cleanup: failed to delete global-filter: %v", err)

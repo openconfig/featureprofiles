@@ -33,6 +33,9 @@ See also:
   `198.51.100.0/24`, `203.0.113.0/28`, `100.64.0.0/24`, `2001:DB8:1::/64`, and
   `2001:DB8:3::/64`.
 
+- Cisco excludes the testbed-provided default routes from the prefix-set policies and expected results because the test does not install their next hops.
+  Other vendors retain the original default-route checks and include `0.0.0.0/0` in `PREFIX-SET-A` and `::/0` in `PREFIX-SET-B`.
+
 - The DUT is pre-configured with the following routing policies under
   `/routing-policy/policy-definitions/`:
 
@@ -63,9 +66,12 @@ See also:
     `PREFIX-SET-A` (REJECT_ROUTE); statement 20 accepts all remaining routes
     (unconditional ACCEPT_ROUTE). The prefix-set acts as an exclusion list.
 
-  - `POLICY-TAG-MATCH`: Statement 100 matches routes carrying tag `999`
+  - `POLICY-TAG-MATCH` (non-Cisco): Statement 100 matches routes carrying tag `999`
     (ACCEPT_ROUTE). No installed route uses this tag, so the policy matches
     nothing.
+
+  - `POLICY-DROP-ALL` (Cisco only): One unconditional `REJECT_ROUTE` statement.
+    AFT-6.1.7 uses this policy on Cisco, where tag matching is unsupported by the AFT filter.
 
 ### Test Case Iteration
 
@@ -310,6 +316,14 @@ subscribe: {
 
 ### AFT-6.1.7 - Negative: Non-Prefix-Set Match Criteria
 
+On Cisco, substitute `POLICY-DROP-ALL` for `POLICY-TAG-MATCH` throughout this
+case. This is because this vendor does not support tag matching, just prefix
+matching.
+This Cisco variant covers unconditional policy rejection and live transitions between drop-all and prefix-set filtering; it does not cover route-tag evaluation.
+Keep the same subscription open through all three Cisco stages.
+Cisco can retain prefixes needed for next-hop resolution under drop-all, and the IPv6 family remains unfiltered.
+The Cisco assertions check that the three IPv4 test prefixes are absent, rather than requiring an empty AFT across both families.
+
 #### Fresh Subscribe with Non-Matching Policy
 
 - Configure the global-filter `ipv4-policy` to `POLICY-TAG-MATCH`.
@@ -324,6 +338,9 @@ subscribe: {
 
 - Configure the global-filter `ipv4-policy` to `POLICY-PREFIX-SET-A`.
 
+- On Cisco, update the policy reference directly on the same subscription, without first deleting the global filter.
+  Verify that `100.64.0.0/24` remains absent while the two prefixes in `PREFIX-SET-A` appear.
+
 - Establish a gNMI Subscribe session and wait for `SYNC`. Verify notifications
   are received for `198.51.100.0/24` and `203.0.113.0/28`.
 
@@ -331,6 +348,8 @@ subscribe: {
 
 - Verify that delete notifications are received for the previously streamed
   prefixes `198.51.100.0/24` and `203.0.113.0/28`.
+
+- On Cisco, wait for both prefixes to disappear after restoring `POLICY-DROP-ALL`.
 
 - Verify that **no** new update notifications are received.
 

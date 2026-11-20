@@ -5,6 +5,7 @@ uuid: "0475e688-c645-43ef-a50c-6ed1f3606ed8"
 plan_id: "AFT-6.3"
 description: "AFT Prefix Filtering Resilience"
 testbed: TESTBED_DUT_ATE_2LINKS
+
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -14,5 +15,14 @@ platform_exceptions: {
     default_network_instance: "default"
     afts_global_filter_policy_oc_unsupported: true
     retain_gnmi_cfg_after_reboot: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
   }
 }
