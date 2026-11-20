@@ -3030,13 +3030,6 @@ deviations: {
       software_version_regex: "*.*"
     }
   }
-  platforms: {
-    issue_url: "https://issuetracker.google.com/582681167"
-    platform: {
-      vendor: JUNIPER
-      software_version_regex: "*.*"
-    }
-  }
 }
 deviations: {
   name: "bgp_graceful_restart_under_afi_safi_unsupported"
