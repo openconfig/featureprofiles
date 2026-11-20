@@ -7,9 +7,15 @@ description: "Pipeline Counters Drops Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: TAGS_TRANSIT
 
+# IOS-XR releases before 25.4.15 do not stream
+# /components/component/integrated-circuit/pipeline-counters/drop/vendor
+# natively, so the vendor drop counters are translated from native paths by the
+# ciscoxr-vendordrops-ft functional translator, which supports releases before
+# 25.4.15. Releases 25.4.15 and later stream the OC path natively.
 platform_exceptions {
   platform {
     vendor: CISCO
+    software_version_regex: "^(([0-9]|1[0-9]|2[0-4])\\.|25\\.[0-3]\\.|25\\.4\\.([0-9]|1[0-4])([^0-9]|$))"
   }
   deviations {
     ciscoxr_vendordrop_ft: "ciscoxr-vendordrops-ft"

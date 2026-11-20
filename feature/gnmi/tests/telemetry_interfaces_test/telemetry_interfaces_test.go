@@ -207,9 +207,8 @@ func testTelemetryInterfacesAggregation(t *testing.T, dut *ondatra.DUTDevice, po
 	t.Helper()
 	p := gnmi.OC()
 
-	// FIX: Nokia (SR Linux) rejects LAG configuration on physical ports.
 	if deviations.StatePathsUnsupported(dut) {
-		t.Skip("Aggregation configuration on physical ports is not supported on Nokia.")
+		t.Skip("Aggregation configuration on physical ports is not supported on this platform.")
 	}
 
 	intfAggregationPassed := make(map[string][]any)
@@ -276,7 +275,6 @@ func testTelemetryInterfacesStateRate(t *testing.T, dut *ondatra.DUTDevice, port
 	t.Helper()
 	p := gnmi.OC()
 
-	// FIX: Skip if the platform does not support the /interfaces/interface/state/in-rate leaf.
 	if deviations.StatePathsUnsupported(dut) {
 		t.Skip("State/Rate telemetry paths are not supported on this platform.")
 	}
