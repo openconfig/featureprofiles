@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -469,6 +470,13 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	cardList := append(controllerCards, chassisCards...)
 	cardList = append(cardList, lineCards...)
 	if len(cardList) == 0 {
+		if dut.Vendor() == ondatra.ARISTA {
+			platform := helpers.AristaPlatform(t, dut)
+			if platform == "strata" {
+				// Arista Strata fixed-system does not support this path
+				t.Skip("ERROR: No card has been found.")
+			}
+		}
 		t.Errorf("ERROR: No card has been found.")
 	}
 
