@@ -901,6 +901,7 @@ test: {
   id: "RT-1.22"
   description: "BGP TCP MSS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss/bgp_tcp_mss_test.go"
 }
 test: {
   id: "RT-1.23"
