@@ -17,6 +17,15 @@ platform_exceptions:  {
 }
 platform_exceptions:  {
   platform:  {
+    vendor:  SONIC
+  }
+  deviations:  {
+    default_network_instance:  "default"
+    default_bgp_instance_name: "bgp"
+  }
+}
+platform_exceptions:  {
+  platform:  {
     vendor:  NOKIA
   }
   deviations:  {
