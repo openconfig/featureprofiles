@@ -551,9 +551,11 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 	}
 
 	bgpPrefixes := getV4Prefixes(t, td)
+	v4PrefixFound := false
 	for _, bgpPrefix := range bgpPrefixes {
 		if bgpPrefix.GetAddress() == v4Prefix {
 			t.Logf("V4 prefix %s matched on OTG", bgpPrefix.GetAddress())
+			v4PrefixFound = true
 			switch community {
 			case "none":
 				if len(bgpPrefix.Community) != 0 {
@@ -566,21 +568,28 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 					}
 				}
 			case "100:100":
+				communityFound := false
 				for _, gotCommunity := range bgpPrefix.Community {
 					t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 					if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
 						t.Errorf("community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 					}
+					communityFound = true
+				}
+				if !communityFound {
+					t.Errorf("expected community 100:100 not found")
 				}
 			default:
 				if len(bgpPrefix.ExtendedCommunity) == 0 {
 					t.Errorf("extended community is empty, expected %v", community)
 					return
 				}
+				lbwFound := false
 				for _, ec := range bgpPrefix.ExtendedCommunity {
 					if !isLinkBandwidthV4(ec) {
 						continue
 					}
+					lbwFound = true
 					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 					gotBW := ygot.BinaryToFloat32(lbSubType.GetBandwidth())
 					t.Logf("V4 Bandwidth from OTG: %v (AS=%d)", gotBW, lbSubType.GetGlobal_2ByteAs())
@@ -597,8 +606,14 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						}
 					}
 				}
+				if !lbwFound {
+					t.Errorf("no ext-community of type link-bandwidth present")
+				}
 			}
 		}
+	}
+	if !v4PrefixFound {
+		t.Errorf("V4 prefix %s not found on OTG", v4Prefix)
 	}
 }
 
@@ -655,9 +670,11 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 	}
 
 	bgpPrefixes := getV6Prefixes(t, td)
+	v6PrefixFound := false
 	for _, bgpPrefix := range bgpPrefixes {
 		if bgpPrefix.GetAddress() == v6Prefix {
 			t.Logf("V6 prefix %s matched on OTG", bgpPrefix.GetAddress())
+			v6PrefixFound = true
 			switch community {
 			case "none":
 				if len(bgpPrefix.Community) != 0 {
@@ -670,21 +687,28 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 					}
 				}
 			case "100:100":
+				communityFound := false
 				for _, gotCommunity := range bgpPrefix.Community {
 					t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 					if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
 						t.Errorf("community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 					}
+					communityFound = true
+				}
+				if !communityFound {
+					t.Errorf("expected community 100:100 not found")
 				}
 			default:
 				if len(bgpPrefix.ExtendedCommunity) == 0 {
 					t.Errorf("extended community is empty, expected %v", community)
 					return
 				}
+				lbwFound := false
 				for _, ec := range bgpPrefix.ExtendedCommunity {
 					if !isLinkBandwidthV6(ec) {
 						continue
 					}
+					lbwFound = true
 					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 					gotBW := ygot.BinaryToFloat32(lbSubType.GetBandwidth())
 					t.Logf("V6 Bandwidth from OTG: %v (AS=%d)", gotBW, lbSubType.GetGlobal_2ByteAs())
@@ -701,8 +725,14 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						}
 					}
 				}
+				if !lbwFound {
+					t.Errorf("no ext-community of type link-bandwidth present")
+				}
 			}
 		}
+	}
+	if !v6PrefixFound {
+		t.Errorf("V6 prefix %s not found on OTG", v6Prefix)
 	}
 }
 
