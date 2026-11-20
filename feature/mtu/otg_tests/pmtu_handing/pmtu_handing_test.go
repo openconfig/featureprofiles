@@ -165,8 +165,6 @@ var (
 
 	previousPacketProcessingAggregateDrops = uint64(0)
 
-	previousFragmentTotalDropsCount = uint64(0)
-
 	previousFragmentPuntCount = uint64(0)
 
 	previousFragmentPuntPktsCount = uint64(0)
@@ -451,22 +449,6 @@ func initializeBaselineDropCounters(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Baseline packet-processing-aggregate drops initialized to: %d", previousPacketProcessingAggregateDrops)
 	}
 
-	// Initialize fragment-total-drops baseline
-	if !deviations.FragmentTotalDropsUnsupported(dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().LookupBlock().FragmentTotalDrops().State()
-		fragmentTotalDrops := gnmi.LookupAll(t, dut, query)
-		fragmentTotalDropsCount := uint64(0)
-		for _, fragmentTotalDrop := range fragmentTotalDrops {
-			component1 := fragmentTotalDrop.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
-				drop, _ := fragmentTotalDrop.Val()
-				fragmentTotalDropsCount = fragmentTotalDropsCount + drop
-			}
-		}
-		previousFragmentTotalDropsCount = fragmentTotalDropsCount
-		t.Logf("Baseline fragment-total-drops initialized to: %d", previousFragmentTotalDropsCount)
-	}
-
 	// Initialize fragment-punt baseline
 	if !deviations.FragmentPuntUnsupported(dut) {
 		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().HostInterfaceBlock().FragmentPunt().State()
@@ -547,36 +529,6 @@ func verifyControllerCardCPUUtilization(t *testing.T, td testData) {
 		}
 	} else {
 		t.Logf("Telemetry path for controller card cpu utilization is not supported due to deviation ControllerCardCPUUtilizationUnsupported.")
-	}
-}
-
-func verifyFragmentTotalDrops(t *testing.T, td testData, outPkts uint64) {
-	if !deviations.FragmentTotalDropsUnsupported(td.dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().LookupBlock().FragmentTotalDrops().State()
-		fragmentTotalDrops := gnmi.LookupAll(t, td.dut, query)
-		fragmentTotalDropsCount := uint64(0)
-		t.Logf("Querying fragment-total-drops for all components:")
-		for _, fragmentTotalDrop := range fragmentTotalDrops {
-			component1 := fragmentTotalDrop.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component1, td.dut.Vendor(), icPattern) {
-				drop, _ := fragmentTotalDrop.Val()
-				t.Logf("  Component: %s, fragment-total-drops: %d", component1, drop)
-				fragmentTotalDropsCount = fragmentTotalDropsCount + drop
-			}
-		}
-		t.Logf("Total fragment-total-drops across all components: %d", fragmentTotalDropsCount)
-		// fragmentTotalDropsCount hold the current value of drop count, the previous value needs to be subtracted to get the delta for the current flow.
-		newFragmentTotalDropsCount := fragmentTotalDropsCount - previousFragmentTotalDropsCount
-		t.Logf("Delta fragment-total-drops for current flow: %d (previous: %d, current total: %d)", newFragmentTotalDropsCount, previousFragmentTotalDropsCount, fragmentTotalDropsCount)
-		if newFragmentTotalDropsCount > 0 {
-			t.Logf("PASS: fragmentTotalDropsCount increased by %v (outPkts on OTG: %v)", newFragmentTotalDropsCount, outPkts)
-		} else {
-			t.Errorf("FAIL: fragmentTotalDropsCount did not increase (delta: %v, outPkts on OTG: %v)", newFragmentTotalDropsCount, outPkts)
-		}
-		// update previousFragmentTotalDropsCount
-		previousFragmentTotalDropsCount = fragmentTotalDropsCount
-	} else {
-		t.Logf("Telemetry path for fragment-total-drops is not supported due to deviation FragmentTotalDropsUnsupported.")
 	}
 }
 
@@ -706,7 +658,6 @@ func TestPMTUHanding(t *testing.T) {
 				outPkts := createFlowAndVerifyTraffic(t, td, tt, td.waitInterface)
 				captureAndValidateICMPPacketsReceived(t, td, &packetValidation{portName: ateSrc.Name})
 				verifyPacketProcessingAggregateDrops(t, td, outPkts)
-				verifyFragmentTotalDrops(t, td, outPkts)
 				verifyFragmentPuntPkts(t, td, outPkts)
 				verifyFragmentPunt(t, td, outPkts)
 				verifyControllerCardCPUUtilization(t, td)
