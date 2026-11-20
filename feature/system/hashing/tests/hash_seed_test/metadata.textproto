@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "0cd93d18-4cf2-40ae-9f92-b69569b97e76"
+plan_id:  "System-1.7"
+description:  "Hash seed configuration"
+testbed:  TESTBED_DUT

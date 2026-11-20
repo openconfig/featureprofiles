@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "9449e826-29cb-4583-9834-5e04b1e10b1a"
+plan_id:  "RT-1.37"
+description:  "BGP configuration leaves"
+testbed:  TESTBED_DUT
