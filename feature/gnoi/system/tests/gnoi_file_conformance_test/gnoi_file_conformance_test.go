@@ -261,16 +261,21 @@ func resolveTestLoopback(t *testing.T, dut *ondatra.DUTDevice) (string, uint32, 
 
 // configureLoopbackInterface pushes the dual-stack loopback configuration on
 // lbIntfName at subinterface lbSubIdx using gnmi.Update (never gnmi.Replace on
-// Loopback0) so in-band management interfaces are never disrupted.
+// Loopback0) so in-band management interfaces are never disrupted. Interface-
+// level leaves (description, type, enabled) are set only on the dedicated test
+// loopback; when an existing loopback is reused (cli_takes_precedence_over_oc),
+// only the test addresses are added so cleanup fully restores the baseline.
 func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice, lbIntfName string, lbSubIdx uint32) {
 	t.Helper()
 	loIntf := &oc.Interface{
-		Name:        ygot.String(lbIntfName),
-		Description: ygot.String(loopbackDesc),
-		Type:        oc.IETFInterfaces_InterfaceType_softwareLoopback,
+		Name: ygot.String(lbIntfName),
 	}
-	if deviations.InterfaceEnabled(dut) {
-		loIntf.Enabled = ygot.Bool(true)
+	if !deviations.CLITakesPrecedenceOverOC(dut) {
+		loIntf.Description = ygot.String(loopbackDesc)
+		loIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		if deviations.InterfaceEnabled(dut) {
+			loIntf.Enabled = ygot.Bool(true)
+		}
 	}
 	sub := loIntf.GetOrCreateSubinterface(lbSubIdx)
 	v4 := sub.GetOrCreateIpv4()

@@ -49,9 +49,10 @@ payloads incorporate both IPv4 and IPv6 control plane records. The in-band
 management loopback (for example `Loopback0` / `lo0`) and the DUT's existing
 hostname are never changed by this test. On platforms whose loopback naming
 only supports index `0`, the test addresses are added to an existing non-zero
-subinterface of that loopback instead; if no such subinterface exists, the
-test loopback configuration is skipped, since the gNOI File checks do not
-depend on it.
+subinterface of that loopback instead, without changing the loopback's
+interface-level `type`, `description`, or `enabled` settings; if no such
+subinterface exists, the test loopback configuration is skipped, since the
+gNOI File checks do not depend on it.
 
 ```mermaid
 graph LR
