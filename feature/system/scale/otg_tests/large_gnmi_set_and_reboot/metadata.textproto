@@ -5,3 +5,43 @@ uuid: "8fae08f5-3046-4e58-9a99-4c12ad1ff5bf"
 plan_id: "SYS-5.1"
 description: "Configuration Commit Validation after Large gNMI-Set and reboot in parallel"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    default_network_instance: "default"
+    deprecated_vlan_id: true
+    interface_enabled: true
+    require_routed_subinterface_0: true
+    retain_gnmi_cfg_after_reboot: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    port_speed_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
