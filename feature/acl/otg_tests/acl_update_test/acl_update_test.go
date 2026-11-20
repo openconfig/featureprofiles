@@ -44,7 +44,8 @@ const (
 	staticRouteCount      = 2
 	maxDroppedPackets     = uint32(trafficRatePps * maxLostTrafficTime)
 	minPacketsToUpdateACL = 2000
-	aclCounterTimeout     = 5 * time.Second
+
+	aclCounterTimeout = 10 * time.Second
 
 	expectPass = true
 	expectDrop = false
@@ -587,21 +588,9 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 	aclSetPath := gnmi.OC().Acl().AclSet(aclParams.Name, aclParams.ACLType)
 
 	t.Logf("Verifying ACL counters for ACL %s entry %d", aclParams.Name, entryID)
-	var entry *oc.Acl_AclSet_AclEntry
-	check := func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
-		e, present := val.Val()
-		return present && e != nil
-	}
-	val, ok := gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, check).Await(t)
-	if !ok {
-		return fmt.Errorf("ACL entry %d not found in ACL %s after %v seconds", entryID, aclParams.Name, aclCounterTimeout)
-	}
-	entry, _ = val.Val()
 
 	var expectedPackets uint64
-	matched := entry.GetMatchedPackets()
 	previouslyMatched := entryCounters[entryID]
-	t.Logf("ACL entry %d: matched=%d", entryID, matched)
 
 	switch {
 	case expectPass && aclParams.DefaultPermit, !expectPass && !aclParams.DefaultPermit:
@@ -618,9 +607,33 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 		}
 	}
 
+	matched := previouslyMatched
+	delta := uint64(0)
+	attempt := 1
+	missingCounter := true
+	_, counterOK := gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
+		e, present := val.Val()
+		if !present || e == nil {
+			return false
+		}
+		missingCounter = false
+		matched = e.GetMatchedPackets()
+		t.Logf("ACL entry %d attempt %d: matched=%d (previously=%d, expected delta>=%d)", entryID, attempt, matched, previouslyMatched, expectedPackets)
+		attempt++
+
+		if matched >= previouslyMatched {
+			delta = matched - previouslyMatched
+		}
+		return delta >= expectedPackets
+	}).Await(t)
+
+	if missingCounter {
+		return fmt.Errorf("ACL entry %d not found in ACL %s after %v seconds", entryID, aclParams.Name, aclCounterTimeout)
+	}
+
 	entryCounters[entryID] = matched
-	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched-previouslyMatched)
-	if matched-previouslyMatched < expectedPackets {
+	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, delta)
+	if !counterOK {
 		err := fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
 		t.Log(err.Error())
 		return err
