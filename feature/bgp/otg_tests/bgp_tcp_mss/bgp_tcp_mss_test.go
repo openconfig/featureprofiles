@@ -299,6 +299,8 @@ type testEnv struct {
 	// eths are the OTG Ethernet interfaces of ATE port-1 and port-2, whose
 	// MTU the test changes.
 	eths []gosnappi.DeviceEthernet
+	// otgConfigured reports whether a configuration has been pushed to the OTG.
+	otgConfigured bool
 }
 
 // TestBGPTCPMSS implements RT-1.22.1: TCP MSS at the neighbor and peer-group
@@ -362,6 +364,9 @@ func setupEnvironment(t *testing.T) *testEnv {
 	t.Log("Initial Setup: configure the ATE interfaces and the matching BGP peers, and start the OTG protocols")
 	env.top, env.eths = configureOTG(t, ate)
 	t.Cleanup(func() {
+		if !env.otgConfigured {
+			return
+		}
 		t.Log("Cleanup: stop the OTG protocols")
 		env.otg.StopProtocols(t)
 	})
@@ -507,7 +512,8 @@ func withPGAfiSafiPolicy(afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, policy string) cfg
 
 // configureOTG builds the OTG configuration: on each ATE port, an IPv4 and an
 // IPv6 BGP peer that match the DUT neighbors, the README route ranges on the
-// eBGP peers of port-1, and a packet capture of the port.
+// eBGP peers of port-1, and a packet capture of the port, plus an unstarted
+// dummy flow so that hardware ATEs accept the capture configuration.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []gosnappi.DeviceEthernet) {
 	t.Helper()
 	top := gosnappi.NewConfig()
@@ -553,6 +559,19 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []gosn
 		}
 		top.Captures().Add().SetName(ap.ID() + ".capture").SetPortNames([]string{ap.ID()}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	}
+	// Hardware ATEs require at least one flow when packet capture is enabled.
+	// This dummy flow is never started.
+	flow := top.Flows().Add().SetName("dummy")
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().
+		SetTxNames([]string{session{link1, ipv4}.otgInterface()}).
+		SetRxNames([]string{session{link2, ipv4}.otgInterface()})
+	flow.Size().SetFixed(512)
+	flow.Rate().SetPps(1)
+	flow.Packet().Add().Ethernet().Src().SetValue(link1.ateAttr.MAC)
+	v4 := flow.Packet().Add().Ipv4()
+	v4.Src().SetValue(link1.ateAttr.IPv4)
+	v4.Dst().SetValue(link2.ateAttr.IPv4)
 	return top, eths
 }
 
@@ -562,6 +581,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []gosn
 func startOTG(t *testing.T, env *testEnv) {
 	t.Helper()
 	env.otg.PushConfig(t, env.top)
+	env.otgConfigured = true
 	env.otg.StartProtocols(t)
 	controlRoutes(t, env.otg, gosnappi.StateProtocolRouteState.WITHDRAW)
 	otgutils.WaitForARP(t, env.otg, env.top, "IPv4")
