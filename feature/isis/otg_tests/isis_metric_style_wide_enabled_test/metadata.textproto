@@ -48,6 +48,7 @@ platform_exceptions: {
     isis_metric_style_telemetry_unsupported: true
     isis_timers_csnp_interval_unsupported: true
     missing_isis_interface_afi_safi_enable: true
+    isis_interface_authentication_container_unsupported: true
   }
 }
 platform_exceptions: {
