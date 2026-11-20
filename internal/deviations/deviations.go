@@ -2584,3 +2584,9 @@ func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
+
+// ACLDscpLeafUnsupported returns true if the device does not support the single dscp leaf in ACL entries.
+// Nokia: https://partnerissuetracker.corp.google.com/u/1/issues/582687047
+func ACLDscpLeafUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclDscpLeafUnsupported()
+}
