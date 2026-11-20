@@ -19,6 +19,7 @@
 package p4rt_device_down_test
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"slices"
@@ -251,7 +252,11 @@ func testDownDevice(t *testing.T, env *testEnv) {
 	// MasterArbitrationUpdate for device_id = 222; verify it is rejected or
 	// returns NOT_FOUND.
 	if err := env.arbitrate(client2, "p4rt_1_3_1_dev222", deviceID2); err == nil {
-		t.Errorf("P4RT-1.3.1 Step 2: MasterArbitrationUpdate for down device_id %d was accepted, want rejected or NOT_FOUND", deviceID2)
+		if deviations.P4rtDeviceDownRpcNotFoundUnsupported(dut) {
+			t.Logf("P4RT-1.3.1 Step 2: MasterArbitrationUpdate for down device_id %d was accepted; allowed by deviation P4rtDeviceDownRpcNotFoundUnsupported", deviceID2)
+		} else {
+			t.Errorf("P4RT-1.3.1 Step 2: MasterArbitrationUpdate for down device_id %d was accepted, want rejected or NOT_FOUND", deviceID2)
+		}
 	}
 
 	// P4RT-1.3.1 Step 2: send the WBB P4Info via SetForwardingPipelineConfig for both
@@ -274,9 +279,7 @@ func testDownDevice(t *testing.T, env *testEnv) {
 			verifyForwardingPipeline(t, tc.client, tc.deviceID, env.p4Info)
 			continue
 		}
-		if err := p4rtutils.CheckRPCErrorNotFound(err); err != nil {
-			t.Errorf("P4RT-1.3.1 Step 2: SetForwardingPipelineConfig for %s: %v", tc.desc, err)
-		}
+		verifyNotFound(t, dut, fmt.Sprintf("P4RT-1.3.1 Step 2: SetForwardingPipelineConfig for %s", tc.desc), err, false)
 	}
 
 	// P4RT-1.3.1 Step 3 - Send Write RPC.
@@ -308,9 +311,7 @@ func testDownDevice(t *testing.T, env *testEnv) {
 			}
 			continue
 		}
-		if err := p4rtutils.CheckRPCErrorNotFound(err); err != nil {
-			t.Errorf("P4RT-1.3.1 Step 3: Write for %s: %v", tc.desc, err)
-		}
+		verifyNotFound(t, dut, fmt.Sprintf("P4RT-1.3.1 Step 3: Write for %s", tc.desc), err, false)
 	}
 
 	// P4RT-1.3.1 Step 4 - Send Read RPC.
@@ -336,9 +337,7 @@ func testDownDevice(t *testing.T, env *testEnv) {
 			}
 			continue
 		}
-		if err := p4rtutils.CheckRPCErrorNotFound(err); err != nil {
-			t.Errorf("P4RT-1.3.1 Step 4: Read for %s: %v", tc.desc, err)
-		}
+		verifyNotFound(t, dut, fmt.Sprintf("P4RT-1.3.1 Step 4: Read for %s", tc.desc), err, false)
 	}
 
 	// P4RT-1.3.1 Step 5 - Verify PacketOut to Down Device.
@@ -356,6 +355,9 @@ func testDownDevice(t *testing.T, env *testEnv) {
 	invalidCases := []struct {
 		rpc  string
 		call func() error
+		// deviationAllowed is true for the RPCs whose NOT_FOUND check is relaxed by
+		// the P4rtDeviceDownRpcNotFoundUnsupported deviation; they must still fail.
+		deviationAllowed bool
 	}{
 		{
 			rpc:  "MasterArbitrationUpdate",
@@ -366,8 +368,9 @@ func testDownDevice(t *testing.T, env *testEnv) {
 			call: func() error { return setForwardingPipeline(client3, invalidDeviceID, env.p4Info) },
 		},
 		{
-			rpc:  "Write",
-			call: func() error { return writeLLDPEntry(client3, invalidDeviceID, p4pb.Update_INSERT) },
+			rpc:              "Write",
+			call:             func() error { return writeLLDPEntry(client3, invalidDeviceID, p4pb.Update_INSERT) },
+			deviationAllowed: true,
 		},
 		{
 			rpc: "Read",
@@ -375,11 +378,18 @@ func testDownDevice(t *testing.T, env *testEnv) {
 				_, err := readTableEntries(client3, invalidDeviceID)
 				return err
 			},
+			deviationAllowed: true,
 		},
 	}
 	for _, tc := range invalidCases {
-		if err := p4rtutils.CheckRPCErrorNotFound(tc.call()); err != nil {
-			t.Errorf("P4RT-1.3.1 Step 6: %s for invalid device_id %d: %v", tc.rpc, invalidDeviceID, err)
+		desc := fmt.Sprintf("P4RT-1.3.1 Step 6: %s for invalid device_id %d", tc.rpc, invalidDeviceID)
+		err := tc.call()
+		if tc.deviationAllowed {
+			verifyNotFound(t, dut, desc, err, true)
+			continue
+		}
+		if err := p4rtutils.CheckRPCErrorNotFound(err); err != nil {
+			t.Errorf("%s: %v", desc, err)
 		}
 	}
 }
@@ -426,17 +436,31 @@ func testDeviceStateTransitions(t *testing.T, env *testEnv) {
 	t.Logf("P4RT-1.3.2 Step 2 - Device goes down mid-operation (Up to Down): disabling Linecard 2 (%s)", env.node2.lcName)
 	disableLinecard(t, env, env.node2)
 
+	writeDevice2 := func() error { return writeLLDPEntry(client2, deviceID2, p4pb.Update_INSERT) }
+	readDevice2 := func() error {
+		_, err := readTableEntries(client2, deviceID2)
+		return err
+	}
+	if deviations.P4rtDeviceDownRpcNotFoundUnsupported(env.dut) {
+		// The device does not return NOT_FOUND once device_id 222 is down: Write
+		// fails with a different gRPC status and Read is served from the
+		// supervisor. Verify that Write is no longer accepted and log the Read
+		// status.
+		if err := awaitRPCStatus(writeDevice2, checkRPCFailed); err != nil {
+			t.Errorf("P4RT-1.3.2 Step 2: Write for down device_id %d (deviation P4rtDeviceDownRpcNotFoundUnsupported): %v", deviceID2, err)
+		}
+		t.Logf("P4RT-1.3.2 Step 2: Read for down device_id %d returned %v; NOT_FOUND check skipped by deviation P4rtDeviceDownRpcNotFoundUnsupported", deviceID2, readDevice2())
+		return
+	}
+
 	// P4RT-1.3.2 Step 2: subsequent Write fails with NOT_FOUND. The P4RT server
 	// may reflect the linecard state change asynchronously, so the RPC is retried
 	// until it returns NOT_FOUND or notFoundTimeout expires.
-	if err := awaitNotFound(func() error { return writeLLDPEntry(client2, deviceID2, p4pb.Update_INSERT) }); err != nil {
+	if err := awaitRPCStatus(writeDevice2, p4rtutils.CheckRPCErrorNotFound); err != nil {
 		t.Errorf("P4RT-1.3.2 Step 2: Write for down device_id %d: %v", deviceID2, err)
 	}
 	// P4RT-1.3.2 Step 2: subsequent Read fails with NOT_FOUND.
-	if err := awaitNotFound(func() error {
-		_, err := readTableEntries(client2, deviceID2)
-		return err
-	}); err != nil {
+	if err := awaitRPCStatus(readDevice2, p4rtutils.CheckRPCErrorNotFound); err != nil {
 		t.Errorf("P4RT-1.3.2 Step 2: Read for down device_id %d: %v", deviceID2, err)
 	}
 	// Linecard 2 is re-enabled by the cleanup registered in setupEnvironment.
@@ -930,22 +954,55 @@ func readTableEntries(client *p4rt_client.P4RTClient, deviceID uint64) ([]*p4pb.
 	return p4rtutils.ReadTableEntries(client, deviceID, p4rtutils.WbbTableMap["acl_wbb_ingress_table"])
 }
 
-// awaitNotFound calls rpc until it returns a NOT_FOUND gRPC status or
-// notFoundTimeout expires, and returns nil on NOT_FOUND or the last mismatch
+// awaitRPCStatus calls rpc until check accepts its returned error or
+// notFoundTimeout expires, and returns nil on success or the last mismatch
 // otherwise. It is used for RPCs sent right after a device goes down, which the
 // P4RT server may reflect asynchronously; the expected status is unchanged.
-func awaitNotFound(rpc func() error) error {
+func awaitRPCStatus(rpc func() error, check func(error) error) error {
 	deadline := time.Now().Add(notFoundTimeout)
 	for {
-		err := p4rtutils.CheckRPCErrorNotFound(rpc())
+		err := check(rpc())
 		if err == nil {
 			return nil
 		}
 		if time.Now().Add(notFoundPollInterval).After(deadline) {
-			return fmt.Errorf("no NOT_FOUND within %v: %w", notFoundTimeout, err)
+			return fmt.Errorf("expected status not received within %v: %w", notFoundTimeout, err)
 		}
 		time.Sleep(notFoundPollInterval)
 	}
+}
+
+// checkRPCFailed returns nil if err is a non-OK gRPC status, and an error if
+// the RPC succeeded.
+func checkRPCFailed(err error) error {
+	if err == nil {
+		return errors.New("got OK, want a failed gRPC status")
+	}
+	return nil
+}
+
+// verifyNotFound verifies that err, returned by an RPC sent to a down or
+// unconfigured device_id, is a NOT_FOUND gRPC status. If the
+// P4rtDeviceDownRpcNotFoundUnsupported deviation is set, a different status is
+// logged instead of reported as an error; wantFailedWithDeviation additionally
+// requires the RPC to fail (non-OK status).
+func verifyNotFound(t *testing.T, dut *ondatra.DUTDevice, desc string, err error, wantFailedWithDeviation bool) {
+	t.Helper()
+	notFoundErr := p4rtutils.CheckRPCErrorNotFound(err)
+	if notFoundErr == nil {
+		return
+	}
+	if !deviations.P4rtDeviceDownRpcNotFoundUnsupported(dut) {
+		t.Errorf("%s: %v", desc, notFoundErr)
+		return
+	}
+	if wantFailedWithDeviation {
+		if err := checkRPCFailed(err); err != nil {
+			t.Errorf("%s (deviation P4rtDeviceDownRpcNotFoundUnsupported): %v", desc, err)
+			return
+		}
+	}
+	t.Logf("%s: %v; allowed by deviation P4rtDeviceDownRpcNotFoundUnsupported", desc, notFoundErr)
 }
 
 // verifyLLDPEntryPresent verifies the LLDP AclWbbIngressTableEntry is among the
