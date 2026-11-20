@@ -173,6 +173,7 @@ func createSubscriptionList(t *testing.T, telemetryData []ygnmi.PathStruct) *gpb
 	return &gpb.SubscriptionList{
 		Subscription: subscriptions,
 		Mode:         gpb.SubscriptionList_STREAM,
+		Encoding:     gpb.Encoding_ASCII,
 	}
 }
 
@@ -683,7 +684,6 @@ func checkSyncResponse(t *testing.T, stream gpb.GNMI_SubscribeClient) {
 		if time.Since(startTime) > syncResponseWaitTimeOut {
 			t.Fatalf("[Fail]:Didn't receive sync_response. Time limit = %v  exceeded", syncResponseWaitTimeOut)
 		}
-		time.Sleep(10 * time.Second)
 	}
 }
 
