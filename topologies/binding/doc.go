@@ -14,4 +14,10 @@
 
 // Package binding implements a simple binding that can work with a
 // specific hardware configuration without a reservation system.
+//
+// SONiC translib unmarshals gNMI Set values in the RESTCONF shape, while
+// ygnmi sends the bare node value. Set gnmi.restconf_json on that DUT in
+// the binding file, or pass -restconf-gnmi, so DialGNMI rewrites those
+// payloads and normalizes JSON-IETF replies. Leave both unset for a NOS
+// that accepts the ygnmi payload directly.
 package binding
