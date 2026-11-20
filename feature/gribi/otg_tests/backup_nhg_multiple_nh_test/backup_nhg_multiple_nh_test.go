@@ -208,10 +208,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
 		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrf1)
-		p1 := dut.Port(t, "port1")
-		intf := pf.GetOrCreateInterface(p1.Name())
-		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+
+		// Apply the policy in the ingress interface's network instance.
+		p1 := dut.Port(t, "port1")
+		ingressPF := d.GetOrCreateNetworkInstance(vrf1).GetOrCreatePolicyForwarding()
+		intf := ingressPF.GetOrCreateInterface(p1.Name())
+		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf1).PolicyForwarding().Interface(p1.Name()).Config(), intf)
 	}
 
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
