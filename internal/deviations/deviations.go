@@ -2034,10 +2034,10 @@ func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetWecmpSetWeightUnsupported()
 }
 
-// ExplicitlyApplyAllowAllImportPolicy returns true if we need to explicitly apply "allow-all" import policy on the device
-// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
-func ExplicitlyApplyAllowAllImportPolicy(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitlyApplyAllowAllImportPolicy()
+// BgpDefaultImportPolicyAcceptRoute reports whether BGP accepts routes without an
+// explicit import policy instead of using the OpenConfig REJECT_ROUTE default.
+func BgpDefaultImportPolicyAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultImportPolicyAcceptRoute()
 }
 
 // QosFt returns the functional translator to be used for translating QoS leaves.

@@ -110,7 +110,11 @@ bandwidth communities to routes based on a prefix match.
 
 [TODO] For each policy-definition created, run a subtest (RT-7.5.4.x-<policy_name_here>-export) to
 
-  * Use gnmi Set REPLACE option to attach `allow_all` policy  using `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy` to apply the policy on the DUT bgp neighbor to the ATE port 1.
+  * Use gnmi Set REPLACE to attach the `allow-all` import policy to the DUT BGP
+    neighbor facing ATE port 1 for IPv4 and IPv6. This explicitly accepts the
+    source routes when the default import policy is `REJECT_ROUTE`.
+    Platforms with `bgp_default_import_policy_accept_route` retain their implicit
+    route acceptance without attaching this prerequisite policy.
   * Use gnmi Set REPLACE option for:
     * `/routing-policy/policy-definitions` to configure the policy
     * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy`
