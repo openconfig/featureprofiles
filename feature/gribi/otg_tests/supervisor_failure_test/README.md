@@ -15,6 +15,16 @@ Ensure that gRIBI entries are persisted over supervisor failure.
 * Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2.
 * Assign IPv4 addresses to all ports.
 
+Before the measured test, flush gRIBI entries from the active supervisor,
+switch supervisors, flush the other supervisor, and wait for switchover readiness.
+Keep this cleanup so stale standby entries cannot satisfy the persistence check.
+
+Each switchover obtains a new gNOI client through the standard binding API,
+so the measured switch does not reuse the cached client from cleanup. Dialing
+and the switch share a five-minute deadline plus the platform allowance.
+Invoke `SwitchControlProcessor` once; any RPC error fails the test. The existing
+role, prefix persistence, and traffic checks still apply.
+
 ### TE-8.2.1 - FIB Programming and Switchover Validation
 
 * Connect gRIBI client to DUT specifying persistence mode PRESERVE,
