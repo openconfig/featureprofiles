@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -56,6 +57,10 @@ const (
 	loopbackIPv6         = "2001:db8::1"
 	loopbackIPv6PLen     = uint8(128)
 	watchTimeout         = 2 * time.Minute
+	// rpcTimeout bounds each gnoi.file.File RPC (unary call or complete
+	// stream) so that a DUT that never responds fails the step instead of
+	// hanging the test.
+	rpcTimeout = 2 * time.Minute
 
 	defaultScratchDir = "/tmp"
 	chunkSize64KB     = 64 * 1024 // 65536 bytes
@@ -78,7 +83,10 @@ const (
 	payloadCRecord      = "gnoi-64k-chunk-block-ipv4-192.0.2.1-ipv6-2001:db8::1-padding-01\n"
 	payloadCRecordCount = 4096 // 64 bytes * 4096 = 262144 bytes (256 KB)
 	payloadCSHA256Hex   = "5437d7315570842dec1cc16a4cc3968538047bdc4a0f640ec5bffe41b3b6881c"
-	payloadCPerms       = uint32(644)
+	// payloadCMD5Hex is the RFC 1321 MD5 digest of Payload C, used when the DUT
+	// returns an MD5 trailing GetResponse{hash} for the multi-chunk file.
+	payloadCMD5Hex = "b2ac06500bae108061e445f5b6f46751"
+	payloadCPerms  = uint32(644)
 
 	incompleteNoHashPayload = "incomplete-stream-without-hash-192.0.2.1-2001:db8::1\n"
 	contentsBeforeOpenData  = "contents-before-open"
@@ -137,6 +145,12 @@ var md5TestVectors = map[string]string{
 	"gnoi-scale-file-10-ipv4-198.51.100.10-ipv6-2001:db8:100::a\n": "6084d4c6b5751517cd1868f8c015fd4e",
 }
 
+// init registers the Payload C MD5 test vector, whose 256 KB payload cannot be
+// written as a map literal key.
+func init() {
+	md5TestVectors[strings.Repeat(payloadCRecord, payloadCRecordCount)] = payloadCMD5Hex
+}
+
 // computeDigest computes the raw digest bytes and lowercase 2-digit hex string
 // for the given payload and gNOI HashMethod.
 func computeDigest(t *testing.T, payload []byte, method tpb.HashType_HashMethod) ([]byte, string) {
@@ -166,14 +180,33 @@ func computeDigest(t *testing.T, payload []byte, method tpb.HashType_HashMethod)
 	}
 }
 
+// rpcContext returns a context bounded by rpcTimeout for a single
+// gnoi.file.File RPC. The context is cancelled when the calling (sub)test
+// completes.
+func rpcContext(ctx context.Context, t *testing.T) context.Context {
+	t.Helper()
+	rctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	t.Cleanup(cancel)
+	return rctx
+}
+
+// isRPCTimeout reports whether err is the client-side rpcTimeout expiring,
+// meaning the DUT never completed the RPC. Such an error is never accepted as
+// a valid rejection for a negative case.
+func isRPCTimeout(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.DeadlineExceeded
+}
+
 // resolveScratchDir determines the writable scratch directory on the DUT using
-// gNOI File.Stat without calling dut.Vendor(). Defaults to "/tmp" as specified
-// in the README.
+// gNOI File.Stat without calling dut.Vendor(). Platform-specific storage paths
+// are probed before "/tmp" because some platforms expose "/tmp" to File.Stat
+// but reject it as a File.Put destination. Defaults to "/tmp" as specified in
+// the README.
 func resolveScratchDir(ctx context.Context, t *testing.T, fc fpb.FileClient) string {
 	t.Helper()
-	candidates := []string{defaultScratchDir, "/var/tmp", "/mnt/flash", "harddisk:"}
+	candidates := []string{"/misc/disk1", "harddisk:", defaultScratchDir, "/var/tmp", "/mnt/flash"}
 	for _, dir := range candidates {
-		_, err := fc.Stat(ctx, &fpb.StatRequest{Path: dir})
+		_, err := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: dir})
 		if err == nil {
 			t.Logf("Resolved writable scratch directory via gNOI File.Stat: %s", dir)
 			return dir
@@ -369,7 +402,9 @@ func setupEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 		if !*filesRemoved {
 			t.Log("Cleanup - Step 1: Removing all 15 gNOI conformance test files via gnoi.file.File.Remove")
 			for _, p := range cleanupPaths {
-				_, _ = fc.Remove(ctx, &fpb.RemoveRequest{RemoteFile: p})
+				rmCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+				_, _ = fc.Remove(rmCtx, &fpb.RemoveRequest{RemoteFile: p})
+				cancel()
 			}
 		}
 
@@ -406,7 +441,7 @@ func setupEnvironment(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 
 	t.Log("Test environment setup - Step 3: Pre-test scratch file hygiene via gnoi.file.File.Remove and File.Stat")
 	for _, p := range cleanupPaths {
-		_, err := fc.Remove(ctx, &fpb.RemoveRequest{RemoteFile: p})
+		_, err := fc.Remove(rpcContext(ctx, t), &fpb.RemoveRequest{RemoteFile: p})
 		if err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Logf("Pre-test Remove(%q) returned non-fatal status %v: %v", p, status.Code(err), err)
 		}
@@ -526,7 +561,7 @@ func mountPointLeafValues(t *testing.T, dev gnmi.DeviceOrOpts, q ygnmi.WildcardQ
 // gnoi.file.File.Put RPC (Open -> Contents chunks -> Hash -> CloseAndRecv).
 func putFileComplete(ctx context.Context, t *testing.T, fc fpb.FileClient, spec fileSpec) {
 	t.Helper()
-	stream, err := fc.Put(ctx)
+	stream, err := fc.Put(rpcContext(ctx, t))
 	if err != nil {
 		t.Fatalf("gnoi.file.File.Put(%q) failed to open stream: %v", spec.path, err)
 	}
@@ -583,7 +618,7 @@ func putFileComplete(ctx context.Context, t *testing.T, fc fpb.FileClient, spec 
 // verifying path, size, permissions, last_modified, and umask.
 func verifyFileStat(ctx context.Context, t *testing.T, fc fpb.FileClient, spec fileSpec) {
 	t.Helper()
-	resp, err := fc.Stat(ctx, &fpb.StatRequest{Path: spec.path})
+	resp, err := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: spec.path})
 	if err != nil {
 		t.Fatalf("gnoi.file.File.Stat(%q) failed: %v", spec.path, err)
 	}
@@ -596,8 +631,8 @@ func verifyFileStat(ctx context.Context, t *testing.T, fc fpb.FileClient, spec f
 	t.Logf("File.Stat(%q): path=%q size=%d permissions=%d umask=%d last_modified=%d",
 		spec.path, info.GetPath(), info.GetSize(), info.GetPermissions(), info.GetUmask(), info.GetLastModified())
 
-	if !strings.HasSuffix(info.GetPath(), spec.name) && info.GetPath() != spec.path {
-		t.Errorf("File.Stat(%q) StatInfo.path = %q, want %q", spec.path, info.GetPath(), spec.path)
+	if got := info.GetPath(); got != spec.path && path.Base(got) != spec.name {
+		t.Errorf("File.Stat(%q) StatInfo.path = %q, want %q", spec.path, got, spec.path)
 	}
 	if gotSize, wantSize := info.GetSize(), uint64(len(spec.payload)); gotSize != wantSize {
 		t.Errorf("File.Stat(%q) StatInfo.size = %d, want %d", spec.path, gotSize, wantSize)
@@ -639,13 +674,19 @@ func permissionsMatch(want, got, umask uint32) (uint32, bool) {
 // directory and confirms all expected files are listed with matching byte sizes.
 func verifyDirectoryStat(ctx context.Context, t *testing.T, fc fpb.FileClient, scratchDir string, specs []fileSpec) {
 	t.Helper()
-	resp, err := fc.Stat(ctx, &fpb.StatRequest{Path: scratchDir})
+	resp, err := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: scratchDir})
 	if err != nil {
 		t.Fatalf("gnoi.file.File.Stat(%q) on directory failed: %v", scratchDir, err)
 	}
 	foundByName := make(map[string]*fpb.StatInfo)
 	for _, st := range resp.GetStats() {
-		foundByName[path.Base(st.GetPath())] = st
+		// Index by the final path element, also handling "<device>:<name>"
+		// style entries (for example "harddisk:file.txt").
+		name := st.GetPath()
+		if i := strings.LastIndexAny(name, "/:"); i >= 0 {
+			name = name[i+1:]
+		}
+		foundByName[name] = st
 	}
 	for _, spec := range specs {
 		st, ok := foundByName[spec.name]
@@ -679,15 +720,25 @@ func verifyErrorDigestHex(t *testing.T, errMsg, wantHex string) {
 }
 
 // verifyFileStatNotFound asserts that gnoi.file.File.Stat returns a non-OK
-// gRPC error (NOT_FOUND) for a removed or uncommitted file path.
+// gRPC error (for example NOT_FOUND) for a removed or uncommitted file path.
+// Server or session failures (UNAVAILABLE, UNIMPLEMENTED, PERMISSION_DENIED,
+// UNAUTHENTICATED) and client timeouts are not accepted as file-absent results.
 func verifyFileStatNotFound(ctx context.Context, t *testing.T, fc fpb.FileClient, path string) {
 	t.Helper()
-	resp, err := fc.Stat(ctx, &fpb.StatRequest{Path: path})
+	resp, err := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: path})
 	if err == nil {
 		t.Fatalf("gnoi.file.File.Stat(%q) succeeded with %d entries (%+v), want gRPC NOT_FOUND error", path, len(resp.GetStats()), resp.GetStats())
 	}
-	if err != nil && status.Code(err) != codes.NotFound {
-		t.Logf("gnoi.file.File.Stat(%q) returned non-OK code %v (%v)", path, status.Code(err), err)
+	if isRPCTimeout(err) {
+		t.Errorf("gnoi.file.File.Stat(%q) did not complete within %v: %v, want gRPC NOT_FOUND error", path, rpcTimeout, err)
+		return
+	}
+	switch code := status.Code(err); code {
+	case codes.NotFound:
+	case codes.Unavailable, codes.Unimplemented, codes.PermissionDenied, codes.Unauthenticated:
+		t.Errorf("gnoi.file.File.Stat(%q) returned %v (%v): server or session failure, not a valid file-absent result", path, code, err)
+	default:
+		t.Logf("gnoi.file.File.Stat(%q) returned non-OK code %v (%v)", path, code, err)
 	}
 }
 
@@ -697,7 +748,7 @@ func verifyFileStatNotFound(ctx context.Context, t *testing.T, fc fpb.FileClient
 // fixed-length unsigned %02x hex formatting across bytes >= 0x80 and < 0x10).
 func verifyFileGet(ctx context.Context, t *testing.T, fc fpb.FileClient, spec fileSpec) {
 	t.Helper()
-	stream, err := fc.Get(ctx, &fpb.GetRequest{RemoteFile: spec.path})
+	stream, err := fc.Get(rpcContext(ctx, t), &fpb.GetRequest{RemoteFile: spec.path})
 	if err != nil {
 		t.Fatalf("gnoi.file.File.Get(%q) failed to start stream: %v", spec.path, err)
 	}
@@ -770,6 +821,9 @@ func TestGNOIFileConformance(t *testing.T) {
 	payloadCDigest, payloadCHex := computeDigest(t, payloadCBytes, tpb.HashType_SHA256)
 	if payloadCHex != payloadCSHA256Hex {
 		t.Fatalf("Internal sanity check failed for Payload C SHA256: got %q, want %q", payloadCHex, payloadCSHA256Hex)
+	}
+	if len(payloadCBytes) != multiChunkTotal {
+		t.Fatalf("Internal sanity check failed for Payload C size: got %d bytes, want %d (%d x %d bytes)", len(payloadCBytes), multiChunkTotal, multiChunkCount, chunkSize64KB)
 	}
 
 	baselineSpecs := []fileSpec{
@@ -852,7 +906,7 @@ func TestGNOIFileConformance(t *testing.T) {
 		incompletePath := path.Join(scratchDir, fileNameIncompleteNoHash)
 
 		t.Log("gNOI-5.4.2 - Step 1: Open gnoi.file.File.Put stream, send Open + Contents, and close stream without trailing PutRequest{hash}")
-		stream, err := fc.Put(ctx)
+		stream, err := fc.Put(rpcContext(ctx, t))
 		if err != nil {
 			t.Fatalf("gnoi.file.File.Put(%q) failed to open stream: %v", incompletePath, err)
 		}
@@ -876,18 +930,24 @@ func TestGNOIFileConformance(t *testing.T) {
 
 		t.Log("gNOI-5.4.2 - Step 2: Dual assertion — verify CloseAndRecv returns non-OK gRPC error AND temporary file is removed")
 		putResp, putErr := stream.CloseAndRecv()
-		if putErr == nil || status.Code(putErr) == codes.OK {
+		switch {
+		case putErr == nil || status.Code(putErr) == codes.OK:
 			t.Errorf("gNOI-5.4.2 Defect: gnoi.file.File.Put(%q) closed without trailing PutRequest{hash} returned StatusCode.OK (resp=%+v), want non-OK gRPC error (INVALID_ARGUMENT, ABORTED, or FAILED_PRECONDITION)", incompletePath, putResp)
-		} else {
+		case isRPCTimeout(putErr):
+			t.Errorf("gNOI-5.4.2 Defect: DUT did not terminate gnoi.file.File.Put(%q) within %v after the client half-closed the stream without trailing PutRequest{hash}: %v, want non-OK gRPC error (INVALID_ARGUMENT, ABORTED, or FAILED_PRECONDITION)", incompletePath, rpcTimeout, putErr)
+		default:
 			t.Logf("gnoi.file.File.Put(%q) without trailing hash properly rejected with status=%v: %v", incompletePath, status.Code(putErr), putErr)
 		}
 
 		verifyFileStatNotFound(ctx, t, fc, incompletePath)
-		getStream, getErr := fc.Get(ctx, &fpb.GetRequest{RemoteFile: incompletePath})
+		getStream, getErr := fc.Get(rpcContext(ctx, t), &fpb.GetRequest{RemoteFile: incompletePath})
 		if getErr == nil {
 			_, recvErr := getStream.Recv()
-			if recvErr == nil || recvErr == io.EOF {
+			switch {
+			case recvErr == nil || recvErr == io.EOF:
 				t.Errorf("gnoi.file.File.Get(%q) succeeded on incomplete file closed without hash, want NOT_FOUND error", incompletePath)
+			case isRPCTimeout(recvErr):
+				t.Errorf("gnoi.file.File.Get(%q) did not complete within %v: %v, want NOT_FOUND error", incompletePath, rpcTimeout, recvErr)
 			}
 		}
 
@@ -940,7 +1000,7 @@ func TestGNOIFileConformance(t *testing.T) {
 		for _, tc := range mismatchCases {
 			t.Run(tc.desc, func(t *testing.T) {
 				t.Logf("%s: Transmit gnoi.file.File.Put with intentionally mismatched %v digest", tc.stepLabel, tc.method)
-				stream, err := fc.Put(ctx)
+				stream, err := fc.Put(rpcContext(ctx, t))
 				if err != nil {
 					t.Fatalf("gnoi.file.File.Put(%q) failed to open stream: %v", mismatchPath, err)
 				}
@@ -973,9 +1033,12 @@ func TestGNOIFileConformance(t *testing.T) {
 				}
 
 				_, putErr := stream.CloseAndRecv()
-				if putErr == nil || status.Code(putErr) == codes.OK {
+				switch {
+				case putErr == nil || status.Code(putErr) == codes.OK:
 					t.Errorf("gnoi.file.File.Put(%q) with mismatched %v digest returned StatusCode.OK, want non-OK gRPC error", mismatchPath, tc.method)
-				} else {
+				case isRPCTimeout(putErr):
+					t.Errorf("gNOI-5.4.3 Defect: DUT did not complete gnoi.file.File.Put(%q) with mismatched %v digest within %v: %v, want non-OK gRPC error", mismatchPath, tc.method, rpcTimeout, putErr)
+				default:
 					errMsg := status.Convert(putErr).Message()
 					t.Logf("gnoi.file.File.Put(%q) with mismatched %v digest rejected with code=%v message=%q", mismatchPath, tc.method, status.Code(putErr), errMsg)
 					if signExtensionHexPattern.MatchString(errMsg) {
@@ -1014,7 +1077,7 @@ func TestGNOIFileConformance(t *testing.T) {
 			verifyFileGet(ctx, t, fc, spec)
 		}
 
-		t.Log("gNOI-5.4.4 - Step 3: Verify storage mount-point telemetry via gnmi.Watch")
+		t.Log("gNOI-5.4.4 - Step 3: Verify storage mount-point telemetry via gNMI Subscribe ONCE (gnmi.GetAll / gnmi.LookupAll)")
 		verifyMountPointsTelemetry(t, dut)
 	})
 
@@ -1022,7 +1085,7 @@ func TestGNOIFileConformance(t *testing.T) {
 	// File.Remove Verification.
 	t.Run("gNOI-5.4.5_Protocol_Negative_Cases_And_Final_Remove", func(t *testing.T) {
 		t.Log("gNOI-5.4.5 - Step 1: Negative Case — Protocol sequence violation (PutRequest{contents} sent before PutRequest{open})")
-		seqStream, err := fc.Put(ctx)
+		seqStream, err := fc.Put(rpcContext(ctx, t))
 		if err != nil {
 			t.Fatalf("gnoi.file.File.Put failed to open stream: %v", err)
 		}
@@ -1033,13 +1096,15 @@ func TestGNOIFileConformance(t *testing.T) {
 		})
 		if _, seqErr := seqStream.CloseAndRecv(); seqErr == nil || status.Code(seqErr) == codes.OK {
 			t.Errorf("gnoi.file.File.Put with PutRequest{contents} sent before PutRequest{open} returned StatusCode.OK, want non-OK gRPC error")
+		} else if isRPCTimeout(seqErr) {
+			t.Errorf("gnoi.file.File.Put with PutRequest{contents} sent before PutRequest{open} did not complete within %v: %v, want non-OK gRPC error", rpcTimeout, seqErr)
 		} else {
 			t.Logf("PutRequest{contents} before PutRequest{open} properly rejected with code=%v: %v", status.Code(seqErr), seqErr)
 		}
 
 		t.Log("gNOI-5.4.5 - Step 2: Negative Case — Invalid remote_file (empty, relative, and existing directory) in PutRequest{open}")
 		for _, badPutPath := range []string{"", relativePutFilePath, scratchDir} {
-			badStream, err := fc.Put(ctx)
+			badStream, err := fc.Put(rpcContext(ctx, t))
 			if err != nil {
 				t.Fatalf("gnoi.file.File.Put failed to open stream: %v", err)
 			}
@@ -1066,11 +1131,13 @@ func TestGNOIFileConformance(t *testing.T) {
 			})
 			if _, putErr := badStream.CloseAndRecv(); putErr == nil || status.Code(putErr) == codes.OK {
 				t.Errorf("gnoi.file.File.Put(remote_file=%q) returned StatusCode.OK, want non-OK gRPC error (remote_file must be an absolute file path)", badPutPath)
+			} else if isRPCTimeout(putErr) {
+				t.Errorf("gnoi.file.File.Put(remote_file=%q) did not complete within %v: %v, want non-OK gRPC error (remote_file must be an absolute file path)", badPutPath, rpcTimeout, putErr)
 			} else {
 				t.Logf("gnoi.file.File.Put(remote_file=%q) properly rejected with code=%v: %v", badPutPath, status.Code(putErr), putErr)
 			}
 		}
-		if _, err := fc.Stat(ctx, &fpb.StatRequest{Path: scratchDir}); err != nil {
+		if _, err := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: scratchDir}); err != nil {
 			t.Errorf("gnoi.file.File.Stat(%q) failed after File.Put to the directory path: %v, want scratch directory to remain intact", scratchDir, err)
 		}
 
@@ -1078,35 +1145,43 @@ func TestGNOIFileConformance(t *testing.T) {
 		nonExistentPath := path.Join(scratchDir, fileNameNonExistent)
 
 		for _, badStatPath := range []string{"", relativeTestFilePath} {
-			if statResp, statErr := fc.Stat(ctx, &fpb.StatRequest{Path: badStatPath}); statErr == nil || status.Code(statErr) == codes.OK {
+			if statResp, statErr := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: badStatPath}); statErr == nil || status.Code(statErr) == codes.OK {
 				t.Errorf("gnoi.file.File.Stat(%q) returned StatusCode.OK (%+v), want non-OK gRPC error (INVALID_ARGUMENT or NOT_FOUND)", badStatPath, statResp)
+			} else if isRPCTimeout(statErr) {
+				t.Errorf("gnoi.file.File.Stat(%q) did not complete within %v: %v, want non-OK gRPC error (INVALID_ARGUMENT or NOT_FOUND)", badStatPath, rpcTimeout, statErr)
 			} else {
 				t.Logf("gnoi.file.File.Stat(%q) properly rejected with code=%v: %v", badStatPath, status.Code(statErr), statErr)
 			}
 		}
 
 		for _, badGetPath := range []string{nonExistentPath, "", relativeTestFilePath} {
-			getStream, getErr := fc.Get(ctx, &fpb.GetRequest{RemoteFile: badGetPath})
+			getStream, getErr := fc.Get(rpcContext(ctx, t), &fpb.GetRequest{RemoteFile: badGetPath})
 			if getErr == nil {
 				_, recvErr := getStream.Recv()
 				if recvErr == nil || recvErr == io.EOF {
 					t.Errorf("gnoi.file.File.Get(%q) succeeded, want non-OK gRPC error", badGetPath)
+				} else if isRPCTimeout(recvErr) {
+					t.Errorf("gnoi.file.File.Get(%q) did not complete within %v: %v, want non-OK gRPC error", badGetPath, rpcTimeout, recvErr)
 				} else {
 					t.Logf("gnoi.file.File.Get(%q) properly rejected on Recv() with code=%v: %v", badGetPath, status.Code(recvErr), recvErr)
 				}
+			} else if isRPCTimeout(getErr) {
+				t.Errorf("gnoi.file.File.Get(%q) did not complete within %v: %v, want non-OK gRPC error", badGetPath, rpcTimeout, getErr)
 			} else {
 				t.Logf("gnoi.file.File.Get(%q) properly rejected with code=%v: %v", badGetPath, status.Code(getErr), getErr)
 			}
 		}
 
 		for _, badRmPath := range []string{nonExistentPath, "", scratchDir} {
-			if _, rmErr := fc.Remove(ctx, &fpb.RemoveRequest{RemoteFile: badRmPath}); rmErr == nil || status.Code(rmErr) == codes.OK {
+			if _, rmErr := fc.Remove(rpcContext(ctx, t), &fpb.RemoveRequest{RemoteFile: badRmPath}); rmErr == nil || status.Code(rmErr) == codes.OK {
 				t.Errorf("gnoi.file.File.Remove(%q) returned StatusCode.OK, want non-OK gRPC error", badRmPath)
+			} else if isRPCTimeout(rmErr) {
+				t.Errorf("gnoi.file.File.Remove(%q) did not complete within %v: %v, want non-OK gRPC error", badRmPath, rpcTimeout, rmErr)
 			} else {
 				t.Logf("gnoi.file.File.Remove(%q) properly rejected with code=%v: %v", badRmPath, status.Code(rmErr), rmErr)
 			}
 		}
-		if _, err := fc.Stat(ctx, &fpb.StatRequest{Path: scratchDir}); err != nil {
+		if _, err := fc.Stat(rpcContext(ctx, t), &fpb.StatRequest{Path: scratchDir}); err != nil {
 			t.Errorf("gnoi.file.File.Stat(%q) failed after File.Remove on the directory path: %v, want scratch directory to remain intact", scratchDir, err)
 		}
 
@@ -1115,8 +1190,10 @@ func TestGNOIFileConformance(t *testing.T) {
 			{LocalPath: nonExistentPath},
 		}
 		for _, trReq := range transferReqs {
-			if _, trErr := fc.TransferToRemote(ctx, trReq); trErr == nil || status.Code(trErr) == codes.OK {
+			if _, trErr := fc.TransferToRemote(rpcContext(ctx, t), trReq); trErr == nil || status.Code(trErr) == codes.OK {
 				t.Errorf("gnoi.file.File.TransferToRemote(%+v) returned StatusCode.OK, want non-OK gRPC error (INVALID_ARGUMENT, NOT_FOUND, or UNIMPLEMENTED)", trReq)
+			} else if isRPCTimeout(trErr) {
+				t.Errorf("gnoi.file.File.TransferToRemote(%+v) did not complete within %v: %v, want non-OK gRPC error (INVALID_ARGUMENT, NOT_FOUND, or UNIMPLEMENTED)", trReq, rpcTimeout, trErr)
 			} else {
 				t.Logf("gnoi.file.File.TransferToRemote(%+v) properly rejected with code=%v: %v", trReq, status.Code(trErr), trErr)
 			}
@@ -1126,7 +1203,7 @@ func TestGNOIFileConformance(t *testing.T) {
 		allCommitted := append([]fileSpec{}, baselineSpecs...)
 		allCommitted = append(allCommitted, scaleSpecs...)
 		for _, spec := range allCommitted {
-			if _, err := fc.Remove(ctx, &fpb.RemoveRequest{RemoteFile: spec.path}); err != nil {
+			if _, err := fc.Remove(rpcContext(ctx, t), &fpb.RemoveRequest{RemoteFile: spec.path}); err != nil {
 				t.Errorf("gnoi.file.File.Remove(%q) failed: %v", spec.path, err)
 			}
 			verifyFileStatNotFound(ctx, t, fc, spec.path)

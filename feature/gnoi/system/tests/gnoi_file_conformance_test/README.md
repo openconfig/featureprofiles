@@ -90,13 +90,26 @@ graph LR
         = `128`
 *   **Target Scratch Directory (`<scratch_dir>`)**:
     *   A platform-resolved writable scratch directory on the DUT. Probe the
-        candidate directories `"/tmp"` (default), `"/var/tmp"`, `"/mnt/flash"`,
-        and `"harddisk:"` in order with `gnoi.file.File.Stat` and use the first
-        one that exists; fall back to `"/tmp"` if none respond.
+        candidate directories `"/misc/disk1"`, `"harddisk:"`, `"/tmp"`
+        (default), `"/var/tmp"`, and `"/mnt/flash"` in order with
+        `gnoi.file.File.Stat` and use the first one that exists; fall back to
+        `"/tmp"` if none respond. Platform-specific storage paths are probed
+        before `"/tmp"` because some platforms expose `"/tmp"` to
+        `File.Stat` but do not accept it as a `File.Put` destination.
     *   All test file paths below are relative to `<scratch_dir>`.
 *   **Storage Mount-Point Telemetry**:
     *   Verified via `/system/mount-points/mount-point/state/name`, `size`,
         `available`, and `utilized`.
+*   **gNOI RPC Timeout**:
+    *   Every `gnoi.file.File` RPC (each unary call, and each complete client-
+        or server-streaming exchange) is bounded by a client-side deadline of
+        `2` minutes.
+    *   A DUT that does not complete an RPC within this deadline fails the
+        step. A client-side `DEADLINE_EXCEEDED` is never accepted as a valid
+        rejection for any negative case.
+    *   A `File.Stat` result of `UNAVAILABLE`, `UNIMPLEMENTED`,
+        `PERMISSION_DENIED`, or `UNAUTHENTICATED` indicates a server or
+        session failure and is not accepted as a valid file-absent result.
 *   **Permissions Encoding**:
     *   Per `gnoi/file/file.proto`, `PutRequest.Details.permissions` and
         `StatInfo.permissions` carry the octal permission digits directly in
@@ -136,6 +149,11 @@ graph LR
         *   Hash Method: `types.HashType_SHA256` (`1`)
         *   Expected 32-Byte Digest (64 lowercase hex chars):
             `5437d7315570842dec1cc16a4cc3968538047bdc4a0f640ec5bffe41b3b6881c`
+        *   Expected 16-Byte MD5 Digest (used when the DUT returns an `MD5`
+            trailing `GetResponse{hash}`; 32 lowercase hex chars):
+            `b2ac06500bae108061e445f5b6f46751` (exercises `< 0x10` bytes
+            `0x06`, `0x0b` and high-bit bytes `>= 0x80`: `0xb2`, `0xac`,
+            `0xae`, `0x80`, `0xe4`, `0xf5`, `0xb6`, `0xf4`).
 
 #### Setup Execution Steps
 
@@ -269,20 +287,24 @@ confirming existing committed files remain untouched.
     *   Send `PutRequest{contents}` with the 53-byte payload
         `"incomplete-stream-without-hash-192.0.2.1-2001:db8::1\n"`.
     *   Immediately half-close the client stream (`END_STREAM`) **without**
-        sending `PutRequest{hash}`, and wait for the RPC to complete.
+        sending `PutRequest{hash}`, and wait up to the `2`-minute gNOI RPC
+        timeout for the RPC to complete.
 *   **Step 2 - Dual Assertion to Prevent False Positives (RPC Error Status AND
     Temporary File Removal)**:
     *   **Validation (Pass/Fail Criteria)**:
         *   **Pass**:
-            1.  The `File.Put` RPC completes with a non-OK gRPC status code (for
-                example `INVALID_ARGUMENT`, `ABORTED`, or `FAILED_PRECONDITION`;
+            1.  The `File.Put` RPC completes within the `2`-minute gNOI RPC
+                timeout with a non-OK gRPC status code (for example
+                `INVALID_ARGUMENT`, `ABORTED`, or `FAILED_PRECONDITION`;
                 `StatusCode.OK` is an immediate test failure).
             2.  Subsequent `gnoi.file.File.Stat` and `gnoi.file.File.Get` on
                 `"<scratch_dir>/gnoi_conformance_incomplete_no_hash.txt"` both
                 return a non-OK gRPC error (for example `NOT_FOUND`).
         *   **Fail**: `File.Put` returns `StatusCode.OK` (`grpc-status: 0`) even
-            if the temporary file was deleted, or `File.Stat` / `File.Get`
-            finds a partial artifact on disk.
+            if the temporary file was deleted, the DUT does not terminate the
+            stream within the `2`-minute gNOI RPC timeout after the client
+            half-closes it, or `File.Stat` / `File.Get` finds a partial artifact
+            on disk.
 *   **Step 3 - Verify Existing Committed Baseline Files from `gNOI-5.4.1` Are
     Unaffected**:
     *   Invoke `gnoi.file.File.Stat` and `gnoi.file.File.Get` on the 3 baseline
@@ -331,10 +353,10 @@ digest in the error message as fixed-length unsigned hex, and leaves the
             3.  `gnoi.file.File.Stat` on
                 `"<scratch_dir>/gnoi_conformance_hash_mismatch.txt"` returns a
                 non-OK gRPC error (for example `NOT_FOUND`).
-        *   **Fail**: `File.Put` returns `StatusCode.OK`, leaves the file on
-            disk, or renders a digest in the error message with `ffffff`
-            sign-extension, omitted leading zeros, or the wrong length or
-            value.
+        *   **Fail**: `File.Put` returns `StatusCode.OK`, does not complete
+            within the `2`-minute gNOI RPC timeout, leaves the file on disk, or
+            renders a digest in the error message with `ffffff` sign-extension,
+            omitted leading zeros, or the wrong length or value.
 *   **Step 3 - Transmit `gnoi.file.File.Put` with Intentionally Mismatched
     `MD5` Digest and `HashMethod.UNSPECIFIED(0)`**:
     *   Repeat Steps 1 and 2 for
