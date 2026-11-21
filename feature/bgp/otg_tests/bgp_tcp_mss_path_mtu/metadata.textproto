@@ -3,7 +3,7 @@
 
 uuid: "5a1c71f3-9c37-4ea3-8101-8f3058ed8c33"
 plan_id: "RT-1.21"
-description: "BGP TCP MSS and PMTUD"
+description: "BGP PMTUD"
 testbed: TESTBED_DUT_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
