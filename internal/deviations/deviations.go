@@ -1631,11 +1631,6 @@ func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool
 	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
-// SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
-func SkipOrigin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipOrigin()
-}
-
 // PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
@@ -1765,11 +1760,6 @@ func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 // AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
 func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
-}
-
-// DisableHardwareNexthopProxy returns true if the device requires disabling hardware nexthop proxying
-func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
 }
 
 // URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
@@ -2540,4 +2530,57 @@ func EcnMinGreaterMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 // MaxSupportedDecapEntries returns the maximum number of decap entries supported by the device.
 func MaxSupportedDecapEntries(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetMaxSupportedDecapEntries()
+}
+
+// NegotiatedPortSpeedUnsupported returns true if the device does not support
+// /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/572214470
+func NegotiatedPortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNegotiatedPortSpeedUnsupported()
+}
+
+// SubinterfaceIfindexUnsupported returns true if the device does not support
+// /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/572208368
+func SubinterfaceIfindexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterfaceIfindexUnsupported()
+}
+
+// SyslogUniformSelectorRequired returns true if the device requires all remote
+// syslog servers to use the same facility and severity selector when configured
+// via OpenConfig.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+func SyslogUniformSelectorRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogUniformSelectorRequired()
+}
+
+// SyslogDefaultNIStateUnsupported returns true if the device omits
+// /system/logging/remote-servers/remote-server/state/network-instance when the
+// remote syslog server is configured in the default network instance.
+// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+func SyslogDefaultNIStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogDefaultNiStateUnsupported()
+}
+
+// SyslogDebugSeverityUnsupported returns true if the device does not support
+// configuring DEBUG severity for remote syslog selectors via OpenConfig.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogDebugSeverityUnsupported()
+}
+
+// MountPointStorageComponentUnsupported returns true if the device does not
+// support /system/mount-points/mount-point/state/storage-component telemetry.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
+}
+
+// BgpGrHelperHoldTimerExpiryRequiresStalePolicy returns true if the device requires
+// explicit GR helper stale-route policy configuration for hold-timer-expiry to trigger
+// GR helper mode (RFC 8538 Section 4).
+// https://issuetracker.google.com/581463773
+func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }

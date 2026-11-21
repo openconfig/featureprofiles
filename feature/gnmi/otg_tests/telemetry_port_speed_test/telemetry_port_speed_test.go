@@ -334,8 +334,18 @@ func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 func TestGNMIPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dutPort := dut.Port(t, "port1")
-	if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).Ethernet().PortSpeed().State()), portSpeed[dutPort.Speed()]; got != want {
-		t.Errorf("Get(DUT port1 status): got %v, want %v", got, want)
+	ethPath := gnmi.OC().Interface(dutPort.Name()).Ethernet()
+	want := portSpeed[dutPort.Speed()]
+	gnmi.Await(t, dut, ethPath.PortSpeed().State(), time.Minute, want)
+	if !deviations.NegotiatedPortSpeedUnsupported(dut) {
+		if negSpeed, present := gnmi.Lookup(t, dut, ethPath.NegotiatedPortSpeed().State()).Val(); present {
+			t.Logf("Got %s NegotiatedPortSpeed from telemetry: %v", dutPort.Name(), negSpeed)
+			if autoNeg, ok := gnmi.Lookup(t, dut, ethPath.AutoNegotiate().State()).Val(); ok && autoNeg && negSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN && negSpeed != want {
+				t.Errorf("Get(DUT port1 NegotiatedPortSpeed): got %v, want %v", negSpeed, want)
+			}
+		} else {
+			t.Errorf("Get(DUT port1 NegotiatedPortSpeed): path is not present")
+		}
 	}
 }
 
