@@ -156,7 +156,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst2.IPv4)
@@ -249,7 +249,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var nbrIP = []string{ateSrc.IPv4, ateDst1.IPv4, ateDst2.IPv4}
 	t.Logf("Verifying BGP state.")
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	for _, nbr := range nbrIP {
 		nbrPath := bgpPath.Neighbor(nbr)
@@ -396,11 +396,11 @@ func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
 func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	t.Helper()
 	dutPolicyConfPath2 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().
 		PeerGroup(peerGrpName2)
 
 	dutPolicyConfPath3 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().
 		PeerGroup(peerGrpName3)
 
 	// Apply setMed import policy on eBGP Peer1 - ATE Port2 - with MED 100.
@@ -492,7 +492,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Log("Verifying BGP capabilities.")
 	var nbrIP = []string{ateSrc.IPv4, ateDst1.IPv4, ateDst2.IPv4}
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	for _, nbr := range nbrIP {
 		nbrPath := statePath.Neighbor(nbr)
 		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
@@ -514,7 +514,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 // sent and received IPv4 prefixes.
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled, wantSent uint32) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
 		got, ok := v.Val()
@@ -557,7 +557,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		t.Logf("Start DUT BGP Config.")
 		gnmi.Delete(t, dut, dutConfPath.Config())
@@ -611,7 +611,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 
 	t.Run("Remove MED settings on DUT", func(t *testing.T) {
 		t.Log("Disable MED settings on DUT.")
-		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 		// Apply the allow-all policy to remove MED modifications
 		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -629,7 +629,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		t.Log("Resetting BGP sessions to force complete route refresh...")
 
 		// Get the BGP instance path for neighbor configuration
-		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 		// First, disable all neighbors
 		neighborsRestored := false

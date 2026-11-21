@@ -149,7 +149,7 @@ func createNewBgpSession(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	nbs := []*bgpNghbrs{nb1, nb2}
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	for _, nb := range nbs {
@@ -193,7 +193,7 @@ func createNewBgpSession(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var nbrIP = []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	watch := gnmi.Watch(t, dut, bgpPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp]) bool {
 		path, _ := val.Val()
 		for _, nbr := range nbrIP {
@@ -274,7 +274,7 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 // configureBGPDefaultImportExportPolicy configures default import/export policies
 func configureBGPDefaultImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6 string, polType oc.E_RoutingPolicy_DefaultPolicyType) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	batchConfig := &gnmi.SetBatch{}
 	nbrPolPathv4 := bgpPath.Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -288,7 +288,7 @@ func configureBGPDefaultImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice,
 // configureBGPImportExportPolicy configures import/export policies
 func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6, policyDef string) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	batchConfig := &gnmi.SetBatch{}
 	nbrPolPathv4 := bgpPath.Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -305,7 +305,7 @@ func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, 
 // deleteBGPImportExportPolicy configures import/export policies
 func deleteBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6 string, ipv4_2 string, ipv6_2 string) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	batchConfig := &gnmi.SetBatch{}
 	nbrPolPathv4 := bgpPath.Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -329,7 +329,7 @@ func verifyBgpPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, ipAddr strin
 
 	t.Logf("BGP Policy telemetry verification for the neighbor %v", ipAddr)
 
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	var afiSafiPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafiPath
 	if isV4 {
 		afiSafiPath = statePath.Neighbor(ipAddr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -591,7 +591,7 @@ func TestBGPPolicy(t *testing.T) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 
 	t.Run("Configure BGP v4 and v6 Neighbors", func(t *testing.T) {
 		gnmi.Delete(t, dut, dutConfPath.Config())

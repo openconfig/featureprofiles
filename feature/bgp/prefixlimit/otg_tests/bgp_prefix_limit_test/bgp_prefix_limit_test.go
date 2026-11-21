@@ -140,7 +140,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	configureRoutePolicy(t, dut, rplName, rplType)
 
-	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 }
@@ -297,7 +297,7 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -378,7 +378,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateDst.IPv6)
 	compare := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -478,7 +478,7 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		return ok && c == installedRoutes
 	}
 	t.Log("Verifying BGP state")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	prefixes := statePath.Neighbor(ateDst.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 2*time.Minute, compare).Await(t); !ok {
 		t.Errorf("Received prefixes v4 mismatch: got %v, want %v", got, installedRoutes)

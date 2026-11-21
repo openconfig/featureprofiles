@@ -99,16 +99,16 @@ func TestManagementHA1(t *testing.T) {
 		true,
 	)
 	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
-		g := bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal()
+		g := bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateGlobal()
 		g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	}
-	bgp := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp()
+	bgp := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp()
 	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 
 	if deviations.SetNoPeerGroup(dut) || deviations.PeerGroupDefEbgpVrfUnsupported(dut) {
-		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().PeerGroup = nil
-		neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().Neighbor
+		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().PeerGroup = nil
+		neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().Neighbor
 		for _, neighbor := range neighbors {
 			neighbor.PeerGroup = nil
 		}
@@ -117,7 +117,7 @@ func TestManagementHA1(t *testing.T) {
 	configureEmulatedNetworks(bs)
 
 	if deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
-		bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(cfgplugins.DutAS)
+		bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateGlobal().SetAs(cfgplugins.DutAS)
 	}
 	if dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.JUNIPER {
 		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).SetRouteDistinguisher(fmt.Sprintf("%d:%d", cfgplugins.DutAS, 100))
@@ -347,7 +347,7 @@ func createAndAddInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname s
 }
 
 func verifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, ni string) bool {
-	nSessionState := gnmi.OC().NetworkInstance(ni).Protocol(cfgplugins.PTBGP, "BGP").Bgp().NeighborAny().SessionState().State()
+	nSessionState := gnmi.OC().NetworkInstance(ni).Protocol(cfgplugins.PTBGP, deviations.NwInstBgpProtoName(dut)).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, dut, nSessionState, 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
@@ -391,14 +391,14 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 			if err != nil {
 				t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 			}
-			cliCfg := getCiscoCLIRedisConfig("BGP", cfgplugins.DutAS, mgmtVRFName)
+			cliCfg := getCiscoCLIRedisConfig(deviations.NwInstBgpProtoName(dut), cfgplugins.DutAS, mgmtVRFName)
 			gnmi.BatchUpdate(batchSet, cliPath, cliCfg)
 		} else {
 			stmt.GetOrCreateConditions().SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED)
 			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {
-				pathV6 := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-				policyV6 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+				pathV6 := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+				policyV6 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 				policyV6.SetExportPolicy([]string{"rp"})
 				gnmi.BatchUpdate(batchSet, pathV6.Config(), policyV6)
 			}
@@ -460,8 +460,8 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {
-		pathV6 := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-		policyV6 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+		pathV6 := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+		policyV6 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 		policyV6.SetImportPolicy([]string{"importRoutePolicy"})
 		policyV6.SetExportPolicy([]string{"exportRoutePolicy"})
 		gnmi.BatchUpdate(batchSet, pathV6.Config(), policyV6)

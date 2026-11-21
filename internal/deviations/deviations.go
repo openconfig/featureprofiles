@@ -194,7 +194,12 @@ func BGPTrafficTolerance(dut *ondatra.DUTDevice) int32 {
 }
 
 // StaticProtocolName returns the name used for the static routing protocol.
+// The nw_inst_static_proto_name deviation, when set, takes precedence over
+// static_protocol_name; otherwise the default is "DEFAULT".
 func StaticProtocolName(dut *ondatra.DUTDevice) string {
+	if srn := lookupDUTDeviations(dut).GetNwInstStaticProtoName(); srn != "" {
+		return srn
+	}
 	if spn := lookupDUTDeviations(dut).GetStaticProtocolName(); spn != "" {
 		return spn
 	}
@@ -1248,12 +1253,48 @@ func TcSubscriptionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTcSubscriptionUnsupported()
 }
 
-// DefaultBgpInstanceName returns bgp instance name as set in deviation to override default value "DEFAULT"
+// DefaultBgpInstanceName returns bgp instance name as set in deviation to override default value "DEFAULT".
+// The nw_inst_bgp_proto_name deviation, when set, takes precedence over default_bgp_instance_name.
 func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
+	if nbpn := lookupDUTDeviations(dut).GetNwInstBgpProtoName(); nbpn != "" {
+		return nbpn
+	}
 	if dbin := lookupDUTDeviations(dut).GetDefaultBgpInstanceName(); dbin != "" {
 		return dbin
 	}
 	return "DEFAULT"
+}
+
+// NwInstBgpProtoName returns the name of the BGP protocol instance in
+// the network instance. It is the value of the nw_inst_bgp_proto_name
+// deviation, or "BGP" if unset.
+func NwInstBgpProtoName(dut *ondatra.DUTDevice) string {
+	if nbpn := lookupDUTDeviations(dut).GetNwInstBgpProtoName(); nbpn != "" {
+		return nbpn
+	}
+	return "BGP"
+}
+
+// NwInstStaticProtoName returns the name of the static protocol
+// instance in the network instance for tests that use "DEFAULT" regardless of
+// static_protocol_name. It is the value of the
+// nw_inst_static_proto_name deviation, or "DEFAULT" if unset.
+func NwInstStaticProtoName(dut *ondatra.DUTDevice) string {
+	if srn := lookupDUTDeviations(dut).GetNwInstStaticProtoName(); srn != "" {
+		return srn
+	}
+	return "DEFAULT"
+}
+
+// NwInstLocalAggProtoName returns the name of the LOCAL_AGGREGATE
+// protocol instance in the network instance. It returns the value of the
+// nw_inst_local_agg_proto_name deviation, or defaultName (the
+// name the test would normally use) when the deviation is unset.
+func NwInstLocalAggProtoName(dut *ondatra.DUTDevice, defaultName string) string {
+	if lan := lookupDUTDeviations(dut).GetNwInstLocalAggProtoName(); lan != "" {
+		return lan
+	}
+	return defaultName
 }
 
 // ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported

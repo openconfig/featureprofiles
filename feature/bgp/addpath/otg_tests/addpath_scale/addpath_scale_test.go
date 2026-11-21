@@ -237,7 +237,7 @@ func TestAddPathScale(t *testing.T) {
 	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut, "ALLOW", "ALLOW")
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -299,7 +299,7 @@ func TestAddPathScaleWithRoutePolicy(t *testing.T) {
 	configureImportBGPPolicy(t, dut)
 
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut, "community-match", "ALLOW")
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -456,8 +456,8 @@ func validateAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondat
 func configAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
+	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp()
 	for _, nbr := range nbrList {
 		nbrD := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
@@ -475,8 +475,8 @@ func configAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 func configAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
+	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp()
 	for _, nbr := range nbrList {
 		nbrD := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
@@ -494,8 +494,8 @@ func configAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
+	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp()
 	for _, nbr := range nbrList {
 		nbrD := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
@@ -515,7 +515,7 @@ func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIPv4, neighborIPv6 string) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	gnmi.Await(t, dut, bgpPath.Neighbor(neighborIPv4).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	ipv4Pfx := bgpPath.Neighbor(neighborIPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
@@ -939,7 +939,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, impPolicy, expPolicy string) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()

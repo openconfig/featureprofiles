@@ -64,7 +64,7 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Log("Cleanup exisitng BGP and ISIS configs on DUT before configuring test configs")
-	dutBGPPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutBGPPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	gnmi.Delete(t, dut, dutBGPPath.Config())
 	dutISISPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance)
 	gnmi.Delete(t, dut, dutISISPath.Config())

@@ -198,7 +198,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 
 	for _, agg := range []*aggPortData{agg1, agg2, agg3} {
-		bgpPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		bgpPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateIPv4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 
@@ -740,7 +740,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -796,7 +796,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		af6.Enabled = ygot.Bool(true)
 	}
 
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config(), niProto)
 }
 
 // configureRoutingPolicy configure routing policy on DUT

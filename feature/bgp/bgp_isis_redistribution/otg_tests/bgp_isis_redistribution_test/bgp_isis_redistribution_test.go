@@ -38,7 +38,6 @@ import (
 )
 
 const (
-	bgpName                         = "BGP"
 	maskLenExact                    = "exact"
 	dummyAS                         = uint32(64655)
 	dutAS                           = uint32(64656)
@@ -277,7 +276,7 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	dni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 	dni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	bgpP := dni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	bgpP := dni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(ts.DUT))
 	bgpP.SetEnabled(true)
 	bgp := bgpP.GetOrCreateBgp()
 

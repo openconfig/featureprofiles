@@ -359,7 +359,7 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attribu
 }
 
 func verifyBGP(t *testing.T, dut *ondatra.DUTDevice, otgPort attrs.Attributes, vrfName string) {
-	bgpPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	t.Logf("Waiting for BGP session to be ESTABLISHED in %s", vrfName)
 	status, ok := gnmi.Watch(t, dut, bgpPath.Neighbor(otgPort.IPv4).SessionState().State(), bgpWaitTime, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {

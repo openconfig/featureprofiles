@@ -212,7 +212,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []*oc.Interface {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	configureRoutePolicy(t, dut, rplName, rplType)
-	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	dutConf := createBGPNeighborPort2(dutAS, ateAS, dut, true, true)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	return interfaces
@@ -379,7 +379,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 func createBGPNeighborPort2(localAs, peerAs uint32, dut *ondatra.DUTDevice, v4shut, v6shut bool) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -428,7 +428,7 @@ func createBGPNeighborPort2(localAs, peerAs uint32, dut *ondatra.DUTDevice, v4sh
 // Validate BGP neighbor established
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	nbrPath := statePath.Neighbor(atePort2.IPv4)
 	nbrPathv6 := statePath.Neighbor(atePort2.IPv6)
 

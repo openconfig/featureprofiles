@@ -259,7 +259,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 
 	gnmi.BatchReplace(configBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), isisProto)
 
-	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := bgpProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -291,7 +291,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 		af6 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(true)
 	}
-	gnmi.BatchReplace(configBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProto)
+	gnmi.BatchReplace(configBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config(), bgpProto)
 
 	ethIdx = 0
 	for lagIdx := 0; ethIdx < numPorts && lagIdx < len(aggIDs); lagIdx++ {
@@ -363,7 +363,7 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Verify BGP Neighbors
 	dni := deviations.DefaultNetworkInstance(dut)
-	bgpNeighbors := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().NeighborAddress().Config())
+	bgpNeighbors := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().NeighborAny().NeighborAddress().Config())
 	numBGPNeighbors := len(bgpNeighbors)
 
 	if numBGPNeighbors != 2*params.NumBGPNeighbors {

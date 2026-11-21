@@ -40,7 +40,6 @@ const (
 	v4Network     = "192.168.10.0"
 	v6Network     = "2024:db8:64:64::"
 	prefixesCount = 1
-	bgpName       = "BGP"
 	dutAS         = uint32(64656)
 	ateAS         = uint32(64657)
 	peerGrpNameV4 = "BGP-PEER-GROUP-V4"
@@ -131,7 +130,7 @@ func TestAdminDistance(t *testing.T) {
 		},
 	}
 
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(ts.DUT)).Bgp()
 	t.Run("Test Admin Distance", func(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.desc, func(t *testing.T) {
@@ -203,7 +202,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 func changeProtocolToIBGP(t *testing.T, ts *isissession.TestSession) {
 	root := &oc.Root{}
 	dni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
-	bgpP := dni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	bgpP := dni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(ts.DUT))
 	bgpP.GetOrCreateBgp().GetOrCreateNeighbor(isissession.ATETrafficAttrs.IPv4).SetPeerAs(dutAS)
 	bgpP.GetOrCreateBgp().GetOrCreateNeighbor(isissession.ATETrafficAttrs.IPv6).SetPeerAs(dutAS)
 	gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Config(), dni)
@@ -274,7 +273,7 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	dni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 	dni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	bgpP := dni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	bgpP := dni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(ts.DUT))
 	bgpP.SetEnabled(true)
 	bgp := bgpP.GetOrCreateBgp()
 

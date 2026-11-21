@@ -212,7 +212,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dutOcRoot := &oc.Root{}
 
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	if deviations.DefaultBgpInstanceName(dut) != "" {
 		bgpPath = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
 	}
@@ -229,7 +229,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// setup BGP
 	networkInstance := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	networkInstanceProtocolBgp := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	networkInstanceProtocolBgp := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	networkInstanceProtocolBgp.SetEnabled(true)
 
 	if deviations.DefaultBgpInstanceName(dut) != "" {
@@ -330,7 +330,7 @@ func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbors []strin
 	for _, neighbor := range neighbors {
 		if deviations.DefaultBgpInstanceName(dut) == "" {
 			gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).
 				Bgp().
 				Neighbor(neighbor).
 				SessionState().State(), time.Second*240, oc.Bgp_Neighbor_SessionState_ESTABLISHED)

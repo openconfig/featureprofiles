@@ -784,7 +784,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -885,7 +885,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Logf("Verifying BGP state")
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	nbrPath := bgpPath.Neighbor(otgIsisPort8LoopV4)
 	// Get BGP adjacency state.
@@ -2487,7 +2487,7 @@ func TestGribiDecap(t *testing.T) {
 	t.Log("Configure ISIS on DUT")
 	configureISIS(t, dut, []string{dut.Port(t, "port8").Name(), loopbackIntfName}, dutAreaAddress, dutSysID)
 
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(dutAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
