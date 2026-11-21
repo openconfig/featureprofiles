@@ -233,7 +233,7 @@ func applyPrefixSetPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet []*pre
 	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	// Apply routing-policy with BGP neighbor
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	if importPolicy {
 		gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(bgpNbr.nbrAddr).AfiSafi(bgpNbr.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
 	} else {
@@ -247,7 +247,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	// Configure BGP on DUT
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -283,7 +283,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	t.Logf("Waiting for BGP neighbor to establish...")
 	for _, nbr := range ebgpNbrs {
@@ -378,7 +378,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, wantInstalled, wantRx, wantSent uint32) {
 	t.Helper()
 
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	t.Logf("Validating prefix count for peer %v", nbr.nbrAddr)
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
@@ -454,7 +454,7 @@ func TestBGPPrefixSet(t *testing.T) {
 	t.Run("Establish BGP sessions", func(t *testing.T) {
 		configureDUT(t, dut)
 
-		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 		gnmi.Delete(t, dut, dutConfPath.Config())
 		dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)

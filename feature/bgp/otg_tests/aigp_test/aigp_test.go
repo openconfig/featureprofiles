@@ -754,7 +754,7 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, bgpCfg map[string]*niBGP
 
 		// Create BGP protocol object for this NI
 		niObj := d.GetOrCreateNetworkInstance(resolvedNI)
-		proto := niObj.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		proto := niObj.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 		bgp := proto.GetOrCreateBgp()
 
 		bgp.GetOrCreateGlobal().SetAs(niCfg.globalAsn)
@@ -773,13 +773,13 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, bgpCfg map[string]*niBGP
 		// Configure each neighbor into this NI's BGP object
 		for _, nbr := range niCfg.bgpNbrs {
 			if nbr.removeBgpPeer {
-				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(resolvedNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbr.nbrIp).Config())
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(resolvedNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(nbr.nbrIp).Config())
 				continue
 			}
 			configureBGPNeighbor(t, dut, resolvedNI, niCfg.defaultAsn, bgp, nbr)
 		}
 
-		bgpPath := gnmi.OC().NetworkInstance(resolvedNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		bgpPath := gnmi.OC().NetworkInstance(resolvedNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 		gnmi.Update(t, dut, bgpPath.Config(), proto)
 	}
 
@@ -1011,7 +1011,7 @@ func verifyAIGPInRIB(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix s
 	var found bool
 
 	if !deviations.BGPRibOcPathUnsupported(dut) {
-		bgpRIBPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+		bgpRIBPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Rib()
 		if isV4 {
 			routePath := bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().Route(prefix, oc.UnionString(nbrAddr), 0)
 			locRibVal, ok := gnmi.Watch(t, dut, routePath.State(), 30*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib_Route]) bool {
@@ -1057,7 +1057,7 @@ func verifyAIGPInRIB(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix s
 }
 
 func validateAIGPMetric(t *testing.T, dut *ondatra.DUTDevice, ni string, nbrAddr string, attrIndex uint64, wantAIGP uint64, nexthop string) {
-	attrSet := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib().AttrSet(attrIndex).State())
+	attrSet := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Rib().AttrSet(attrIndex).State())
 	gotAIGP := attrSet.GetAigp()
 	if gotAIGP != wantAIGP {
 		t.Errorf("fail: aigp for neighbor %s in NI %s: want %d, got %d", nbrAddr, ni, wantAIGP, gotAIGP)
@@ -1117,7 +1117,7 @@ func verifyBestPath(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix st
 		if wantBest != 0 {
 			wantBestFlag = true
 		}
-		bgpRib := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+		bgpRib := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Rib()
 
 		if isV4 {
 			route := gnmi.Get(t, dut, bgpRib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().Neighbor(nbrAddr).AdjRibInPost().Route(prefix, 0).State())
@@ -1150,7 +1150,7 @@ func verifyBGPUpdatesSentNonZero(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAd
 	t.Helper()
 	var lastUpdates uint64
 	_, ok := gnmi.Watch(t, dut,
-		gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbrAddr).Messages().Sent().UPDATE().State(),
+		gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(nbrAddr).Messages().Sent().UPDATE().State(),
 		time.Minute, func(val *ygnmi.Value[uint64]) bool {
 			updates, present := val.Val()
 			if !present {
@@ -1167,7 +1167,7 @@ func verifyBGPUpdatesSentNonZero(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAd
 // verifyRouteReflectorClientState checks peer-group route-reflector-client state.
 func verifyRouteReflectorClientState(t *testing.T, dut *ondatra.DUTDevice, ni, pgName string, wantClient bool) {
 	t.Helper()
-	rrClient := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(pgName).RouteReflector().RouteReflectorClient().State())
+	rrClient := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().PeerGroup(pgName).RouteReflector().RouteReflectorClient().State())
 	if rrClient != wantClient {
 		t.Errorf("peer-group %s in NI %s: route-reflector-client want %v, got %v",
 			pgName, ni, wantClient, rrClient)
@@ -1177,7 +1177,7 @@ func verifyRouteReflectorClientState(t *testing.T, dut *ondatra.DUTDevice, ni, p
 func enableAIGPOnPeer(t *testing.T, dut *ondatra.DUTDevice, ni string, defaultAsn uint32, nbrIp string, v4 bool, enable bool) {
 	d := &oc.Root{}
 	niObj := d.GetOrCreateNetworkInstance(ni)
-	proto := niObj.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	proto := niObj.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := proto.GetOrCreateBgp()
 
 	n := bgp.GetOrCreateNeighbor(nbrIp)

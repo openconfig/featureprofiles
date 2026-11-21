@@ -242,7 +242,7 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		top, dutConf := cfgplugins.ConfigureEBgpPeersScale(t, dut, ate, top, eBgpConfigList)
 		dutConf = configureBgpPolicy(t, dutConf, dut)
-		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 		advertiseRoutesWithEBGPExtCommunitys(t, top)
@@ -730,7 +730,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 func disableEnableBgpWithNbr(t *testing.T, dut *ondatra.DUTDevice, enablePeers bool) {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	cfg := &cfgplugins.EBgpConfigScale{
@@ -757,7 +757,7 @@ func disableEnableBgpWithNbr(t *testing.T, dut *ondatra.DUTDevice, enablePeers b
 		bgpNbr.PeerGroup = ygot.String(nbr.Pg)
 	}
 
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	gnmi.Update(t, dut, dutConfPath.Config(), niProto)
 }
 

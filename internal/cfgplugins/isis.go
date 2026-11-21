@@ -269,6 +269,7 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 		dni := deviations.DefaultNetworkInstance(dut)
 		ni := root.GetOrCreateNetworkInstance(dni)
 
+		localAggregateName = deviations.NwInstLocalAggProtoName(dut, localAggregateName)
 		aggProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName)
 		aggProto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE)
 		aggProto.SetName(localAggregateName)

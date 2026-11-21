@@ -49,7 +49,7 @@ func EnableDefaultNetworkInstanceBgp(t *testing.T, dut *ondatra.DUTDevice, dutAS
 	d := gnmi.OC()
 	bgp := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-		Name:       ygot.String("BGP"),
+		Name:       ygot.String(deviations.NwInstBgpProtoName(dut)),
 		Enabled:    ygot.Bool(true),
 		Bgp:        &oc.NetworkInstance_Protocol_Bgp{},
 	}
@@ -58,7 +58,7 @@ func EnableDefaultNetworkInstanceBgp(t *testing.T, dut *ondatra.DUTDevice, dutAS
 		As: ygot.Uint32(dutAS),
 	}
 
-	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
+	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config(), bgp)
 }
 
 // ConfigureNetworkInstance configures a new network instance on the DUT not using batch update

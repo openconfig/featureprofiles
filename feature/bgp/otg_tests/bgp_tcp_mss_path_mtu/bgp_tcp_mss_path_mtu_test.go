@@ -131,7 +131,7 @@ func configureDUT(t *testing.T) {
 func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerID string, localAs uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(routerID)
@@ -167,7 +167,7 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerID string
 // verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
 func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	for _, nbr := range nbrIP {
 		nbrPath := statePath.Neighbor(nbr)
 		t.Logf("Waiting for BGP neighbor %s to establish", nbr)
@@ -250,7 +250,7 @@ func verifyOTGBGPEstablished(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice,
 		} else {
 			t.Logf("OTG BGP peer %s session state is absent", peerName)
 		}
-		dutPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
+		dutPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(neighbor).SessionState().State()
 		if state, present := gnmi.Lookup(t, dut, dutPath).Val(); present {
 			t.Logf("DUT BGP neighbor %s final session state: %s", neighbor, state)
 		} else {
@@ -467,8 +467,8 @@ func TestTcpMssPathMtu(t *testing.T) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut2)
 	})
 
-	dut1ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut1)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dut2ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut2)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dut1ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut1)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut1))
+	dut2ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut2)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut2))
 
 	t.Run("Configure BGP Neighbors DUT1", func(t *testing.T) {
 		t.Logf("Start DUT1 BGP Config.")

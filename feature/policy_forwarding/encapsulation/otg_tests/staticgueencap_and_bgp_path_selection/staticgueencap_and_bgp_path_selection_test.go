@@ -546,10 +546,10 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice) {
 func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, nbrs []*bgpNbr) {
 	t.Helper()
 	localAddressLeaf := ""
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -831,7 +831,7 @@ func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, i
 		afiSafi = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 	}
 
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	query := bgpPath.Neighbor(neighborIP).AfiSafi(afiSafi).Prefixes().Received().State()
 	if _, ok := gnmi.Watch(t, dut, query, 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		v, present := val.Val()

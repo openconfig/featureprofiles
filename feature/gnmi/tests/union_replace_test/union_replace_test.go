@@ -58,11 +58,10 @@ const (
 	descOCDescP1     = "oc-desc-p1"
 	descCLIDescP2    = "cli-desc-p2"
 
-	bgpProtocolName = "BGP"
-	bgpASOC         = uint32(64496)
-	bgpASCLI        = uint32(64497)
-	policyName      = "OVERLAP_POLICY_1"
-	badIntfMTU      = uint16(5000)
+	bgpASOC    = uint32(64496)
+	bgpASCLI   = uint32(64497)
+	policyName = "OVERLAP_POLICY_1"
+	badIntfMTU = uint16(5000)
 
 	breakoutNumChannel = 2
 	groupIndex         = 0
@@ -1879,8 +1878,8 @@ func TestUnionReplace(t *testing.T) {
 					var errs []error
 					t.Log("Get configuration from DUT")
 					t.Log("Set BGP AS in OC and CLI (overlap)")
-					configPath := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpProtocolName).Bgp().Global().As().Config()
-					statePath := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpProtocolName).Bgp().Global().As().State()
+					configPath := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Global().As().Config()
+					statePath := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Global().As().State()
 					beforeConfig, beforeConfigPresent := gnmi.Lookup(t, dut, configPath).Val()
 					beforeState, beforeStatePresent := gnmi.Lookup(t, dut, statePath).Val()
 
@@ -1888,7 +1887,7 @@ func TestUnionReplace(t *testing.T) {
 					ni := ocDelta.GetOrCreateNetworkInstance(defaultNI)
 					ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 					bgp := ni.
-						GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpProtocolName).
+						GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).
 						GetOrCreateBgp()
 					global := bgp.GetOrCreateGlobal()
 					global.As = ygot.Uint32(bgpASOC)

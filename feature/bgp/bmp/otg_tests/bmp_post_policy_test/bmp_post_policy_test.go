@@ -649,7 +649,7 @@ func verifyPrefixCountV4(t *testing.T, dut *ondatra.DUTDevice) error {
 		c, ok := val.Val()
 		return ok && c == postPolicyRoutev4CountperNeighbor
 	}
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), timeout, compare).Await(t); !ok {
 		return fmt.Errorf("received prefixes v4 mismatch: got %v, want %v", got, postPolicyRoutev4CountperNeighbor)
@@ -664,7 +664,7 @@ func verifyPrefixCountV6(t *testing.T, dut *ondatra.DUTDevice) error {
 		c, ok := val.Val()
 		return ok && c == postPolicyRoutev6CountperNeighbor
 	}
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
 	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), timeout, compare).Await(t); !ok {

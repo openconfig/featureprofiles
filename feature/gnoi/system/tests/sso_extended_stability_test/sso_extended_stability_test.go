@@ -39,7 +39,6 @@ import (
 const (
 	maxSwitchoverTime = 900
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	bgpName           = "BGP"
 	ptBGP             = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 )
 
@@ -361,20 +360,20 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 		if _, ok := bs.DUTConf.NetworkInstance[defaultNiName]; ok {
 			delete(bs.DUTConf.NetworkInstance[defaultNiName].Protocol, oc.NetworkInstance_Protocol_Key{
 				Identifier: ptBGP,
-				Name:       bgpName,
+				Name:       deviations.NwInstBgpProtoName(dut),
 			})
 			if len(bs.DUTConf.NetworkInstance[defaultNiName].Protocol) == 0 {
 				bs.DUTConf.NetworkInstance[defaultNiName].Protocol = nil
 			}
 		}
 	} else {
-		bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, bgpName).GetOrCreateBgp().GetOrCreateGlobal().SetAs(65000)
+		bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateGlobal().SetAs(65000)
 	}
 	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
 		// The parent address family must be initialized in the default network
 		// instance before IPv4 unicast can be enabled in the L3VRFs. Only the
 		// global config is added; neighbors stay in the VRFs.
-		defaultGlobal := bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, bgpName).GetOrCreateBgp().GetOrCreateGlobal()
+		defaultGlobal := bs.DUTConf.GetOrCreateNetworkInstance(defaultNiName).GetOrCreateProtocol(ptBGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateGlobal()
 		defaultGlobal.SetAs(65000)
 		defaultGlobal.SetRouterId(bs.DUTPorts[0].IPv4)
 		defaultGR := defaultGlobal.GetOrCreateGracefulRestart()
@@ -416,7 +415,7 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 	}
 
 	// 3. Configure BGP protocols and Graceful Restart on the VRFs
-	transitBgpProto := transitNi.GetOrCreateProtocol(ptBGP, bgpName)
+	transitBgpProto := transitNi.GetOrCreateProtocol(ptBGP, deviations.NwInstBgpProtoName(dut))
 	transitBgp := transitBgpProto.GetOrCreateBgp()
 	transitGlobal := transitBgp.GetOrCreateGlobal()
 	transitGlobal.As = ygot.Uint32(65000)
@@ -434,7 +433,7 @@ func configureVRFsAndBgp(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BG
 	}
 	transitPg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
-	decapBgpProto := decapNi.GetOrCreateProtocol(ptBGP, bgpName)
+	decapBgpProto := decapNi.GetOrCreateProtocol(ptBGP, deviations.NwInstBgpProtoName(dut))
 	decapBgp := decapBgpProto.GetOrCreateBgp()
 	decapGlobal := decapBgp.GetOrCreateGlobal()
 	decapGlobal.As = ygot.Uint32(65000)
@@ -714,7 +713,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DECAP_TE_VRF").Config())
 		gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition("SSO-PERMIT-ALL").Config())
 		if deviations.ExplicitEnableBGPOnDefaultVRF(dut) || deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(ptBGP, bgpName).Config())
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(ptBGP, deviations.NwInstBgpProtoName(dut)).Config())
 		}
 		gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
 	})
@@ -743,7 +742,7 @@ func TestSSOSoftwareStability(t *testing.T) {
 		if i >= 2 {
 			vrf = "DECAP_TE_VRF"
 		}
-		statePath := gnmi.OC().NetworkInstance(vrf).Protocol(ptBGP, bgpName).Bgp().Neighbor(otgPort.IPv4).SessionState().State()
+		statePath := gnmi.OC().NetworkInstance(vrf).Protocol(ptBGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(otgPort.IPv4).SessionState().State()
 		gnmi.Watch(t, dut, statePath, 5*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, present := val.Val()
 			return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED

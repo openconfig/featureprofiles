@@ -291,10 +291,10 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	dutProto := gnmi.OC().NetworkInstance(ni).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	key := oc.NetworkInstance_Protocol_Key{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-		Name:       "BGP",
+		Name:       deviations.NwInstBgpProtoName(dut),
 	}
 
 	niOC := &oc.NetworkInstance{
@@ -303,7 +303,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
 			key: {
 				Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-				Name:       ygot.String("BGP"),
+				Name:       ygot.String(deviations.NwInstBgpProtoName(dut)),
 				Bgp:        d.bgpOC,
 			},
 		},
@@ -320,7 +320,7 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := d.networkInstance(dut)
 	for neighbor := range d.bgpOC.Neighbor {
 		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(ni).
-			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).
 			Bgp().
 			Neighbor(neighbor).
 			SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
@@ -474,7 +474,7 @@ func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 // verifyAddPathState verifies DUT telemetry for BGP ADD-Path receive states.
 func verifyAddPathState(t *testing.T, dut *ondatra.DUTDevice, ni, tag string, afi oc.E_BgpTypes_AFI_SAFI_TYPE, rxNbr string, cfg addPathCfg) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	if cfg.nbrReceive != nil {
 		q := bgpPath.Neighbor(rxNbr).AfiSafi(afi).AddPaths().Receive().State()
@@ -1063,7 +1063,7 @@ func TestAddPath(t *testing.T) {
 				t.Logf("%s START | Config: %s | Expect: effective receive=%t, ADD_PATHS=%t, DUT(%s) rcv=%d, ATE port-2=4 paths (1/prefix)", tag, tc.desc, receiveOn, receiveOn, af.rxNbr, wantRcv)
 
 				t.Cleanup(func() {
-					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config())
 				})
 				d := dutData{
 					bgpOC:                         addPathBGP(af.afi, af.rxNbr, af.txNbr, tc.cfg, routePolicyUnderAFIUnsupported),
@@ -1085,7 +1085,7 @@ func TestAddPath(t *testing.T) {
 				// With ADD-Path receive enabled the DUT keeps every path ID for each
 				// prefix; with it disabled each new path implicitly replaces the
 				// previous one, so the DUT keeps one path per prefix.
-				rcvQ := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(af.rxNbr).AfiSafi(af.afi).Prefixes().Received().State()
+				rcvQ := gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(af.rxNbr).AfiSafi(af.afi).Prefixes().Received().State()
 				if _, ok := gnmi.Watch(t, dut, rcvQ, time.Minute, func(v *ygnmi.Value[uint32]) bool {
 					got, present := v.Val()
 					return present && got == wantRcv

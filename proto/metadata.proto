@@ -1622,6 +1622,18 @@ message Metadata {
     // for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
+    // Name of the LOCAL_AGGREGATE protocol instance in the network instance,
+    // instead of the test's default (e.g. "DEFAULT-AGG"). For devices that only
+    // accept a fixed name such as "bgp" (Cisco SONiC).
+    string nw_inst_local_agg_proto_name = 490;
+    // Name of the BGP protocol instance in the network instance, instead of
+    // "BGP". For devices that only accept a fixed name such as "bgp" (Cisco SONiC).
+    // When set it takes precedence over default_bgp_instance_name.
+    string nw_inst_bgp_proto_name = 491;
+    // Name of the static protocol instance in the network instance, instead of
+    // "DEFAULT" (Cisco SONiC). When set it takes precedence over
+    // static_protocol_name.
+    string nw_inst_static_proto_name = 492;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;

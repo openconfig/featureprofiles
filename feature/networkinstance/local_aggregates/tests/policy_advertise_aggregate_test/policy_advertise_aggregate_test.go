@@ -96,7 +96,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.RoutingPolicy().Config(), routingPolicy)
 
 	t.Log("Configuring BGP...")
-	bgpProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := bgpProtocol.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -111,7 +111,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	afiSafi.SetEnabled(true)
 	afiSafi.GetOrCreateApplyPolicy().SetImportPolicy([]string{triggerRoutePolicyName})
 
-	gnmi.Update(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProtocol)
+	gnmi.Update(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config(), bgpProtocol)
 
 	cfgplugins.RoutingPolicyBGPAdvertiseAggregate(t, dut, triggerRoutePolicyName, triggerRoute, generatedRoutePolicyName, defaultRoute, dutAS, localAggregateName)
 }
@@ -147,7 +147,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP session state...")
 	dni := deviations.DefaultNetworkInstance(dut)
-	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	neighborPath := bgpPath.Neighbor(atePort1.IPv4)
 
 	verifySessionState := func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
