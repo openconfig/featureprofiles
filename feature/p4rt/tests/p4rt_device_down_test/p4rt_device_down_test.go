@@ -446,10 +446,11 @@ func testDeviceStateTransitions(t *testing.T, env *testEnv) {
 		// fails with a different gRPC status and Read is served from the
 		// supervisor. Verify that Write is no longer accepted and log the Read
 		// status.
-		if err := awaitRPCStatus(writeDevice2, checkRPCFailed); err != nil {
+		if err := awaitRPCStatus(writeDevice2, checkRPCErrorAny); err != nil {
 			t.Errorf("P4RT-1.3.2 Step 2: Write for down device_id %d (deviation P4rtDeviceDownRpcNotFoundUnsupported): %v", deviceID2, err)
 		}
-		t.Logf("P4RT-1.3.2 Step 2: Read for down device_id %d returned %v; NOT_FOUND check skipped by deviation P4rtDeviceDownRpcNotFoundUnsupported", deviceID2, readDevice2())
+		readErr := readDevice2()
+		t.Logf("P4RT-1.3.2 Step 2: Read for down device_id %d returned %v; NOT_FOUND check skipped by deviation P4rtDeviceDownRpcNotFoundUnsupported", deviceID2, readErr)
 		return
 	}
 
@@ -972,9 +973,9 @@ func awaitRPCStatus(rpc func() error, check func(error) error) error {
 	}
 }
 
-// checkRPCFailed returns nil if err is a non-OK gRPC status, and an error if
-// the RPC succeeded.
-func checkRPCFailed(err error) error {
+// checkRPCErrorAny returns nil if err is a non-OK gRPC status (indicating the
+// RPC failed as expected), and an error if the RPC succeeded.
+func checkRPCErrorAny(err error) error {
 	if err == nil {
 		return errors.New("got OK, want a failed gRPC status")
 	}
@@ -997,7 +998,7 @@ func verifyNotFound(t *testing.T, dut *ondatra.DUTDevice, desc string, err error
 		return
 	}
 	if wantFailedWithDeviation {
-		if err := checkRPCFailed(err); err != nil {
+		if err := checkRPCErrorAny(err); err != nil {
 			t.Errorf("%s (deviation P4rtDeviceDownRpcNotFoundUnsupported): %v", desc, err)
 			return
 		}
