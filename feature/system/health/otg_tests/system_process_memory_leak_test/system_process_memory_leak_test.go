@@ -96,7 +96,7 @@ const (
 	maxMemoryGrowthPct          = 5.0
 	tenMBBytes                  = uint64(10 * 1024 * 1024)
 	memoryRecheckAttempts       = 3
-	warmUpChurnCycles           = 3
+	warmUpChurnCycles           = 1
 	fifteenMBBytes              = uint64(15 * 1024 * 1024)
 	fibUsedThresholdUpper       = uint8(80)
 	fibUsedThresholdUpperClear  = uint8(70)
@@ -343,25 +343,33 @@ func setupTestEnvironment(t *testing.T) *testEnvironment {
 	return env
 }
 
-// warmUpRouteChurn advertises and withdraws Churn-Routes warmUpChurnCycles times and then waits
-// one [OC-Group-A] SAMPLE interval. Agents that were restarted during setup (for example, the
-// on-box gNMI/telemetry agent restarted when the binding applies its configuration) grow while
-// they first learn and stream Churn-Routes; this keeps that one-time growth out of the
-// Health-1.3.1 baseline and the Health-1.3.3 reclamation trend. Memory that keeps growing after
-// warm-up is still reported by Health-1.3.3.
+// warmUpRouteChurn runs warmUpChurnCycles advertise/withdraw cycles of Churn-Routes, holding each
+// phase for churnHoldDuration like the Health-1.3.3 cycles, and then waits one [OC-Group-A]
+// SAMPLE interval. Daemons that grow while they first learn and program Churn-Routes (for
+// example, the routing daemon, or an on-box gNMI/telemetry agent restarted when the binding
+// applies its configuration) settle before the Health-1.3.1 baseline is captured, so that
+// one-time growth is not counted in the Health-1.3.3 reclamation trend. Memory that keeps growing
+// after warm-up is still reported by Health-1.3.3. AFT verification is left to Health-1.3.3 to
+// keep the total test runtime within budget.
 func warmUpRouteChurn(t *testing.T, env *testEnvironment) {
 	t.Helper()
+	stream := system.NewProcessSampleStream(t, env.dut, sampleInterval)
+	defer stream.Close()
 	for cycle := 1; cycle <= warmUpChurnCycles; cycle++ {
-		t.Logf("Section 1 Warm-up Cycle %d/%d: Advertising and withdrawing Churn-Routes on Peer 1-3", cycle, warmUpChurnCycles)
+		t.Logf("Section 1 Warm-up Cycle %d/%d: Advertising Churn-Routes on Peer 1-3 and holding for %v", cycle, warmUpChurnCycles, churnHoldDuration)
+		advStart := time.Now()
 		setRouteState(t, env.ate, env.allChurnRouteNames(), gosnappi.StateProtocolRouteState.ADVERTISE)
 		awaitAllPeersPrefixCounts(t, env, env.peers, totalInstalledPeak)
+		stream.AwaitHoldWindow(t, env.dut, churnHoldDuration-time.Since(advStart))
+
+		t.Logf("Section 1 Warm-up Cycle %d/%d: Withdrawing Churn-Routes on Peer 1-3 and holding for %v", cycle, warmUpChurnCycles, churnHoldDuration)
+		withdrawStart := time.Now()
 		setRouteState(t, env.ate, env.allChurnRouteNames(), gosnappi.StateProtocolRouteState.WITHDRAW)
 		awaitAllPeersPrefixCounts(t, env, env.peers, baselineRouteCount)
+		stream.AwaitHoldWindow(t, env.dut, churnHoldDuration-time.Since(withdrawStart))
 	}
 	t.Logf("Section 1 Warm-up: awaiting one %v [OC-Group-A] SAMPLE interval before the Health-1.3.1 baseline", sampleInterval)
-	stream := system.NewProcessSampleStream(t, env.dut, sampleInterval)
 	stream.AwaitNextSample(t, env.dut)
-	stream.Close()
 }
 
 // configureDUTEnvironment pushes the Canonical OC configuration to the DUT using a unified
@@ -1509,14 +1517,25 @@ func awaitAllBGPSessionsEstablished(t *testing.T, env *testEnvironment) {
 	defer logStepDuration(t, "awaitAllBGPSessionsEstablished", time.Now())
 	dni := deviations.DefaultNetworkInstance(env.dut)
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	// Start all session-state watches before awaiting any of them, so they wait concurrently.
+	type sessionWatch struct {
+		w        *gnmi.Watcher[oc.E_Bgp_Neighbor_SessionState]
+		nbrIP    string
+		peerName string
+	}
+	var watches []sessionWatch
 	for _, peer := range env.peers {
 		for _, nbrIP := range []string{peer.ateAttr.IPv4, peer.ateAttr.IPv6} {
-			if _, ok := gnmi.Watch(t, env.dut, bgpPath.Neighbor(nbrIP).SessionState().State(), bgpConvergenceTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			w := gnmi.Watch(t, env.dut, bgpPath.Neighbor(nbrIP).SessionState().State(), bgpConvergenceTimeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 				state, present := val.Val()
 				return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-			}).Await(t); !ok {
-				t.Fatalf("BGP neighbor %s (%s) did not reach ESTABLISHED state within %v", nbrIP, peer.name, bgpConvergenceTimeout)
-			}
+			})
+			watches = append(watches, sessionWatch{w: w, nbrIP: nbrIP, peerName: peer.name})
+		}
+	}
+	for _, sw := range watches {
+		if _, ok := sw.w.Await(t); !ok {
+			t.Fatalf("BGP neighbor %s (%s) did not reach ESTABLISHED state within %v", sw.nbrIP, sw.peerName, bgpConvergenceTimeout)
 		}
 	}
 }
@@ -1561,25 +1580,27 @@ func awaitAllPeersPrefixCounts(t *testing.T, env *testEnvironment, peers []bgpPe
 		c, present := val.Val()
 		return present && c == wantCount
 	}
+	// Start all per-neighbor watches before awaiting any of them, so they wait concurrently and the
+	// total wait is bounded by the slowest leaf rather than the sum of all leaves.
+	type prefixWatch struct {
+		w    *gnmi.Watcher[uint32]
+		desc string
+	}
+	var watches []prefixWatch
 	for _, peer := range peers {
 		v4Pfx := bgpPath.Neighbor(peer.ateAttr.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Received().State(), fallbackTimeout, pred).Await(t); !ok {
-			failed = true
-			t.Errorf("Peer %s (%s) IPv4 prefixes/received got %v, want %d", peer.name, peer.ateAttr.IPv4, got, wantCount)
-		}
-		if got, ok := gnmi.Watch(t, env.dut, v4Pfx.Installed().State(), fallbackTimeout, pred).Await(t); !ok {
-			failed = true
-			t.Errorf("Peer %s (%s) IPv4 prefixes/installed got %v, want %d", peer.name, peer.ateAttr.IPv4, got, wantCount)
-		}
-
 		v6Pfx := bgpPath.Neighbor(peer.ateAttr.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
-		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Received().State(), fallbackTimeout, pred).Await(t); !ok {
+		watches = append(watches,
+			prefixWatch{gnmi.Watch(t, env.dut, v4Pfx.Received().State(), fallbackTimeout, pred), fmt.Sprintf("Peer %s (%s) IPv4 prefixes/received", peer.name, peer.ateAttr.IPv4)},
+			prefixWatch{gnmi.Watch(t, env.dut, v4Pfx.Installed().State(), fallbackTimeout, pred), fmt.Sprintf("Peer %s (%s) IPv4 prefixes/installed", peer.name, peer.ateAttr.IPv4)},
+			prefixWatch{gnmi.Watch(t, env.dut, v6Pfx.Received().State(), fallbackTimeout, pred), fmt.Sprintf("Peer %s (%s) IPv6 prefixes/received", peer.name, peer.ateAttr.IPv6)},
+			prefixWatch{gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), fallbackTimeout, pred), fmt.Sprintf("Peer %s (%s) IPv6 prefixes/installed", peer.name, peer.ateAttr.IPv6)},
+		)
+	}
+	for _, pw := range watches {
+		if got, ok := pw.w.Await(t); !ok {
 			failed = true
-			t.Errorf("Peer %s (%s) IPv6 prefixes/received got %v, want %d", peer.name, peer.ateAttr.IPv6, got, wantCount)
-		}
-		if got, ok := gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), fallbackTimeout, pred).Await(t); !ok {
-			failed = true
-			t.Errorf("Peer %s (%s) IPv6 prefixes/installed got %v, want %d", peer.name, peer.ateAttr.IPv6, got, wantCount)
+			t.Errorf("%s got %v, want %d", pw.desc, got, wantCount)
 		}
 	}
 	if !failed && !wildcardPrefixWatchUnsupported[env.dut.Name()] {
@@ -1778,7 +1799,7 @@ func lookupAllAFTPrefixNHGs(t *testing.T, dut *ondatra.DUTDevice, isIPv6 bool) m
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(dut)
 	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	c, err := system.YGNMIClient(t, dut)
 	if err != nil {
 		return nil
 	}

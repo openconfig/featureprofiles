@@ -479,6 +479,11 @@ func QueryHardwareFIBUtilization(t *testing.T, dut *ondatra.DUTDevice, resourceN
 		return results
 	}
 
+	if fast, ok := queryICUtilizationBatched(t, dut, resourceName, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut)); ok {
+		return fast
+	}
+
+	// Fallback: query each INTEGRATED_CIRCUIT component one leaf at a time.
 	ics := findActiveICComponents(t, dut)
 	lookupName := resourceName
 	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
@@ -560,6 +565,253 @@ func QueryHardwareFIBUtilization(t *testing.T, dut *ondatra.DUTDevice, resourceN
 		results[ic] = u
 	}
 	return results
+}
+
+// fibQueryTimeout bounds each batched hardware resource utilization query. A query through a
+// functional translator reads the vendor-native resource tree of every component, which can take
+// tens of seconds on large platforms.
+const fibQueryTimeout = 3 * time.Minute
+
+var fibYGNMIClients = make(map[string]*ygnmi.Client)
+
+// fibYGNMIClient returns a ygnmi client for dut that is created once per DUT and then reused, so
+// repeated utilization queries do not open a new gNMI connection each time.
+func fibYGNMIClient(t *testing.T, dut *ondatra.DUTDevice) (*ygnmi.Client, error) {
+	t.Helper()
+	fibCacheMu.Lock()
+	c, ok := fibYGNMIClients[dut.Name()]
+	fibCacheMu.Unlock()
+	if ok {
+		return c, nil
+	}
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		return nil, err
+	}
+	fibCacheMu.Lock()
+	fibYGNMIClients[dut.Name()] = c
+	fibCacheMu.Unlock()
+	return c, nil
+}
+
+// pathElemKey returns the "name" key of the first element of elems called elemName.
+func pathElemKey(elems []*gpb.PathElem, elemName string) string {
+	for _, e := range elems {
+		if e.GetName() == elemName {
+			return e.GetKey()["name"]
+		}
+	}
+	return ""
+}
+
+// ftResourceBank holds the utilization leaves of one hardware resource bank reported for an
+// INTEGRATED_CIRCUIT component.
+type ftResourceBank struct {
+	used, maxLimit, upper, upperClear                   uint64
+	usedPresent, maxPresent, upperPresent, clearPresent bool
+}
+
+// recordingFT wraps a functional translator and records the resource banks of every notification
+// it translates. ygnmi returns only the queried leaf to the caller, but the translator emits all
+// the leaves of each resource bank it translates, so one subscription through recordingFT
+// returns every leaf of every bank on every component.
+type recordingFT struct {
+	ygnmi.FunctionalTranslator
+	mu    sync.Mutex
+	banks map[string]map[string]*ftResourceBank // component name -> resource name -> bank
+}
+
+// Translate translates sr with the wrapped functional translator and records the result.
+func (r *recordingFT) Translate(sr *gpb.SubscribeResponse) (*gpb.SubscribeResponse, error) {
+	out, err := r.FunctionalTranslator.Translate(sr)
+	if err == nil {
+		r.record(out.GetUpdate())
+	}
+	return out, err
+}
+
+func (r *recordingFT) record(n *gpb.Notification) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, u := range n.GetUpdate() {
+		elems := append(append([]*gpb.PathElem{}, n.GetPrefix().GetElem()...), u.GetPath().GetElem()...)
+		comp, res := pathElemKey(elems, "component"), pathElemKey(elems, "resource")
+		if comp == "" || res == "" {
+			continue
+		}
+		v, ok := u.GetVal().GetValue().(*gpb.TypedValue_UintVal)
+		if !ok {
+			continue
+		}
+		if r.banks[comp] == nil {
+			r.banks[comp] = make(map[string]*ftResourceBank)
+		}
+		b := r.banks[comp][res]
+		if b == nil {
+			b = &ftResourceBank{}
+			r.banks[comp][res] = b
+		}
+		switch elems[len(elems)-1].GetName() {
+		case "used":
+			b.used, b.usedPresent = v.UintVal, true
+		case "max-limit":
+			b.maxLimit, b.maxPresent = v.UintVal, true
+		case "used-threshold-upper":
+			b.upper, b.upperPresent = v.UintVal, true
+		case "used-threshold-upper-clear":
+			b.upperClear, b.clearPresent = v.UintVal, true
+		}
+	}
+}
+
+// lookupAllFTResourceBanks returns the resource banks reported through functional translator ft
+// for all components, keyed by component name and then by resource name, using a single
+// subscription. Banks received before a query error or timeout are still returned.
+func lookupAllFTResourceBanks(c *ygnmi.Client, ft ygnmi.FunctionalTranslator) map[string]map[string]*ftResourceBank {
+	rec := &recordingFT{FunctionalTranslator: ft, banks: make(map[string]map[string]*ftResourceBank)}
+	ctx, cancel := context.WithTimeout(context.Background(), fibQueryTimeout)
+	defer cancel()
+	_, _ = ygnmi.LookupAll(ctx, c, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().Used().State(), ygnmi.WithFT(rec))
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	return rec.banks
+}
+
+// queryICUtilizationBatched returns per-INTEGRATED_CIRCUIT hardware resource utilization using at
+// most two wildcard queries for all components: one for the native resource state and, when
+// ftName is set, one through that functional translator. It returns ok=false when neither query
+// returns data, so the caller can fall back to per-leaf lookups.
+func queryICUtilizationBatched(t *testing.T, dut *ondatra.DUTDevice, resourceName, ftName string) (map[string]*HardwareResourceUtilization, bool) {
+	t.Helper()
+	ics := findActiveICComponents(t, dut)
+	if len(ics) == 0 {
+		return nil, false
+	}
+	c, err := fibYGNMIClient(t, dut)
+	if err != nil {
+		return nil, false
+	}
+	lookupName := resourceName
+	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
+		lookupName += "/-"
+	}
+
+	// One native wildcard query for all INTEGRATED_CIRCUIT components.
+	native := make(map[string]map[string]*oc.Component_IntegratedCircuit_Utilization_Resource)
+	ctx, cancel := context.WithTimeout(context.Background(), fibQueryTimeout)
+	vals, err := ygnmi.LookupAll(ctx, c, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().State())
+	cancel()
+	if err == nil {
+		for _, v := range vals {
+			r, ok := v.Val()
+			if !ok || r == nil {
+				continue
+			}
+			ic := pathElemKey(v.Path.GetElem(), "component")
+			if ic == "" {
+				continue
+			}
+			if native[ic] == nil {
+				native[ic] = make(map[string]*oc.Component_IntegratedCircuit_Utilization_Resource)
+			}
+			native[ic][r.GetName()] = r
+		}
+	}
+
+	// One functional translator query for all components.
+	var ftBanks map[string]map[string]*ftResourceBank
+	if ftName != "" {
+		ft, ok := registrar.FunctionalTranslatorRegistry[ftName]
+		if !ok {
+			t.Fatalf("Functional translator %s is not registered", ftName)
+		}
+		start := time.Now()
+		ftBanks = lookupAllFTResourceBanks(c, ft)
+		t.Logf("Queried hardware resource utilization of %d components through functional translator %s in %v", len(ftBanks), ftName, time.Since(start).Round(time.Second))
+	}
+	if len(native) == 0 && len(ftBanks) == 0 {
+		return nil, false
+	}
+
+	results := make(map[string]*HardwareResourceUtilization, len(ics))
+	for _, ic := range ics {
+		var banks map[string]*ftResourceBank
+		ftRes := ""
+		if ftName != "" {
+			var ftComp string
+			ftRes, ftComp = ftCompatibleResourceAndComponent(lookupName, ic)
+			banks = ftBanks[ftComp]
+		}
+		if u := buildICUtilization(resourceName, lookupName, native[ic], ftRes, banks); u != nil {
+			results[ic] = u
+		}
+	}
+	return results, true
+}
+
+// buildICUtilization computes the utilization of resourceName on one INTEGRATED_CIRCUIT
+// component from its native resource state and its resource banks reported through a functional
+// translator (keyed by resource name; ftRes is the translator's name for resourceName). It
+// matches the per-leaf fallback in QueryHardwareFIBUtilization and returns nil when the component
+// reports no utilization.
+func buildICUtilization(resourceName, lookupName string, nativeRes map[string]*oc.Component_IntegratedCircuit_Utilization_Resource, ftRes string, banks map[string]*ftResourceBank) *HardwareResourceUtilization {
+	u := &HardwareResourceUtilization{Name: resourceName}
+	r := nativeRes[lookupName]
+	if r == nil {
+		r = nativeRes[resourceName]
+	}
+	if r != nil {
+		u = &HardwareResourceUtilization{
+			Name:                       r.GetName(),
+			Used:                       r.GetUsed(),
+			Free:                       r.GetFree(),
+			MaxLimit:                   r.GetMaxLimit(),
+			Committed:                  r.GetCommitted(),
+			CommittedPresent:           r.Committed != nil,
+			HighWatermark:              r.GetHighWatermark(),
+			HighWatermarkPresent:       r.HighWatermark != nil,
+			UsedThresholdUpper:         r.GetUsedThresholdUpper(),
+			UsedThresholdUpperClear:    r.GetUsedThresholdUpperClear(),
+			UsedThresholdUpperExceeded: r.GetUsedThresholdUpperExceeded(),
+		}
+	}
+
+	if len(banks) > 0 {
+		var totalUsed, totalMax uint64
+		for _, b := range banks {
+			totalUsed += b.used
+			totalMax += b.maxLimit
+		}
+		if b, ok := banks[ftRes]; ok {
+			if b.usedPresent {
+				u.Used = b.used
+			}
+			if b.clearPresent {
+				u.UsedThresholdUpperClear = uint8(b.upperClear)
+			}
+			if b.upperPresent {
+				u.UsedThresholdUpper = uint8(b.upper)
+			}
+			if b.maxPresent {
+				u.MaxLimit = b.maxLimit
+			}
+			u.Name = strings.ReplaceAll(ftRes, "-", "_")
+		}
+		// Aggregate across all hardware resource banks on this component when the single bank does
+		// not hold the prefix entries.
+		if totalUsed > u.Used && totalMax > 0 {
+			u.Used = totalUsed
+			u.MaxLimit = totalMax
+		}
+	}
+
+	if r == nil && u.Used == 0 && u.Free == 0 && u.MaxLimit == 0 {
+		return nil
+	}
+	if u.MaxLimit >= u.Used && u.MaxLimit > 0 {
+		u.Free = u.MaxLimit - u.Used
+	}
+	return u
 }
 
 // AwaitHardwareFIBUtilization watches [OC-Group-D] hardware FIB utilization state on each active
@@ -696,27 +948,36 @@ func ConfigureBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *g
 		setBGPNeighborRestartTime(t, dut, dni, cfg.NeighborIP, cfg.RestartTime)
 	}
 
+	// max-prefixes and warning-threshold-pct are sent together as one update of the prefix-limit
+	// config container. Some platforms (e.g. Cisco IOS XR, where both map to a single
+	// maximum-prefix setting) reject a per-leaf replace of warning-threshold-pct with
+	// "missing-element prefix-limit".
+	maxPrefixes, warningPct := ygot.Uint32(cfg.MaxPrefixes), ygot.Uint8(cfg.WarningThresholdPct)
 	if cfg.IsIPv4 {
 		afPath := nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast()
 		if deviations.BGPExplicitPrefixLimitReceived(dut) {
-			plPath := afPath.PrefixLimitReceived()
-			gnmi.BatchReplace(sb, plPath.MaxPrefixes().Config(), cfg.MaxPrefixes)
-			gnmi.BatchReplace(sb, plPath.WarningThresholdPct().Config(), cfg.WarningThresholdPct)
+			gnmi.BatchUpdate(sb, afPath.PrefixLimitReceived().Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimitReceived{
+				MaxPrefixes:         maxPrefixes,
+				WarningThresholdPct: warningPct,
+			})
 		} else {
-			plPath := afPath.PrefixLimit()
-			gnmi.BatchReplace(sb, plPath.MaxPrefixes().Config(), cfg.MaxPrefixes)
-			gnmi.BatchReplace(sb, plPath.WarningThresholdPct().Config(), cfg.WarningThresholdPct)
+			gnmi.BatchUpdate(sb, afPath.PrefixLimit().Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv4Unicast_PrefixLimit{
+				MaxPrefixes:         maxPrefixes,
+				WarningThresholdPct: warningPct,
+			})
 		}
 	} else {
 		afPath := nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast()
 		if deviations.BGPExplicitPrefixLimitReceived(dut) {
-			plPath := afPath.PrefixLimitReceived()
-			gnmi.BatchReplace(sb, plPath.MaxPrefixes().Config(), cfg.MaxPrefixes)
-			gnmi.BatchReplace(sb, plPath.WarningThresholdPct().Config(), cfg.WarningThresholdPct)
+			gnmi.BatchUpdate(sb, afPath.PrefixLimitReceived().Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv6Unicast_PrefixLimitReceived{
+				MaxPrefixes:         maxPrefixes,
+				WarningThresholdPct: warningPct,
+			})
 		} else {
-			plPath := afPath.PrefixLimit()
-			gnmi.BatchReplace(sb, plPath.MaxPrefixes().Config(), cfg.MaxPrefixes)
-			gnmi.BatchReplace(sb, plPath.WarningThresholdPct().Config(), cfg.WarningThresholdPct)
+			gnmi.BatchUpdate(sb, afPath.PrefixLimit().Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Ipv6Unicast_PrefixLimit{
+				MaxPrefixes:         maxPrefixes,
+				WarningThresholdPct: warningPct,
+			})
 		}
 	}
 }

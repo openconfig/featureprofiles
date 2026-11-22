@@ -59,6 +59,14 @@ func getYGNMIClient(t testing.TB, dut *ondatra.DUTDevice) (*ygnmi.Client, error)
 	return c, nil
 }
 
+// YGNMIClient returns a ygnmi client for dut that is created once per DUT and then reused.
+// Reusing one client avoids opening a new gNMI connection (and, with direct dial, a new mTLS
+// handshake on the DUT's telemetry front-end) for every query.
+func YGNMIClient(t testing.TB, dut *ondatra.DUTDevice) (*ygnmi.Client, error) {
+	t.Helper()
+	return getYGNMIClient(t, dut)
+}
+
 // ProcessSample holds a point-in-time snapshot of a user-space system process's
 // identity, uptime, memory, and CPU telemetry from [OC-Group-A] (/system/processes/process/state).
 type ProcessSample struct {
@@ -151,13 +159,22 @@ type ProcessSampleStream struct {
 	cancel         context.CancelFunc
 	interval       time.Duration
 	lastSampleTime time.Time
+	// streaming is true while the single long-lived background SAMPLE subscription is open.
+	streaming bool
 }
 
-// NewProcessSampleStream initializes a ProcessSampleStream for periodic SAMPLE mode collection
-// on /system/processes/process/state at the given interval and registers cleanup on t.
-func NewProcessSampleStream(t testing.TB, _ *ondatra.DUTDevice, interval time.Duration) *ProcessSampleStream {
+// NewProcessSampleStream opens one long-lived wildcard SAMPLE subscription on
+// /system/processes/process/state at the given interval and registers cleanup on t. Keeping a
+// single subscription open (instead of opening a new one for every wait) minimizes gNMI stream
+// churn on the DUT's telemetry front-end, which would otherwise be measured as part of the
+// process memory being validated. If the subscription cannot be opened or ends early, the
+// Await methods fall back to short-lived SAMPLE subscriptions.
+func NewProcessSampleStream(t testing.TB, dut *ondatra.DUTDevice, interval time.Duration) *ProcessSampleStream {
 	t.Helper()
-	_, cancel := context.WithCancel(context.Background())
+	if interval <= 0 {
+		interval = 60 * time.Second
+	}
+	ctx, cancel := context.WithCancel(context.Background())
 	s := &ProcessSampleStream{
 		samples:        make(map[uint64]ProcessSample),
 		cancel:         cancel,
@@ -165,7 +182,69 @@ func NewProcessSampleStream(t testing.TB, _ *ondatra.DUTDevice, interval time.Du
 		lastSampleTime: time.Now(),
 	}
 	t.Cleanup(s.Close)
+	if dut == nil {
+		return s
+	}
+	c, err := getYGNMIClient(t, dut)
+	if err != nil {
+		t.Logf("ProcessSampleStream: cannot create gNMI client (%v); using short-lived SAMPLE subscriptions", err)
+		return s
+	}
+	s.streaming = true
+	go func() {
+		_, err := ygnmi.WatchAll(ctx, c, gnmi.OC().System().ProcessAny().State(), func(v *ygnmi.Value[*oc.System_Process]) error {
+			if proc, ok := v.Val(); ok {
+				s.record(proc)
+			}
+			return ygnmi.Continue
+		},
+			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+			ygnmi.WithSampleInterval(interval),
+		).Await()
+		s.mu.Lock()
+		s.streaming = false
+		s.mu.Unlock()
+		if ctx.Err() == nil {
+			t.Logf("ProcessSampleStream: background SAMPLE subscription ended (%v); using short-lived SAMPLE subscriptions", err)
+		}
+	}()
 	return s
+}
+
+// record stores a user-space process sample received from a SAMPLE update.
+func (s *ProcessSampleStream) record(proc *oc.System_Process) {
+	if proc == nil || proc.GetMemoryUsage() == 0 || isTransientHelperProcess(proc.GetName()) {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pid := proc.GetPid()
+	s.samples[pid] = ProcessSample{
+		PID:               pid,
+		Name:              proc.GetName(),
+		StartTime:         proc.GetStartTime(),
+		StartTimePresent:  proc.StartTime != nil && proc.GetStartTime() > 0,
+		MemoryUsage:       proc.GetMemoryUsage(),
+		MemoryUtilization: proc.GetMemoryUtilization(),
+		CPUUtilization:    proc.GetCpuUtilization(),
+	}
+}
+
+// isStreaming reports whether the long-lived background SAMPLE subscription is open.
+func (s *ProcessSampleStream) isStreaming() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.streaming
+}
+
+// waitFor blocks for d while the background SAMPLE subscription keeps updating samples.
+func waitFor(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	<-timer.C
 }
 
 // Snapshot returns the current user-space process telemetry map by merging the latest
@@ -204,28 +283,11 @@ func (s *ProcessSampleStream) AwaitNextSample(t testing.TB, dut *ondatra.DUTDevi
 	s.mu.Unlock()
 
 	if rem := time.Until(targetTime); rem > 0 {
-		start := time.Now()
-		sampleOpts := dut.GNMIOpts().WithYGNMIOpts(
-			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-			ygnmi.WithSampleInterval(waitDur),
-		)
-		_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().System().ProcessAny().State(), rem, func(v *ygnmi.Value[*oc.System_Process]) bool {
-			if proc, ok := v.Val(); ok && proc != nil && proc.GetMemoryUsage() > 0 && !isTransientHelperProcess(proc.GetName()) {
-				s.mu.Lock()
-				pid := proc.GetPid()
-				s.samples[pid] = ProcessSample{
-					PID:               pid,
-					Name:              proc.GetName(),
-					StartTime:         proc.GetStartTime(),
-					StartTimePresent:  proc.StartTime != nil && proc.GetStartTime() > 0,
-					MemoryUsage:       proc.GetMemoryUsage(),
-					MemoryUtilization: proc.GetMemoryUtilization(),
-					CPUUtilization:    proc.GetCpuUtilization(),
-				}
-				s.mu.Unlock()
-			}
-			return time.Since(start) >= rem
-		}).Await(t)
+		if s.isStreaming() {
+			waitFor(rem)
+		} else {
+			s.watchSlice(t, dut, rem, waitDur)
+		}
 	}
 
 	s.mu.Lock()
@@ -238,8 +300,10 @@ func (s *ProcessSampleStream) AwaitNextSample(t testing.TB, dut *ondatra.DUTDevi
 	return s.Snapshot(t, dut)
 }
 
-// AwaitHoldWindow maintains periodic [OC-Group-A] and [OC-Group-B] sampling across the given
-// holdDuration using gnmi.WatchAll in SAMPLE mode without raw time.Sleep calls.
+// AwaitHoldWindow keeps [OC-Group-A] sampling active across the given holdDuration. While the
+// long-lived background SAMPLE subscription is open it simply waits (samples keep arriving on
+// that subscription); otherwise it falls back to short-lived SAMPLE subscriptions, one per
+// sampling interval. It does not use time.Sleep.
 func (s *ProcessSampleStream) AwaitHoldWindow(t *testing.T, dut *ondatra.DUTDevice, holdDuration time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(holdDuration)
@@ -252,29 +316,37 @@ func (s *ProcessSampleStream) AwaitHoldWindow(t *testing.T, dut *ondatra.DUTDevi
 		if s.interval > 0 && sliceDur > s.interval {
 			sliceDur = s.interval
 		}
-		sliceStart := time.Now()
-		sampleOpts := dut.GNMIOpts().WithYGNMIOpts(
-			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-			ygnmi.WithSampleInterval(sliceDur),
-		)
-		_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().System().ProcessAny().State(), sliceDur, func(v *ygnmi.Value[*oc.System_Process]) bool {
-			if proc, ok := v.Val(); ok && proc != nil && proc.GetMemoryUsage() > 0 && !isTransientHelperProcess(proc.GetName()) {
-				s.mu.Lock()
-				pid := proc.GetPid()
-				s.samples[pid] = ProcessSample{
-					PID:               pid,
-					Name:              proc.GetName(),
-					StartTime:         proc.GetStartTime(),
-					StartTimePresent:  proc.StartTime != nil && proc.GetStartTime() > 0,
-					MemoryUsage:       proc.GetMemoryUsage(),
-					MemoryUtilization: proc.GetMemoryUtilization(),
-					CPUUtilization:    proc.GetCpuUtilization(),
-				}
-				s.mu.Unlock()
-			}
-			return time.Since(sliceStart) >= sliceDur
-		}).Await(t)
+		if s.isStreaming() {
+			waitFor(sliceDur)
+			continue
+		}
+		s.watchSlice(t, dut, sliceDur, s.interval)
 	}
+}
+
+// watchSlice opens a short-lived wildcard SAMPLE subscription on
+// /system/processes/process/state for d and records the updates. It is used only when the
+// long-lived background subscription is not available.
+func (s *ProcessSampleStream) watchSlice(t testing.TB, dut *ondatra.DUTDevice, d, interval time.Duration) {
+	t.Helper()
+	// Request a whole-second sample interval rather than the (possibly fractional) remaining
+	// duration: some devices reject arbitrary SAMPLE frequencies. The first SAMPLE update is sent
+	// immediately on subscription, and the watch still ends after d.
+	sampleInterval := interval
+	if sampleInterval <= 0 {
+		sampleInterval = max(d.Round(time.Second), time.Second)
+	}
+	start := time.Now()
+	sampleOpts := dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(sampleInterval),
+	)
+	_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().System().ProcessAny().State(), d, func(v *ygnmi.Value[*oc.System_Process]) bool {
+		if proc, ok := v.Val(); ok {
+			s.record(proc)
+		}
+		return time.Since(start) >= d
+	}).Await(t)
 }
 
 // Close cancels the underlying gNMI SAMPLE subscription.
@@ -826,9 +898,11 @@ func AwaitNextHopGroupMembers(t testing.TB, dut *ondatra.DUTDevice, dni string, 
 // first subscription. It returns false if both subscriptions are rejected before waitDur elapses.
 func awaitSampleInterval(c *ygnmi.Client, waitDur time.Duration) bool {
 	start := time.Now()
+	// Use a whole-second SAMPLE interval: some devices reject arbitrary SAMPLE frequencies. The
+	// wait itself is bounded by the context deadline below.
 	opts := []ygnmi.Option{
 		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-		ygnmi.WithSampleInterval(waitDur),
+		ygnmi.WithSampleInterval(max(waitDur.Round(time.Second), time.Second)),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), waitDur)
 	_, _ = ygnmi.Watch(ctx, c, gnmi.OC().System().CurrentDatetime().State(), func(*ygnmi.Value[string]) error {
