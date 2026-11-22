@@ -90,14 +90,17 @@ organized into five distinct, cross-referenced sections:
     neighbors (`WaitForARP`), and use `gnmi.Watch` (`ON_CHANGE`) on
     `[OC-Group-C]` to confirm `port1` and `port2` are `UP` and all six eBGP
     sessions (`Peer 1`–`Peer 3`, IPv4 and IPv6) are `ESTABLISHED`.
-  * **Warm-up**: Before capturing the `Health-1.3.1` baseline, advertise and
-    withdraw `Churn-Routes` on `Peer 1`–`Peer 3` for `3` cycles (waiting for
-    `prefixes/installed` to reach `10,250` and then return to `250` per family
-    in each cycle), then allow one `60s` `[OC-Group-A]` `SAMPLE` interval to
-    elapse. This keeps one-time growth from on-box agents restarted during
-    setup (for example, the gNMI/telemetry agent) out of the baseline and the
-    `Health-1.3.3` reclamation trend. Memory that keeps growing after warm-up
-    is still reported by `Health-1.3.3`.
+  * **Warm-up**: Before capturing the `Health-1.3.1` baseline, run `1`
+    advertise/withdraw cycle of `Churn-Routes` on `Peer 1`–`Peer 3`: in each
+    phase, wait for `prefixes/installed` to reach `10,250` (advertise) or
+    `250` (withdraw) per family and hold for `90` seconds, as in
+    `Health-1.3.3`. Then allow one `60s` `[OC-Group-A]` `SAMPLE` interval to
+    elapse. This lets daemons that grow while they first learn and program
+    `Churn-Routes` (for example, the routing daemon or an on-box
+    gNMI/telemetry agent restarted during setup) settle, keeping that
+    one-time growth out of the baseline and the `Health-1.3.3` reclamation
+    trend. Memory that keeps growing after warm-up is still reported by
+    `Health-1.3.3`.
 
 ---
 
