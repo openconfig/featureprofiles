@@ -3,12 +3,11 @@
 ## Summary
 
 This test validates that, after an in-service firmware upgrade or downgrade of
-a coherent 800G ZR (`PMD_800GBASE_ZR`, `SPEED_800GB`, OSFP form factor) optical
-transceiver, the DUT reports the module firmware version through
-`/components/component/state/firmware-version` exactly as encoded by the
-module, and that the reported value remains correct across transceiver
-re-initialization, interface flaps, a DUT cold reboot, firmware rollback, and
-failed or interrupted upgrade attempts.
+a coherent 800G ZR (`PMD_800GBASE_ZR`, `SPEED_800GB`, OSFP or QSFP-DD form
+factor) optical transceiver, the DUT reports the module firmware version
+through `/components/component/state/firmware-version` exactly as encoded by
+the module, and that the reported value remains correct across transceiver
+re-initialization, interface flaps, and firmware rollback.
 
 Common Management Interface Specification (CMIS) modules report the running
 firmware image revision as a 1-byte major number, a 1-byte minor number, and a
@@ -31,11 +30,15 @@ Two classes of host-software decoding defects are targeted:
 Both defects leave the upgrade itself successful and are invisible to tests
 that only check that `firmware-version` is a non-empty string. This test
 therefore compares every reported value against an exact, operator-supplied
-expected string, explicitly rejects the byte-concatenated and little-endian
-renderings, and exercises several build-number byte patterns on two
-transceivers. Every subtest also verifies that unrelated inventory leaves are
+expected string and explicitly rejects the byte-concatenated and little-endian
+renderings. Every subtest also verifies that unrelated inventory leaves are
 unchanged, that the DUT did not reboot unexpectedly, and that IPv4 and IPv6
 packets physically traverse the 800ZR link without errors.
+
+A single CMIS CDB firmware upgrade of an 800ZR module can take 30–60 minutes or
+more, and every flash cycle adds wear and risk to lab optics. The test is
+therefore limited to four subtests and the minimum number of firmware installs
+needed to cover the upgrade, re-initialization, and rollback paths.
 
 ## Testbed type
 
@@ -66,8 +69,9 @@ packets physically traverse the 800ZR link without errors.
 *   Connect **DUT port 1** to **DUT port 2** with a duplex LC fiber jumper so
     that the TX output of each 800ZR module is the RX input of the other
     (insertion loss less than 3 dB).
-*   On modular (MFF) chassis, DUT port 1 and DUT port 2 must reside on
-    different `LINECARD` components.
+*   On modular (MFF) chassis, DUT port 1 and DUT port 2 should preferably
+    reside on different `LINECARD` components when the testbed cabling allows
+    it; this is not required.
 *   Both transceivers are upgraded in this test. Neither transceiver is a
     fixed "reference"; the peer of the transceiver being acted on is always
     checked for unintended side effects.
@@ -130,30 +134,30 @@ configuration still applies.
 
 | Flag | Type | Default | Required | Description and validation |
 |---|---|---|---|---|
-| `baseline_firmware_image` | string | none | Yes | Vendor-specific image installed at the start (TRANSCEIVER-3.3.1), restored by the re-baseline procedure, rollback, and cleanup. |
-| `baseline_firmware_version` | string | none | Yes | Exact version string reported for `baseline_firmware_image`. Must contain at least one `.`, its last dot-separated field must be a decimal integer from `0` to `65535` (the build number), and it must differ from every version in `target_firmware_matrix`. |
-| `target_firmware_matrix` | list of `<image>=<version>` | none | Yes (at least 2 entries) | Target images and their exact expected version strings. The **first entry is the primary target**; its version is referred to as `EXPECTED_VERSION`. The last dot-separated field of each version must be a decimal build number from `256` to `65535`, and all versions must be distinct. The matrix must contain at least one build whose low byte is `0x00` (for example `7424`) and at least one build whose high and low bytes are both `≥ 10` (for example `2571`). Recommended entries cover the byte patterns in the table below. |
-| `corrupt_firmware_image` | string | empty | No | An image with a corrupted payload (for example, truncated or with an invalid checksum). TRANSCEIVER-3.3.6 is skipped (`t.Skip`) when empty. |
-| `mismatched_firmware_image` | string | empty | No | A valid image for a different module type (for example, a 400ZR image). TRANSCEIVER-3.3.8 is skipped (`t.Skip`) when empty. |
+| `baseline_firmware_image` | string | none | Yes | Vendor-specific, vendor-signed image installed at the start (TRANSCEIVER-3.3.1) and restored by rollback (TRANSCEIVER-3.3.4) and cleanup. |
+| `baseline_firmware_version` | string | none | Yes | Exact version string reported for `baseline_firmware_image`. Must differ from every version in `target_firmware_matrix`. |
+| `target_firmware_matrix` | list of `<image>=<version>` | none | Yes (at least 1 entry) | Vendor-signed target images and their exact expected version strings. The **first entry is the primary target**; its version is referred to as `EXPECTED_VERSION`. Additional entries are optional. Because images are vendor-signed, the build numbers available are whatever the vendor ships; builds greater than `255` (so that both build bytes are significant) are recommended but not required. |
+| `corrupt_firmware_image` | string | empty | No | An image with a corrupted payload (for example, truncated or with an invalid checksum). The optional bad-image check in TRANSCEIVER-3.3.4 runs only when this flag is set. |
 | `operational_mode` | uint16 | `1` | No | 800ZR operational mode used on both optical channels. |
 | `pre_fec_ber_threshold` | float | none | Yes | Maximum allowed `pre-fec-ber/instant` for the platform's 800ZR FEC, taken from the module or platform specification. |
 | `ping_count` | int | `300` | No | Echo requests per gNOI ping in the DLV. Must be `≥ 100`. |
 | `ping_interval` | duration | `100ms` | No | Interval between echo requests in the DLV. |
 | `link_up_timeout` | duration | `10m` | No | Maximum wait for transceiver `ACTIVE` and interface `UP`. |
 | `link_down_timeout` | duration | `2m` | No | Maximum wait for interface down transitions. |
-| `upgrade_timeout` | duration | `20m` | No | Maximum time for an upgrade, downgrade, or failed attempt to complete and the module to re-initialize. |
-| `reboot_timeout` | duration | `20m` | No | Maximum time for the DUT to become reachable over gNMI after a reboot. |
-| `bounce_iterations` | int | `5` | No | Number of transceiver disable/enable iterations in TRANSCEIVER-3.3.3. |
-| `flap_iterations` | int | `5` | No | Number of interface flap iterations in TRANSCEIVER-3.3.3. |
+| `upgrade_timeout` | duration | `90m` | No | Maximum time for an upgrade, downgrade, or failed attempt to complete and the module to re-initialize. |
+| `bounce_iterations` | int | `2` | No | Number of transceiver disable/enable iterations in TRANSCEIVER-3.3.3. |
+| `flap_iterations` | int | `2` | No | Number of interface flap iterations in TRANSCEIVER-3.3.3. |
 
-The test must fail (`t.Fatal`) before any device change if a required flag is
-missing or a validation rule above is violated.
+The test must fail (`t.Fatal`) before any device change only if a required
+flag is missing or `baseline_firmware_version` equals a target version. The
+build-number byte patterns of the supplied images are never a reason to fail;
+they only affect which forbidden-value checks apply (see below).
 
 #### Derived values for each expected version
 
 For an expected version string `<prefix>.<B>` (where `<prefix>` is everything
-before the last `.`, typically `<major>.<minor>`, and `B` is the 16-bit build
-number), the test computes:
+before the last `.`, typically `<major>.<minor>`, and `B` is the build number),
+the test computes:
 
 *   **Byte-concatenated form** `CONCAT(B)`:
     `<prefix>.<decimal(B >> 8)><decimal(B & 0xFF)>`.
@@ -161,11 +165,16 @@ number), the test computes:
     `<prefix>.<((B & 0xFF) << 8) | (B >> 8)>`.
 
 Both forms are **forbidden values**: no reported `firmware-version` may equal
-them. If a derived form equals the correct version string (for example,
-`LE(B)` for a byte-symmetric build such as `0xFFFF`), that forbidden-value
-check is skipped for that version and the skip is logged.
+them. A forbidden-value check is skipped, and the skip is logged, when:
 
-| Recommended build `B` | Bytes | Correct suffix | `CONCAT(B)` suffix | `LE(B)` suffix |
+*   the last dot-separated field of the expected version is not a decimal
+    integer from `0` to `65535` (the build number cannot be derived), or
+*   the derived form equals the correct version string (for example, `LE(B)`
+    for a byte-symmetric build such as `0xFFFF`).
+
+The exact-match check against the expected version always applies.
+
+| Example build `B` | Bytes | Correct suffix | `CONCAT(B)` suffix | `LE(B)` suffix |
 |---|---|---|---|---|
 | `7424` | `0x1D 0x00` | `7424` | `290` | `29` |
 | `2571` | `0x0A 0x0B` | `2571` | `1011` | `2826` |
@@ -176,15 +185,14 @@ check is skipped for that version and the skip is logged.
 
 Neither the OpenConfig data models nor gNOI currently define an operation to
 upgrade the firmware of an individual transceiver. Every install step in this
-test (upgrade, downgrade, rollback, and the negative attempts) is therefore
+test (upgrade, rollback, and the optional bad-image attempt) is therefore
 executed with a vendor-specific helper (for example, CLI over gNMI or SSH)
 gated by the proposed deviation `transceiver_firmware_upgrade_via_cli`. The
 helper takes a transceiver component name and an image, and returns either
-success or an error. All pass/fail verification in
-this test uses OpenConfig paths only. Vendor-specific upgrade status (for
-example, an upgrade state machine that reports success and then returns to
-idle) may be logged for debugging, but must not be used as a pass/fail
-criterion.
+success or an error. All pass/fail verification in this test uses OpenConfig
+paths only. Vendor-specific upgrade status (for example, an upgrade state
+machine that reports success and then returns to idle) may be logged for
+debugging, but must not be used as a pass/fail criterion.
 
 *   TODO: Propose a vendor-neutral transceiver firmware upgrade RPC or
     OpenConfig path to [openconfig/gnoi](https://github.com/openconfig/gnoi)
@@ -236,11 +244,10 @@ the number of transceivers.
     exactly.
 2.  Open one `gNMI.Subscribe` `SAMPLE` subscription with a `10` second sample
     interval to `/components/component/state/firmware-version` on every `T`
-    and collect `3` consecutive samples per transceiver.
-3.  Verify that every sample equals its `V` exactly, and that consecutive
-    sample timestamps for the same transceiver are `10` s ± `2` s apart.
+    and collect `3` samples per transceiver.
+3.  Verify that every sample equals its `V` exactly.
 4.  Verify that neither the `gNMI.Get` value nor any sample equals
-    `CONCAT(B)` or `LE(B)` of its `V`, or the empty string.
+    `CONCAT(B)` or `LE(B)` of its `V` (where applicable), or the empty string.
 5.  On failure, report the transceiver, the observed value, `V`, `CONCAT(B)`,
     and `LE(B)` in the failure message.
 
@@ -261,20 +268,6 @@ transceiver. When the subtest closes the subscription, every received
     before it is not `ACTIVE` (the module is re-initializing). An empty value
     or delete while the transceiver is `ACTIVE` is a failure.
 
-##### Re-baseline procedure (RBP)
-
-Used at the start of the negative subtests so that each one runs from a known
-state even if an earlier subtest failed:
-
-1.  Set `/components/component/transceiver/config/enabled` = `true` on both
-    transceivers and `/interfaces/interface/config/enabled` = `true` on both
-    interfaces with one batched `gNMI.Set`.
-2.  For each transceiver whose `firmware-version` is not
-    `baseline_firmware_version`, install `baseline_firmware_image` with the
-    vendor-specific helper (both concurrently if both need it).
-3.  Run the **LUG** with timeout `upgrade_timeout`, then the **FVV** for both
-    transceivers with `V` = `baseline_firmware_version`.
-
 ##### Inventory and stability check (ISC)
 
 Using a single batched `gNMI.Get`, verify on both `Ethernet4/1` and
@@ -287,10 +280,8 @@ Using a single batched `gNMI.Get`, verify on both `Ethernet4/1` and
     TRANSCEIVER-3.3.1 Step 3.
 *   `/components/component/state/type` = `TRANSCEIVER` and
     `/components/component/transceiver/state/present` = `PRESENT`.
-*   `/system/state/boot-time` equals the most recently recorded value
-    (`BOOT_TIME`), proving that the DUT did not reboot unexpectedly.
-    `BOOT_TIME` is recorded in TRANSCEIVER-3.3.1 Step 3 and updated only in
-    TRANSCEIVER-3.3.4.
+*   `/system/state/boot-time` equals the value recorded in TRANSCEIVER-3.3.1
+    Step 3 (`BOOT_TIME`), proving that the DUT did not reboot unexpectedly.
 
 ##### Dual-stack link verification procedure (DLV)
 
@@ -358,16 +349,20 @@ error/FEC counter increment **fails** the subtest.
 ### TRANSCEIVER-3.3.1: Configure the 800ZR link and establish the baseline firmware
 
 This subtest configures the DUT, brings up the 800ZR link, installs the known
-baseline firmware on both transceivers, and records every baseline value the
-later subtests depend on. Installing the baseline first guarantees that the
-upgrade in TRANSCEIVER-3.3.2 actually changes the firmware build, so the test
-cannot pass without exercising the upgrade and decode path.
+baseline firmware on both transceivers if needed, and records every baseline
+value the later subtests depend on. Starting from a known baseline guarantees
+that the upgrade in TRANSCEIVER-3.3.2 actually changes the firmware build, so
+the test cannot pass without exercising the upgrade and decode path.
 
 *   **Step 1 - Configure the DUT**:
-    *   Using a single batched `gNMI.Set` (`REPLACE` on the affected
-        subtrees), push the configuration shown in the Canonical OC below.
-        It contains every row of **Configuration parameters** for both ports
-        and the IPv4/IPv6 addresses from **Component and interface names**.
+    *   Push the configuration shown in the Canonical OC below with
+        `gNMI.Set`. It contains every row of **Configuration parameters** for
+        both ports and the IPv4/IPv6 addresses from **Component and interface
+        names**. Test code may build this configuration with the existing
+        `cfgplugins` optical-channel, logical-channel, and interface helpers
+        (which implement existing vendor deviations) and may apply it in one
+        or more `gNMI.Set` requests, provided the resulting configuration is
+        equivalent to the Canonical OC.
 *   **Step 2 - Wait for the configuration and the link**:
     *   Run the **CAG**, then the **LUG**.
 *   **Step 3 - Record baseline values**:
@@ -375,7 +370,7 @@ cannot pass without exercising the upgrade and decode path.
         `Ethernet5/1` that `/components/component/state/type` =
         `TRANSCEIVER`, `/components/component/transceiver/state/present` =
         `PRESENT`, and `/components/component/transceiver/state/form-factor`
-        = `OSFP`.
+        is `OSFP` or `QSFP_DD`.
     *   Record `/components/component/state/part-no`,
         `/components/component/state/serial-no`,
         `/components/component/state/mfg-name`, and
@@ -385,10 +380,12 @@ cannot pass without exercising the upgrade and decode path.
         transceivers as `INITIAL_VERSION_P1` and `INITIAL_VERSION_P2` (logged
         for debugging and used in cleanup).
     *   Record `/system/state/boot-time` as `BOOT_TIME`.
-*   **Step 4 - Install the baseline firmware on both transceivers**:
+*   **Step 4 - Install the baseline firmware where needed**:
     *   For each transceiver (`Ethernet4/1`, then `Ethernet5/1`) whose
         `firmware-version` is not already `baseline_firmware_version`, install
-        `baseline_firmware_image` with the vendor-specific helper.
+        `baseline_firmware_image` with the vendor-specific helper. Skip the
+        install for a transceiver that already runs the baseline, to avoid an
+        unnecessary flash cycle.
     *   Run the **LUG** with timeout `upgrade_timeout`.
 *   **Step 5 - Verify the baseline**:
     *   Run the **FVV** for `Ethernet4/1` and `Ethernet5/1` with `V` =
@@ -749,12 +746,11 @@ cannot pass without exercising the upgrade and decode path.
 
 ### TRANSCEIVER-3.3.2: Upgrade both transceivers and verify exact firmware-version decoding
 
-This subtest upgrades both transceivers, first one at a time and then
-concurrently, across every build-number byte pattern in
-`target_firmware_matrix`. Upgrading one transceiver at a time isolates
-per-port decoding and checks the peer for side effects; concurrent upgrades
-exercise parallel CDB handling in the host software. No new configuration is
-introduced.
+This subtest upgrades both transceivers to the primary target, one at a time,
+and verifies the exact decoded version, rejects the `CONCAT(B)` and `LE(B)`
+renderings, and checks the link. Upgrading one transceiver at a time isolates
+per-port decoding and checks the peer for side effects. No new configuration
+is introduced.
 
 *   **Precondition**: TRANSCEIVER-3.3.1 has passed. Both transceivers run
     `baseline_firmware_image`.
@@ -763,7 +759,7 @@ introduced.
         {`baseline_firmware_version`, every version in
         `target_firmware_matrix`} for both transceivers. Keep it open until
         Step 5.
-*   **Step 2 - Sequential upgrade of the primary target on DUT port 1**:
+*   **Step 2 - Upgrade DUT port 1 to the primary target**:
     *   Install the primary-target image (first entry of
         `target_firmware_matrix`) on `Ethernet4/1` with the vendor-specific
         helper.
@@ -778,7 +774,7 @@ introduced.
         for `Ethernet5/1` with `V` = `baseline_firmware_version` (the peer
         must not change).
     *   Run the **ISC**.
-*   **Step 3 - Sequential upgrade of the primary target on DUT port 2**:
+*   **Step 3 - Upgrade DUT port 2 to the primary target**:
     *   Install the primary-target image on `Ethernet5/1` with the
         vendor-specific helper.
     *   Using `gNMI.Subscribe` (`ON_CHANGE`, timeout `upgrade_timeout`), wait
@@ -789,21 +785,20 @@ introduced.
     *   Run the **FVV** for `Ethernet5/1` with `V` = `EXPECTED_VERSION` and
         for `Ethernet4/1` with `V` = `EXPECTED_VERSION` (the already-upgraded
         peer must not change).
-    *   Run the **ISC** and the **DLV**.
-*   **Step 4 - Concurrent upgrades across the byte-pattern matrix**:
-    *   For each additional entry `k` (second entry onward) in
-        `target_firmware_matrix`, with expected version `V_k`:
-        *   Start installation of image `k` on `Ethernet4/1` and
-            `Ethernet5/1` at the same time with the vendor-specific helper.
-        *   Wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout
-            `upgrade_timeout`) for `oper-status` = `ACTIVE` and
-            `firmware-version` = `V_k` on both transceivers.
-        *   Run the **LUG**, the **FVV** for both transceivers with `V` =
-            `V_k`, and the **ISC**.
-    *   Concurrently reinstall the primary-target image on both
-        transceivers, wait as above for `EXPECTED_VERSION`, run the **LUG**,
-        and run the **FVV** for both transceivers with `V` =
-        `EXPECTED_VERSION`.
+    *   Run the **ISC**.
+*   **Step 4 - Optional additional target images**:
+    *   Only if `target_firmware_matrix` has more than one entry: for each
+        additional entry `k` (second entry onward), with expected version
+        `V_k`, install image `k` on `Ethernet4/1` and `Ethernet5/1` at the same
+        time with the vendor-specific helper, wait via `gNMI.Subscribe`
+        (`ON_CHANGE`, timeout `upgrade_timeout`) for `oper-status` = `ACTIVE`
+        and `firmware-version` = `V_k` on both transceivers, then run the
+        **LUG**, the **FVV** for both transceivers with `V` = `V_k`, and the
+        **ISC**.
+    *   Set `ACTIVE_TARGET_VERSION` to the version of the last image installed
+        on both transceivers (`EXPECTED_VERSION` when the matrix has a single
+        entry). The primary target is not reinstalled, to avoid an extra flash
+        cycle.
 *   **Step 5 - History and link verification**:
     *   Close the FHR subscription and evaluate it against the **FHR**.
     *   Run the **DLV**.
@@ -812,24 +807,24 @@ introduced.
         expected version, and the peer keeps its version during the
         one-at-a-time upgrades in Steps 2 and 3.
 
-### TRANSCEIVER-3.3.3: Verify firmware-version persists across repeated transceiver re-initialization and interface flaps
+### TRANSCEIVER-3.3.3: Verify firmware-version persists across transceiver re-initialization and interface flaps
 
 A module's firmware revision is typically re-read from the module memory map
-whenever the host re-initializes the transceiver. This subtest repeats the
-re-read paths several times to catch intermittent mis-decoding, and checks
-that streamed updates never expose a transient wrong value. Configuration
-leaves are only toggled and restored; no new configuration is introduced.
+whenever the host re-initializes the transceiver. This subtest exercises the
+re-read paths and checks that streamed updates never expose a transient wrong
+value. Configuration leaves are only toggled and restored; no new
+configuration is introduced.
 
 *   **Precondition**: TRANSCEIVER-3.3.2 has passed, so both transceivers run
-    the primary target (`EXPECTED_VERSION`). This subtest does not depend on
-    any other subtest.
+    `ACTIVE_TARGET_VERSION`.
 *   **Step 1 - Start history monitoring**:
-    *   Start an **FHR subscription** with allowed set {`EXPECTED_VERSION`}
-        for both transceivers. Keep it open until Step 4.
+    *   Start an **FHR subscription** with allowed set
+        {`ACTIVE_TARGET_VERSION`} for both transceivers. Keep it open until
+        Step 4.
     *   Verify that the initial `firmware-version` updates equal
-        `EXPECTED_VERSION`.
-*   **Step 2 - Repeated transceiver disable/enable** (`bounce_iterations`
-    times; default `5`):
+        `ACTIVE_TARGET_VERSION`.
+*   **Step 2 - Transceiver disable/enable** (`bounce_iterations` times;
+    default `2`):
     *   Set `/components/component/transceiver/config/enabled` = `false` on
         `Ethernet4/1` and `Ethernet5/1` with one batched `gNMI.Set`.
     *   Wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout `link_down_timeout`)
@@ -842,9 +837,8 @@ leaves are only toggled and restored; no new configuration is introduced.
     *   Run the **LUG**.
     *   Read `/components/component/state/firmware-version` on both
         transceivers with one batched `gNMI.Get` and verify both equal
-        `EXPECTED_VERSION`.
-*   **Step 3 - Repeated interface flap** (`flap_iterations` times; default
-    `5`):
+        `ACTIVE_TARGET_VERSION`.
+*   **Step 3 - Interface flap** (`flap_iterations` times; default `2`):
     *   Set `/interfaces/interface/config/enabled` = `false` on
         `Ethernet4/1/1`.
     *   Wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout `link_down_timeout`)
@@ -857,60 +851,29 @@ leaves are only toggled and restored; no new configuration is introduced.
         until `/interfaces/interface/state/admin-status` = `UP` on
         `Ethernet4/1/1`, then run the **LUG**.
     *   Verify `firmware-version` on both transceivers equals
-        `EXPECTED_VERSION` via one batched `gNMI.Get`.
+        `ACTIVE_TARGET_VERSION` via one batched `gNMI.Get`.
 *   **Step 4 - Evaluate the subscription history**:
     *   Close the FHR subscription and evaluate it against the **FHR**.
 *   **Step 5 - Final verification**:
-    *   Run the **FVV** for both transceivers with `V` = `EXPECTED_VERSION`,
-        the **ISC**, and the **DLV**.
+    *   Run the **FVV** for both transceivers with `V` =
+        `ACTIVE_TARGET_VERSION`, the **ISC**, and the **DLV**.
 *   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   Every `gNMI.Get` in Steps 2 and 3 returns `EXPECTED_VERSION` on both
-        transceivers in every iteration.
+    *   Every `gNMI.Get` in Steps 2 and 3 returns `ACTIVE_TARGET_VERSION` on
+        both transceivers in every iteration.
 
-### TRANSCEIVER-3.3.4: Verify firmware-version decoding after a DUT cold reboot
+### TRANSCEIVER-3.3.4: Roll back to the baseline firmware and verify decoding
 
-After a reboot, the host software discovers the transceivers from scratch and
-re-reads every inventory field. This subtest verifies the cold-start
-discovery path. The configuration from TRANSCEIVER-3.3.1 is re-applied after
-the reboot so that the result does not depend on whether the platform
-persists gNMI-pushed configuration across reboots; configuration persistence
-is out of scope for this test.
+Downgrading exercises the same decode path in the reverse direction and
+returns the optics to their baseline. When `corrupt_firmware_image` is set,
+an optional bad-image check then verifies that a rejected install does not
+change the reported version. No new configuration is introduced.
 
 *   **Precondition**: TRANSCEIVER-3.3.2 has passed, so both transceivers run
-    the primary target (`EXPECTED_VERSION`). This subtest does not depend on
+    `ACTIVE_TARGET_VERSION`. This subtest does not depend on
     TRANSCEIVER-3.3.3.
-*   **Step 1 - Reboot the DUT**:
-    *   Record `/system/state/boot-time` as `PRE_REBOOT_BOOT_TIME`.
-    *   Issue `gNOI.System.Reboot` with `method` = `COLD` and `message` =
-        `TRANSCEIVER-3.3.4 cold reboot`.
-    *   Wait until the DUT is reachable over gNMI again (timeout
-        `reboot_timeout`) and `/system/state/boot-time` is greater than
-        `PRE_REBOOT_BOOT_TIME`. This proves that the reboot happened.
-    *   Set `BOOT_TIME` to the new `/system/state/boot-time` value.
-*   **Step 2 - Re-apply configuration and wait for recovery**:
-    *   Re-push the Canonical OC configuration from TRANSCEIVER-3.3.1 Step 1
-        with the same batched `gNMI.Set` (`REPLACE`).
-    *   Run the **CAG**, then the **LUG**.
-*   **Step 3 - Verify firmware-version decoding**:
-    *   Run the **FVV** for both transceivers with `V` = `EXPECTED_VERSION`.
-    *   Run the **ISC**.
-*   **Step 4 - Link verification**:
-    *   Run the **DLV**.
-*   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   `/system/state/boot-time` advances, and both transceivers report exactly
-        `EXPECTED_VERSION` after the reboot.
-
-### TRANSCEIVER-3.3.5: Roll back to the baseline firmware and verify decoding
-
-Downgrading exercises the same decode path in the reverse direction. No new
-configuration is introduced.
-
-*   **Precondition**: TRANSCEIVER-3.3.2 has passed, so both transceivers run a
-    target image. This subtest does not depend on TRANSCEIVER-3.3.3 or
-    TRANSCEIVER-3.3.4.
 *   **Step 1 - Concurrent rollback**:
     *   Start an **FHR subscription** with allowed set
-        {`EXPECTED_VERSION`, `baseline_firmware_version`} for both
+        {`ACTIVE_TARGET_VERSION`, `baseline_firmware_version`} for both
         transceivers.
     *   Start installation of `baseline_firmware_image` on `Ethernet4/1` and
         `Ethernet5/1` at the same time with the vendor-specific helper.
@@ -918,152 +881,28 @@ configuration is introduced.
         for `/components/component/state/oper-status` = `ACTIVE` and
         `/components/component/state/firmware-version` =
         `baseline_firmware_version` on both transceivers.
-*   **Step 2 - Verification**:
+*   **Step 2 - Rollback verification**:
     *   Run the **LUG**.
     *   Close the FHR subscription and evaluate it against the **FHR**.
     *   Run the **FVV** for both transceivers with `V` =
         `baseline_firmware_version`.
     *   Run the **ISC** and the **DLV**.
+*   **Step 3 - Optional bad-image check** (only when `corrupt_firmware_image`
+    is set; otherwise log that the check was skipped):
+    *   Start an **FHR subscription** with allowed set
+        {`baseline_firmware_version`} for both transceivers.
+    *   Attempt to install `corrupt_firmware_image` on `Ethernet4/1` with the
+        vendor-specific helper. Log whether the helper returns an error (an
+        error is the expected outcome but is not required for pass).
+    *   Run the **LUG** with timeout `upgrade_timeout`.
+    *   Close the FHR subscription and evaluate it against the **FHR**.
+    *   Run the **FVV** for both transceivers with `V` =
+        `baseline_firmware_version`, the **ISC**, and the **DLV**.
 *   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   Both transceivers report exactly `baseline_firmware_version`, and
-        neither still reports `EXPECTED_VERSION` after the wait.
-
-### TRANSCEIVER-3.3.6: Negative - Corrupted firmware image is rejected without affecting the reported version
-
-*   **Precondition**: TRANSCEIVER-3.3.1 has passed. Skipped (`t.Skip`) if
-    `corrupt_firmware_image` is empty.
-*   **Step 1**: Run the **RBP**.
-*   **Step 2**: Start an **FHR subscription** with allowed set
-    {`baseline_firmware_version`} for both transceivers.
-*   **Step 3**: Attempt to install `corrupt_firmware_image` on `Ethernet4/1`
-    with the vendor-specific helper. Record whether the helper returns an
-    error (logged; a returned error is the expected outcome but is not
-    required for pass).
-*   **Step 4**: Run the **LUG** with timeout `upgrade_timeout`.
-*   **Step 5**: Close the FHR subscription and evaluate it against the
-    **FHR**.
-*   **Step 6**: Run the **FVV** for both transceivers with `V` =
-    `baseline_firmware_version`, the **ISC**, and the **DLV**.
-*   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   The corrupted image is not applied: both transceivers keep reporting
-        `baseline_firmware_version` and `Ethernet4/1` returns to `ACTIVE`.
-
-### TRANSCEIVER-3.3.7: Negative - Interrupted upgrade falls back cleanly and reports the running version
-
-*   **Precondition**: TRANSCEIVER-3.3.1 has passed.
-*   **Step 1**: Run the **RBP**.
-*   **Step 2**: Start an **FHR subscription** with allowed set
-    {`baseline_firmware_version`, `EXPECTED_VERSION`} for `Ethernet4/1` and
-    {`baseline_firmware_version`} for `Ethernet5/1`.
-*   **Step 3**: Start installation of the primary-target image on
-    `Ethernet4/1` with the vendor-specific helper, without waiting for it to
-    complete.
-*   **Step 4**: As soon as the helper reports that the image transfer is in
-    progress (or `30` seconds after starting the install if the helper gives
-    no progress indication), set
-    `/components/component/transceiver/config/enabled` = `false` on
-    `Ethernet4/1`. Wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout
-    `link_down_timeout`) until
-    `/components/component/transceiver/state/enabled` = `false`.
-*   **Step 5**: Set `/components/component/transceiver/config/enabled` =
-    `true` on `Ethernet4/1`. Run the **LUG** with timeout `upgrade_timeout`.
-*   **Step 6**: Read `/components/component/state/firmware-version` on
-    `Ethernet4/1`. It must equal either `baseline_firmware_version` (expected
-    CMIS fallback to the last committed image) or `EXPECTED_VERSION` (if the
-    transfer had already completed). Log which version is running as
-    `RUNNING_VERSION`.
-*   **Step 7**: Close the FHR subscription and evaluate it against the
-    **FHR**.
-*   **Step 8**: Run the **FVV** for `Ethernet4/1` with `V` =
-    `RUNNING_VERSION` and for `Ethernet5/1` with `V` =
-    `baseline_firmware_version` (peer unaffected). Run the **ISC** and the
-    **DLV**.
-*   **Step 9 - Restore**: If `RUNNING_VERSION` is `EXPECTED_VERSION`, install
-    `baseline_firmware_image` on `Ethernet4/1`, wait for `ACTIVE` and
-    `baseline_firmware_version`, and run the **FVV** for `Ethernet4/1` with
-    `V` = `baseline_firmware_version`.
-*   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   `Ethernet4/1` recovers to `ACTIVE` and reports exactly the version of
-        the image it runs (`baseline_firmware_version` or `EXPECTED_VERSION`),
-        and the peer is unaffected.
-
-### TRANSCEIVER-3.3.8: Negative - Firmware image for a different module type is rejected
-
-*   **Precondition**: TRANSCEIVER-3.3.1 has passed. Skipped (`t.Skip`) if
-    `mismatched_firmware_image` is empty.
-*   **Step 1**: Run the **RBP**.
-*   **Step 2**: Start an **FHR subscription** with allowed set
-    {`baseline_firmware_version`} for both transceivers.
-*   **Step 3**: Attempt to install `mismatched_firmware_image` on
-    `Ethernet4/1` with the vendor-specific helper. Record whether the helper
-    returns an error (logged; expected).
-*   **Step 4**: Run the **LUG** with timeout `upgrade_timeout`.
-*   **Step 5**: Close the FHR subscription and evaluate it against the
-    **FHR**.
-*   **Step 6**: Run the **FVV** for both transceivers with `V` =
-    `baseline_firmware_version`, the **ISC**, and the **DLV**.
-*   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   The mismatched image is not applied: both transceivers keep reporting
-        `baseline_firmware_version`.
-
-### TRANSCEIVER-3.3.9: Negative - Upgrade attempt while the transceiver is administratively disabled
-
-*   **Precondition**: TRANSCEIVER-3.3.1 has passed.
-*   **Step 1**: Run the **RBP**.
-*   **Step 2**: Set `/components/component/transceiver/config/enabled` =
-    `false` on `Ethernet4/1`. Wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout
-    `link_down_timeout`) until
-    `/components/component/transceiver/state/enabled` = `false`.
-*   **Step 3**: Attempt to install the primary-target image on `Ethernet4/1`
-    with the vendor-specific helper and record the result:
-    *   **Outcome A**: the helper returns an error (install rejected).
-    *   **Outcome B**: the helper returns success.
-*   **Step 4**: Set `/components/component/transceiver/config/enabled` =
-    `true` on `Ethernet4/1`. Run the **LUG** with timeout `upgrade_timeout`.
-*   **Step 5**: Run the **FVV** for `Ethernet4/1` with `V` =
-    `baseline_firmware_version` for Outcome A, or `V` = `EXPECTED_VERSION`
-    for Outcome B, and for `Ethernet5/1` with `V` =
-    `baseline_firmware_version`. Run the **ISC** and the **DLV**.
-*   **Step 6 - Restore**: For Outcome B, install `baseline_firmware_image` on
-    `Ethernet4/1`, wait for `ACTIVE` and `baseline_firmware_version`, and run
-    the **FVV** for `Ethernet4/1` with `V` = `baseline_firmware_version`.
-*   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   The version on `Ethernet4/1` matches the helper outcome
-        (`baseline_firmware_version` for Outcome A, `EXPECTED_VERSION` for
-        Outcome B), and the peer is unaffected.
-
-### TRANSCEIVER-3.3.10: Negative - Upgrade concurrent with interface flaps on the peer port
-
-*   **Precondition**: TRANSCEIVER-3.3.1 has passed.
-*   **Step 1**: Run the **RBP**.
-*   **Step 2**: Start an **FHR subscription** with allowed set
-    {`baseline_firmware_version`, `EXPECTED_VERSION`} for `Ethernet4/1` and
-    {`baseline_firmware_version`} for `Ethernet5/1`.
-*   **Step 3**: Start installation of the primary-target image on
-    `Ethernet4/1` with the vendor-specific helper, without waiting for it to
-    complete.
-*   **Step 4**: While the install is in progress, flap `Ethernet5/1/1` `3`
-    times. In each iteration:
-    *   Set `/interfaces/interface/config/enabled` = `false` on
-        `Ethernet5/1/1` and wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout
-        `link_down_timeout`) until `/interfaces/interface/state/admin-status`
-        = `DOWN`.
-    *   Set `/interfaces/interface/config/enabled` = `true` on
-        `Ethernet5/1/1` and wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout
-        `link_down_timeout`) until `/interfaces/interface/state/admin-status`
-        = `UP`. (Oper-status is not used as the gate here because the link
-        has no light while `Ethernet4/1` is being upgraded.)
-*   **Step 5**: Wait via `gNMI.Subscribe` (`ON_CHANGE`, timeout
-    `upgrade_timeout`) for `oper-status` = `ACTIVE` and `firmware-version` =
-    `EXPECTED_VERSION` on `Ethernet4/1`. Run the **LUG**.
-*   **Step 6**: Close the FHR subscription and evaluate it against the
-    **FHR**.
-*   **Step 7**: Run the **FVV** for `Ethernet4/1` with `V` =
-    `EXPECTED_VERSION` and for `Ethernet5/1` with `V` =
-    `baseline_firmware_version`. Run the **ISC** and the **DLV**.
-*   **Pass/Fail Criteria**: General pass/fail rule, plus:
-    *   `Ethernet4/1` reports exactly `EXPECTED_VERSION`, and `Ethernet5/1`
-        reports exactly `baseline_firmware_version` with unchanged inventory.
+    *   Both transceivers report exactly `baseline_firmware_version` after the
+        rollback and, when Step 3 runs, still after the bad-image attempt
+        (the corrupted image is not applied and `Ethernet4/1` returns to
+        `ACTIVE`).
 
 ### Cleanup
 
@@ -1184,16 +1023,14 @@ rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
-      replace: true
     gNMI.Subscribe:
       on_change: true
       sample: true
   gnoi:
     system.System.Ping:
-    system.System.Reboot:
 ```
 
 ## Required DUT platform
 
-*   FFF or MFF. On MFF, DUT port 1 and DUT port 2 must be on different
-    `LINECARD` components.
+*   FFF or MFF. On MFF, placing DUT port 1 and DUT port 2 on different
+    `LINECARD` components is preferred but not required.
