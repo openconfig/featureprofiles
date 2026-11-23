@@ -101,15 +101,18 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 	return 7
 }
 
-// testTraffic appends and sends the specified flows without reconfiguring the
-// ATE topology. Re-pushing the complete topology resets the BGP session that
-// supplies the recursive routes needed by this test.
+// testTraffic appends and sends the specified flows, then removes them without
+// reconfiguring the ATE topology. Re-pushing the complete topology resets the
+// BGP session that supplies the recursive routes needed by this test.
 func testTraffic(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, targetPkts uint64) int {
 	t.Helper()
 	initialOutPkts := make(map[string]uint64, len(flows))
 	flowNames := make([]string, 0, len(flows))
 	flowAppend := gosnappi.NewConfigAppend()
 	flowResources := flowAppend.ConfigAppendList().Add().Flows()
+	// Retain the local flow history for unique names, even after completed
+	// flows are removed from the ATE. This also avoids stale counter telemetry
+	// from an earlier burst being mistaken for the newly configured flow.
 	flowIndex := len(top.Flows().Items())
 	for index, flow := range flows {
 		// Appended flows must have names that do not already exist in the ATE
@@ -123,6 +126,22 @@ func testTraffic(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate 
 		flowNames = append(flowNames, flow.Name())
 	}
 	ate.OTG().AppendConfig(t, flowAppend)
+	defer func() {
+		// Completed flows still consume ATE resources when traffic is stopped.
+		// Delete only this burst's flows after their final counters are read;
+		// the topology and running routing protocols must remain configured.
+		flowDelete := gosnappi.NewConfigDelete()
+		flowDelete.ConfigDeleteList().Add().SetFlows(flowNames)
+		t.Logf("Removing %d stopped OTG flows: %v", len(flowNames), flowNames)
+		warnings, err := ate.RawAPIs().OTG(t).DeleteConfig(flowDelete)
+		if err != nil {
+			t.Errorf("Deleting stopped OTG flows %v: %v", flowNames, err)
+			return
+		}
+		if warnings != nil && len(warnings.Warnings()) > 0 {
+			t.Logf("DeleteConfig non-fatal warnings: %v", warnings.Warnings())
+		}
+	}()
 
 	// Keep the readiness check close to traffic. The BGP routes are recursive,
 	// so traffic must not start while the peer is recovering.
@@ -134,7 +153,6 @@ func testTraffic(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate 
 	trafficState := gosnappi.NewControlState()
 	trafficState.Traffic().FlowTransmit().SetFlowNames(flowNames).
 		SetState(gosnappi.StateTrafficFlowTransmitState.START)
-	ate.OTG().SetControlState(t, trafficState)
 
 	trafficStopped := false
 	defer func() {
@@ -143,6 +161,7 @@ func testTraffic(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate 
 			ate.OTG().SetControlState(t, trafficState)
 		}
 	}()
+	ate.OTG().SetControlState(t, trafficState)
 
 	// OTG statistics snapshots can take more than a minute to become available
 	// even when the fixed packet burst has already reached the DUT.

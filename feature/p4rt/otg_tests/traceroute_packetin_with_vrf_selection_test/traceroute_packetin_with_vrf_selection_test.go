@@ -1025,9 +1025,9 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 	configureAdditionalGribiAft(ctx, t, dut, args)
 	EgressPortMap := map[string]bool{"11": true, "12": true, "13": true, "14": false, "15": false, "16": false, "17": false}
 	LoadBalancePercent := []float64{0.0625, 0.1875, 0.75, 0, 0, 0, 0}
-	flow := []*flowArgs{{flowName: "flow4in4",
+	flow := distributionFlowArgs(flowArgs{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: gribiIPv4EntryVRF1111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true}}
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true})
 	gotWeights := testPacket(t, args, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }

@@ -27,7 +27,7 @@ const (
 	distributionFlowCount    = 4
 )
 
-// distributionFlowArgs gives Test-1 independent, reproducible hash samples.
+// distributionFlowArgs gives Tests 1 and 3 independent, reproducible hash samples.
 // Split the original 50 pps across the samples so the larger PacketIn sample
 // does not increase the offered packet rate.
 func distributionFlowArgs(base flowArgs) []*flowArgs {
