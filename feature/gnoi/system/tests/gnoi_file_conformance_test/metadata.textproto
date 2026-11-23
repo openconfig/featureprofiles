@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8f4b2c71-5d9a-4e3b-9c1e-6a7f8b2d4e50"
+plan_id: "gNOI-5.4"
+description: "gNOI File Put and Stat Protocol Conformance"
+testbed: TESTBED_DUT
