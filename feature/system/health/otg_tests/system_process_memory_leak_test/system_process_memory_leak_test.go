@@ -498,11 +498,15 @@ func configureDUTEnvironment(t *testing.T, env *testEnvironment) {
 
 	// Configure [OC-Group-D] system resource utilization thresholds (FIB placeholder mapped to platform FIB resource).
 	env.fibResourceName = cfgplugins.DiscoverFIBResourceName(t, dut)
-	cfgplugins.ConfigureResourceUtilizationThreshold(t, dut, sb, cfgplugins.ResourceUtilizationCfg{
+	thresholdBatch := &gnmi.SetBatch{}
+	cfgplugins.ConfigureResourceUtilizationThreshold(t, dut, thresholdBatch, cfgplugins.ResourceUtilizationCfg{
 		ResourceName:            env.fibResourceName,
 		UsedThresholdUpper:      fibUsedThresholdUpper,
 		UsedThresholdUpperClear: fibUsedThresholdUpperClear,
 	})
+	if cfgplugins.HardwareResourceUtilizationSupported(dut) {
+		thresholdBatch.Set(t, dut)
+	}
 
 	for _, pa := range portAttrs {
 		p := dut.Port(t, pa.portID)

@@ -277,9 +277,19 @@ func DiscoverFIBResourceName(t *testing.T, dut *ondatra.DUTDevice) string {
 	return discovered
 }
 
-// ConfigureResourceUtilizationThreshold configures /system/utilization/resources/resource
-// ([OC-Group-D]) on the DUT, logging a non-fatal note if the platform does not support the path.
-func ConfigureResourceUtilizationThreshold(t *testing.T, dut *ondatra.DUTDevice, _ *gnmi.SetBatch, cfg ResourceUtilizationCfg) *oc.System_Utilization_Resource {
+// HardwareResourceUtilizationSupported reports whether hardware resource utilization telemetry
+// was found on dut by DiscoverFIBResourceName (or QueryHardwareFIBUtilization). Callers use it to
+// skip sending an empty batch from ConfigureResourceUtilizationThreshold.
+func HardwareResourceUtilizationSupported(dut *ondatra.DUTDevice) bool {
+	fibCacheMu.Lock()
+	defer fibCacheMu.Unlock()
+	return !icUtilizationUnsupportedMap[dut.Name()]
+}
+
+// ConfigureResourceUtilizationThreshold appends /system/utilization/resources/resource
+// ([OC-Group-D]) threshold configuration to sb and returns sb. Nothing is appended when hardware
+// resource utilization telemetry is not populated on the DUT.
+func ConfigureResourceUtilizationThreshold(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg ResourceUtilizationCfg) *gnmi.SetBatch {
 	t.Helper()
 	resName := cfg.ResourceName
 	if resName == "" {
@@ -295,21 +305,10 @@ func ConfigureResourceUtilizationThreshold(t *testing.T, dut *ondatra.DUTDevice,
 	fibCacheMu.Unlock()
 	if unsupported {
 		t.Logf("Note: hardware resource utilization telemetry is not populated on %s; skipping /system/utilization/resources/resource[name=%s]/config", dut.Name(), resName)
-		return res
+		return sb
 	}
-	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Logf("Note: unable to create ygnmi client for resource threshold %s: %v", resName, err)
-		return res
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	b := &ygnmi.SetBatch{}
-	ygnmi.BatchReplace(b, gnmi.OC().System().Utilization().Resource(resName).Config(), res)
-	if _, err := b.Set(ctx, c); err != nil {
-		t.Logf("Note: /system/utilization/resources/resource[name=%s]/config not accepted by platform (%v); proceeding", resName, err)
-	}
-	return res
+	gnmi.BatchReplace(sb, gnmi.OC().System().Utilization().Resource(resName).Config(), res)
+	return sb
 }
 
 // DeleteResourceUtilizationThreshold deletes /system/utilization/resources/resource[name=resourceName]/config
@@ -938,8 +937,10 @@ func deleteBGPNeighborRestartTime(t *testing.T, dut *ondatra.DUTDevice, dni, nei
 }
 
 // ConfigureBGPNeighborPrefixLimit adds [OC-Group-E] BGP prefix-limit and restart-time configuration
-// for a neighbor to the provided gnmi.SetBatch, handling BGPExplicitPrefixLimitReceived deviation.
-func ConfigureBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg BGPNeighborPrefixLimitCfg) {
+// for a neighbor to the provided gnmi.SetBatch, handling BGPExplicitPrefixLimitReceived deviation,
+// and returns sb. timers/config/restart-time is set separately with a non-fatal per-encoding
+// fallback because platforms differ in the accepted encoding.
+func ConfigureBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg BGPNeighborPrefixLimitCfg) *gnmi.SetBatch {
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(dut)
 	nbrPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(cfg.NeighborIP)
@@ -980,11 +981,12 @@ func ConfigureBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *g
 			})
 		}
 	}
+	return sb
 }
 
 // DeleteBGPNeighborPrefixLimit removes [OC-Group-E] BGP prefix-limit and restart-time configuration
-// for a neighbor via gnmi.BatchDelete.
-func DeleteBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, neighborIP string, isIPv4 bool) {
+// for a neighbor, appending the prefix-limit deletes to sb, and returns sb.
+func DeleteBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, neighborIP string, isIPv4 bool) *gnmi.SetBatch {
 	t.Helper()
 	dni := deviations.DefaultNetworkInstance(dut)
 	nbrPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighborIP)
@@ -1005,6 +1007,7 @@ func DeleteBGPNeighborPrefixLimit(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 			gnmi.BatchDelete(sb, afPath.PrefixLimit().Config())
 		}
 	}
+	return sb
 }
 
 // AwaitBGPPrefixLimitExceeded uses gnmi.Watch on [OC-Group-E] prefix-limit-exceeded state leaf
