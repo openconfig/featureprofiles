@@ -2588,6 +2588,8 @@ func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool 
 // SkipBgpAddPathReceiveEnabled returns true if BGP ADD-PATH receive-enabled
 // subtests requiring neighbor/peer-group-only receive and ADD_PATHS capability
 // telemetry should be skipped.
+//
+// https://issuetracker.google.com/589643778
 func SkipBgpAddPathReceiveEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpAddPathReceiveEnabled()
 }
