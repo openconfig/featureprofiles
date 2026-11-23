@@ -113,6 +113,7 @@ const (
 var (
 	rebootRecoveryTimeout = flag.Duration("reboot_recovery_timeout", 15*time.Minute, "Maximum time to recover gNMI and observe a newer boot time after the AFT-6.3 cold reboot.")
 	rebootProbeTimeout    = flag.Duration("reboot_probe_timeout", 10*time.Second, "Maximum time for one AFT-6.3 reboot readiness probe, including dialing gNMI.")
+	rebootBGPTimeout      = flag.Duration("reboot_bgp_timeout", 10*time.Minute, "Maximum time for each AFT-6.3 BGP session to re-establish after the cold reboot.")
 	// AFT-6.3.2 user adjustable values: X (IPv4 routes), Y (IPv6 routes) and
 	// K (maximum allowed initial synchronization time).
 	scaleIPv4Routes = flag.Int("scale_ipv4_routes", 5000, "Number of IPv4 routes (X) advertised from the ATE for the AFT-6.3.2 scale test.")
@@ -201,8 +202,8 @@ func TestMain(m *testing.M) {
 
 // TestAFTPrefixFilteringResilience implements AFT-6.3.
 func TestAFTPrefixFilteringResilience(t *testing.T) {
-	if *rebootRecoveryTimeout <= 0 || *rebootProbeTimeout <= 0 {
-		t.Fatal("Reboot recovery and probe timeouts must be positive")
+	if *rebootRecoveryTimeout <= 0 || *rebootProbeTimeout <= 0 || *rebootBGPTimeout <= 0 {
+		t.Fatal("Reboot recovery, probe and BGP timeouts must be positive")
 	}
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -675,20 +676,27 @@ func runCollectorsConcurrently(t *testing.T, cfgs ...aftpf.RunCollectorParams) {
 func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, clients ...gpb.GNMIClient) {
 	t.Helper()
 	var client gpb.GNMIClient
+	var sessionTimeout time.Duration
 	if len(clients) != 0 {
 		client = clients[0]
+	}
+	if client != nil {
+		sessionTimeout = *rebootBGPTimeout
+		t.Logf("Post-reboot BGP session setup timeout=%v; route-count and AFT synchronization checks are unchanged", sessionTimeout)
 	}
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
 		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
-		Client: client,
+		Client:         client,
+		SessionTimeout: sessionTimeout,
 	})
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: vrfName,
 		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
 		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
-		Client: client,
+		Client:         client,
+		SessionTimeout: sessionTimeout,
 	})
 }
 

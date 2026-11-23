@@ -120,6 +120,32 @@ The dependency is reproducible from the checkout. AFT-6.1 was rerun from the
 prepared public checkout with this profile. The table below distinguishes
 that run, the existing AFT-6.2/6.3 evidence, and the AFT-6.4 runtime gap.
 
+## AFT-6.3 hardware reboot readiness
+
+AFT-6.3 waits separately for serving gNMI telemetry with an increased boot
+time, then for BGP sessions and the expected route populations to recover.
+Its post-reboot checks use a refreshed test-owned transport, including the
+BGP session, prefix-count and VRF AFT-summary reads.
+
+| Flag | Default | Scope |
+|---|---|---|
+| `-reboot_recovery_timeout` | `15m` | Overall gNMI/new-boot-time recovery wait |
+| `-reboot_probe_timeout` | `10s` | Each readiness RPC, including connection establishment |
+| `-reboot_bgp_timeout` | `10m` | Each BGP session's post-reboot establishment wait |
+
+These are upper bounds, with immediate progress when the required state is
+observed. Initial BGP setup and other AFT suites retain their existing session
+timeouts. Route-count requirements, the AFT scale synchronization limit and
+the policy-change convergence checks are unchanged. If reboot or subsequent
+BGP readiness fails, the reboot case fails and the dependent scale/VRF cases
+are skipped rather than producing cascading failures.
+
+The readiness unit cases run without a DUT or ATE:
+
+```sh
+go test ./feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/reboot_recovery_test.go
+```
+
 ## Validation
 
 `go test ./internal/aft_binding_contract` checks the generated wire paths,

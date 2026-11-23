@@ -505,6 +505,9 @@ type BGPConvergenceParams struct {
 	// Client selects a test-owned transport, for example after a DUT reboot.
 	// A nil client preserves the standard Ondatra transport for existing callers.
 	Client gpb.GNMIClient
+	// SessionTimeout overrides the session-establishment setup wait. Zero
+	// retains the existing timeout for callers without a reboot prerequisite.
+	SessionTimeout time.Duration
 }
 
 // AwaitScaleBGPConvergence waits for both eBGP sessions and route readiness.
@@ -516,11 +519,11 @@ type BGPConvergenceParams struct {
 func AwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPConvergenceParams) {
 	t.Helper()
 	sessionsEstablished := true
-	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, cfg.Client); err != nil {
+	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, cfg.Client, cfg.SessionTimeout); err != nil {
 		t.Errorf("%v", err)
 		sessionsEstablished = false
 	}
-	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, cfg.Client); err != nil {
+	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, cfg.Client, cfg.SessionTimeout); err != nil {
 		t.Errorf("%v", err)
 		sessionsEstablished = false
 	}
@@ -542,20 +545,23 @@ func AwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPConve
 }
 
 // awaitBGPEstablished waits for a BGP neighbor session to reach ESTABLISHED, returning an error on timeout.
-func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, client gpb.GNMIClient) error {
+func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, client gpb.GNMIClient, timeout time.Duration) error {
 	t.Helper()
+	if timeout <= 0 {
+		timeout = bgpSessionTimeout
+	}
 	opts := dut.GNMIOpts()
 	if client != nil {
 		opts = opts.WithClient(client)
 	}
 	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
-	val, ok := gnmi.Watch(t, opts, path, bgpSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	val, ok := gnmi.Watch(t, opts, path, timeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := v.Val()
 		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
 	if !ok {
 		got, _ := val.Val()
-		return fmt.Errorf("BGP session with %s did not reach ESTABLISHED within %v (last observed state: %v)", neighbor, bgpSessionTimeout, got)
+		return fmt.Errorf("BGP session with %s did not reach ESTABLISHED within %v (last observed state: %v)", neighbor, timeout, got)
 	}
 	t.Logf("BGP session with %s is ESTABLISHED", neighbor)
 	return nil
