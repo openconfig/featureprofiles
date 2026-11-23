@@ -81,6 +81,19 @@ database is functional and unlocked.
     `ON_CHANGE` subscription. If the `ON_CHANGE` subscription does not deliver
     the new description, the test fails.
 
+### Cleanup
+
+*   After the DUT is back in service, restore its original configuration, even
+    if the test failed:
+    *   Delete the 700 VLAN subinterfaces and their IPv4 and IPv6 addresses,
+        and remove them from the default network instance.
+    *   Delete the LAG interfaces of the test environment.
+    *   Restore the original configuration of the member interfaces: remove
+        them from the LAGs, and restore their description, enabled state and
+        type, including the test description of SYS-5.1.2 Step 3.
+    *   Revert any device setting that the test enabled to retain the gNMI Set
+        configuration across the reboot.
+
 ## Canonical OC
 
 ```json
