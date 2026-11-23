@@ -463,10 +463,13 @@ func TestStopContainer(t *testing.T) {
 	baseCli := containerztest.Client(t, dut)
 
 	t.Run("StopRunningContainer", func(t *testing.T) {
-		localStartedCli, cleanup := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 
-		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err := localStartedCli.StopContainer(stopCtx, instanceName, true)
+		stopCancel()
+		if err != nil {
 			t.Fatalf("StopContainer() for running instance %s failed: %v", instanceName, err)
 		}
 		t.Logf("StopContainer called for %s", instanceName)
@@ -474,8 +477,10 @@ func TestStopContainer(t *testing.T) {
 		// Poll until container is stopped (or no longer listed as running).
 		stopped := false
 		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
-			listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			listCtx, listCancel := context.WithTimeout(ctx, containerRPCTimeout)
+			listCh, err := localStartedCli.ListContainer(listCtx, true, 0, map[string][]string{"name": {instanceName}})
 			if err != nil {
+				listCancel()
 				continue
 			}
 			isStillRunning := false
@@ -489,6 +494,7 @@ func TestStopContainer(t *testing.T) {
 					isStillRunning = true
 				}
 			}
+			listCancel()
 			if !streamErr && !isStillRunning {
 				stopped = true
 				break
@@ -504,7 +510,10 @@ func TestStopContainer(t *testing.T) {
 	t.Run("StopNonExistentContainer", func(t *testing.T) {
 		nonExistentInstance := "test-instance-does-not-exist-for-stop"
 		// Ensure it's not running (best effort cleanup)
-		if err := baseCli.RemoveContainer(ctx, nonExistentInstance, true); err != nil {
+		cleanupCtx, cleanupCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err := baseCli.RemoveContainer(cleanupCtx, nonExistentInstance, true)
+		cleanupCancel()
+		if err != nil {
 			if status.Code(err) != codes.NotFound {
 				t.Logf("Pre-check RemoveContainer for %s failed (continuing): %v", nonExistentInstance, err)
 			}
@@ -512,7 +521,10 @@ func TestStopContainer(t *testing.T) {
 		// Allow time for removal to settle if it happened.
 		time.Sleep(2 * time.Second)
 
-		if err := baseCli.StopContainer(ctx, nonExistentInstance, true); err == nil {
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err = baseCli.StopContainer(stopCtx, nonExistentInstance, true)
+		stopCancel()
+		if err == nil {
 			t.Errorf("StopContainer() for non-existent instance %s succeeded, but expected an error (e.g., NotFound)", nonExistentInstance)
 		} else {
 			t.Logf("Got expected error when stopping non-existent instance %s: %v", nonExistentInstance, err)
@@ -524,19 +536,23 @@ func TestStopContainer(t *testing.T) {
 	})
 
 	t.Run("StopAlreadyStoppedContainer", func(t *testing.T) {
-		// Use startContainer to set up a container, then stop it.
-		localStartedCli, cleanup := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 
-		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err := localStartedCli.StopContainer(stopCtx, instanceName, true)
+		stopCancel()
+		if err != nil {
 			t.Fatalf("Initial StopContainer() for %s failed: %v", instanceName, err)
 		}
 		t.Logf("Container %s stopped once.", instanceName)
 		// Poll until the first stop has fully processed.
 		stopped := false
 		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
-			listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			listCtx, listCancel := context.WithTimeout(ctx, containerRPCTimeout)
+			listCh, err := localStartedCli.ListContainer(listCtx, true, 0, map[string][]string{"name": {instanceName}})
 			if err != nil {
+				listCancel()
 				continue
 			}
 			isStillRunning := false
@@ -550,6 +566,7 @@ func TestStopContainer(t *testing.T) {
 					isStillRunning = true
 				}
 			}
+			listCancel()
 			if !streamErr && !isStillRunning {
 				stopped = true
 				break
@@ -559,7 +576,10 @@ func TestStopContainer(t *testing.T) {
 			t.Fatalf("Container %s was not stopped before attempting second stop", instanceName)
 		}
 		// Attempt to stop it again.
-		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
+		secondStopCtx, secondStopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err = localStartedCli.StopContainer(secondStopCtx, instanceName, true)
+		secondStopCancel()
+		if err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() == codes.NotFound || s.Code() == codes.FailedPrecondition {
 				t.Logf("Second StopContainer() for %s returned gRPC status code NotFound or FailedPrecondition: %v", instanceName, err)
@@ -1048,19 +1068,16 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	var postRebootClients gnoigo.Clients
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
-		var cli *client.Client
-		if deviations.ContainerzRequireExplicitConfigSave(dut) {
-			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
-		} else {
-			cli = containerztest.Client(t, dut)
-		}
-		if err := cli.RemoveContainer(ctx, instanceName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+		cleanupCli := containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := containerztest.RemoveContainerAndWait(cleanupCtx, t, cleanupCli, instanceName); err != nil {
 			t.Errorf("Cleanup: failed to remove container %q: %v", instanceName, err)
 		}
-		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+		if err := cleanupCli.RemoveImage(cleanupCtx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
-		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+		if err := cleanupCli.RemoveVolume(cleanupCtx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
 		}
 		t.Log("Cleanup finished.")
@@ -1123,10 +1140,9 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		// back up before polling starts; treat first successful poll as recovery.
 		postRebootClients = containerztest.WaitForReboot(t, dut, true)
 
-		if deviations.ContainerzRequireExplicitConfigSave(dut) {
-			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
-		} else {
-			cli = containerztest.Client(t, dut)
+		cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		if err := containerztest.WaitForReady(ctx, t, cli, 5*time.Minute); err != nil {
+			t.Fatalf("Containerz did not recover after reboot: %v", err)
 		}
 
 		timeout := 5 * time.Minute
@@ -1162,9 +1178,10 @@ func TestCapabilities(t *testing.T) {
 	ctx := t.Context()
 	dut := ondatra.DUT(t, "dut")
 	cli := containerztest.Client(t, dut)
+	runID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
 
 	t.Cleanup(func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		if err := cli.RemoveImage(cleanupCtx, imageName, "latest", true); err != nil && status.Code(err) != codes.NotFound {
 			t.Logf("Cleanup: RemoveImage(%q, \"latest\") failed: %v", imageName, err)
@@ -1190,80 +1207,52 @@ func TestCapabilities(t *testing.T) {
 
 	// Positive Test 1: Elevated Capabilities (CAP_SYS_ADMIN, CAP_NET_RAW).
 	t.Run("ElevatedCapabilities", func(t *testing.T) {
-		instName := "test-cap-elevated"
-		t.Cleanup(func() {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if err := cli.StopContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: StopContainer(%q) failed: %v", instName, err)
-			}
-			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
-			}
-		})
-
+		instName := "test-cap-elevated-" + runID
 		capAdd := []string{"CAP_SYS_ADMIN", "CAP_NET_RAW"}
-		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60061:60061"}),
-			client.WithCapabilities(capAdd, nil),
+		opts := containerztest.StartContainerOptions{
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			InstanceName:        instName,
+			Command:             "./cntrsrv",
+			DisableDefaultPorts: true,
+			CapabilitiesAdd:     capAdd,
+			SkipImagePush:       true,
+			PollForRunningState: true,
+			PollTimeout:         containerStartPollTimeout,
 		}
-
-		respInst, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
-		if err != nil {
-			t.Fatalf("StartContainer(%q, %q, %v) failed: %v", imageName, instName, capAdd, err)
-		}
-		if respInst != instName {
-			t.Errorf("StartContainer(%q, %q, ...) = %q, want %q", imageName, instName, respInst, instName)
-		}
-
-		if err := containerztest.WaitForRunning(ctx, t, cli, instName, containerStartPollTimeout); err != nil {
-			t.Fatalf("WaitForRunning(ctx, t, cli, %q) failed: %v", instName, err)
-		}
+		_, cleanup := containerztest.SetupWithClient(ctx, t, cli, opts)
+		defer cleanup()
 		t.Logf("Container %q successfully started with elevated capabilities %v and confirmed RUNNING.", instName, capAdd)
 	})
 
 	// Positive Test 2: Default Capability Removal (CAP_NET_RAW).
 	t.Run("DroppedCapabilities", func(t *testing.T) {
-		instName := "test-cap-dropped"
-		t.Cleanup(func() {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if err := cli.StopContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: StopContainer(%q) failed: %v", instName, err)
-			}
-			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
-			}
-		})
-
+		instName := "test-cap-dropped-" + runID
 		capRemove := []string{"CAP_NET_RAW"}
-		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60062:60062"}),
-			client.WithCapabilities(nil, capRemove),
+		opts := containerztest.StartContainerOptions{
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			InstanceName:        instName,
+			Command:             "./cntrsrv",
+			DisableDefaultPorts: true,
+			CapabilitiesRemove:  capRemove,
+			SkipImagePush:       true,
+			PollForRunningState: true,
+			PollTimeout:         containerStartPollTimeout,
 		}
-
-		respInst, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
-		if err != nil {
-			t.Fatalf("StartContainer(%q, %q, removed: %v) failed: %v", imageName, instName, capRemove, err)
-		}
-		if respInst != instName {
-			t.Errorf("StartContainer(%q, %q, ...) = %q, want %q", imageName, instName, respInst, instName)
-		}
-
-		if err := containerztest.WaitForRunning(ctx, t, cli, instName, containerStartPollTimeout); err != nil {
-			t.Fatalf("WaitForRunning(ctx, t, cli, %q) failed: %v", instName, err)
-		}
+		_, cleanup := containerztest.SetupWithClient(ctx, t, cli, opts)
+		defer cleanup()
 		t.Logf("Container %q successfully started with removed capabilities %v and confirmed RUNNING.", instName, capRemove)
 	})
 
 	// Negative Test: Invalid Capability Rejection.
 	t.Run("InvalidCapabilityRejection", func(t *testing.T) {
-		instName := "test-cap-invalid"
+		instName := "test-cap-invalid-" + runID
 		t.Cleanup(func() {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
-			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
+			if err := containerztest.RemoveContainerAndWait(cleanupCtx, t, cli, instName); err != nil {
+				t.Logf("Cleanup: could not confirm removal of %q: %v", instName, err)
 			}
 		})
 
@@ -1272,7 +1261,9 @@ func TestCapabilities(t *testing.T) {
 			client.WithCapabilities(invalidCaps, nil),
 		}
 
-		_, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		startCtx, startCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		_, err := cli.StartContainer(startCtx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		startCancel()
 		if err == nil {
 			t.Errorf("StartContainer(%q, %q, invalidCaps: %v) succeeded, want error", imageName, instName, invalidCaps)
 		} else {
@@ -1285,7 +1276,9 @@ func TestCapabilities(t *testing.T) {
 		}
 
 		// Confirm no orphaned container instance exists.
-		listCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instName}})
+		listCtx, listCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		defer listCancel()
+		listCh, listErr := cli.ListContainer(listCtx, true, 0, map[string][]string{"name": {instName}})
 		if listErr != nil {
 			t.Fatalf("ListContainer(name=%q) failed: %v", instName, listErr)
 		}
