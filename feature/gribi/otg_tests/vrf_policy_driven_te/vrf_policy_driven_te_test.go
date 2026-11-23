@@ -2176,7 +2176,9 @@ func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *o
 	expectedPkts := gnmi.Get(t, args.otg, gnmi.OTG().Flow("flow1").Counters().OutPkts().State()) +
 		gnmi.Get(t, args.otg, gnmi.OTG().Flow("flow2").Counters().OutPkts().State())
 	inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port4").State()).GetCounters().GetInFrames()
-	if expectedPkts == 0 || inPkts < expectedPkts*(100-tolerancePct)/100 {
+	if expectedPkts == 0 {
+		t.Error("No packets were transmitted by the traffic generator")
+	} else if inPkts < expectedPkts*(100-tolerancePct)/100 {
 		t.Errorf("Traffic did not egress through Default VRF on port4: expected at least %d pkts, got %d", expectedPkts*(100-tolerancePct)/100, inPkts)
 	}
 
