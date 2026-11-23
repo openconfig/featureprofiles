@@ -502,6 +502,9 @@ type BGPConvergenceParams struct {
 	V6Neighbor      string
 	V4RouteCount    uint32
 	V6RouteCount    uint32
+	// Client selects a test-owned transport, for example after a DUT reboot.
+	// A nil client preserves the standard Ondatra transport for existing callers.
+	Client gpb.GNMIClient
 }
 
 // AwaitScaleBGPConvergence waits for both eBGP sessions and route readiness.
@@ -513,11 +516,11 @@ type BGPConvergenceParams struct {
 func AwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPConvergenceParams) {
 	t.Helper()
 	sessionsEstablished := true
-	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V4Neighbor); err != nil {
+	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, cfg.Client); err != nil {
 		t.Errorf("%v", err)
 		sessionsEstablished = false
 	}
-	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V6Neighbor); err != nil {
+	if err := awaitBGPEstablished(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, cfg.Client); err != nil {
 		t.Errorf("%v", err)
 		sessionsEstablished = false
 	}
@@ -530,19 +533,23 @@ func AwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPConve
 		}
 		return
 	}
-	if err := awaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, cfg.V4RouteCount); err != nil {
+	if err := awaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V4Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, cfg.V4RouteCount, cfg.Client); err != nil {
 		t.Errorf("%v", err)
 	}
-	if err := awaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, cfg.V6RouteCount); err != nil {
+	if err := awaitBGPPrefixCount(t, dut, cfg.NetworkInstance, cfg.V6Neighbor, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, cfg.V6RouteCount, cfg.Client); err != nil {
 		t.Errorf("%v", err)
 	}
 }
 
 // awaitBGPEstablished waits for a BGP neighbor session to reach ESTABLISHED, returning an error on timeout.
-func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string) error {
+func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, client gpb.GNMIClient) error {
 	t.Helper()
+	opts := dut.GNMIOpts()
+	if client != nil {
+		opts = opts.WithClient(client)
+	}
 	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
-	val, ok := gnmi.Watch(t, dut, path, bgpSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	val, ok := gnmi.Watch(t, opts, path, bgpSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := v.Val()
 		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
@@ -557,10 +564,14 @@ func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor 
 // awaitBGPPrefixCount waits for a BGP neighbor to install the expected number
 // of prefixes for the given AFI-SAFI. It returns an error if the operation
 // times out.
-func awaitBGPPrefixCount(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantCount uint32) error {
+func awaitBGPPrefixCount(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantCount uint32, client gpb.GNMIClient) error {
 	t.Helper()
+	opts := dut.GNMIOpts()
+	if client != nil {
+		opts = opts.WithClient(client)
+	}
 	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(afiSafi).Prefixes().Installed().State()
-	val, ok := gnmi.Watch(t, dut, path, bgpConvergenceWait, func(v *ygnmi.Value[uint32]) bool {
+	val, ok := gnmi.Watch(t, opts, path, bgpConvergenceWait, func(v *ygnmi.Value[uint32]) bool {
 		got, present := v.Val()
 		return present && got >= wantCount
 	}).Await(t)
@@ -588,7 +599,11 @@ func awaitCiscoVRFBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPCo
 	if deviations.AFTSummaryOCUnsupported(dut) {
 		return fmt.Errorf("%s needs supported BGP-origin AFT summaries to verify forwarding readiness", cfg.NetworkInstance)
 	}
-	client, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	transport := cfg.Client
+	if transport == nil {
+		transport = dut.RawAPIs().GNMI(t)
+	}
+	client, err := ygnmi.NewClient(transport, ygnmi.WithTarget(dut.ID()))
 	if err != nil {
 		return fmt.Errorf("create VRF AFT summary client: %w", err)
 	}

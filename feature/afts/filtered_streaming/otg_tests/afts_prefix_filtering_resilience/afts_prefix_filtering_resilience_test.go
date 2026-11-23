@@ -243,6 +243,7 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	awaitScaleBGPConvergence(t, dut)
+	filterClient.readyForDependentTests = true
 	tests := []struct {
 		name string
 		desc string
@@ -266,8 +267,8 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.name != "AFTValidationAfterDeviceReboot" && filterClient.client == nil {
-				t.Skip("DUT reboot recovery/reconnection failed; dependent AFT checks cannot run")
+			if tc.name != "AFTValidationAfterDeviceReboot" && !filterClient.readyForDependentTests {
+				t.Skip("DUT reboot recovery or BGP convergence failed; dependent AFT checks cannot run")
 			}
 			t.Log("Starting test")
 			tc.test(t, dut, filterClient)
@@ -671,17 +672,23 @@ func runCollectorsConcurrently(t *testing.T, cfgs ...aftpf.RunCollectorParams) {
 // VRFs, whose per-peer RIB-installed counter is unsupported, it checks native
 // BGP accepted/best-path counts and BGP-origin AFT summaries instead. This is
 // only setup validation; the later per-prefix/filter-isolation checks remain.
-func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice) {
+func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, clients ...gpb.GNMIClient) {
 	t.Helper()
+	var client gpb.GNMIClient
+	if len(clients) != 0 {
+		client = clients[0]
+	}
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
 		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
+		Client: client,
 	})
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: vrfName,
 		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
 		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
+		Client: client,
 	})
 }
 
@@ -734,7 +741,11 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice, filterClient *resilie
 	// and for the scale routes to be re-learned before continuing. Otherwise the
 	// subsequent subtests would start against a partially converged RIB/AFT.
 	t.Log("Waiting for BGP sessions and scale routes to re-converge after reboot")
-	awaitScaleBGPConvergence(t, dut)
+	awaitScaleBGPConvergence(t, dut, filterClient.client)
+	if t.Failed() {
+		t.Fatal("Post-reboot BGP route readiness failed; dependent AFT checks cannot run")
+	}
+	filterClient.readyForDependentTests = true
 	// Re-establish subscriptions.
 	t.Log("Re-establishing AFT subscriptions")
 	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)

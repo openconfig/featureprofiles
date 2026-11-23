@@ -41,6 +41,8 @@ type resilienceFilterClient struct {
 	ctx       context.Context
 	client    gpb.GNMIClient
 	createdAt time.Time
+	// Dependent cases require both gNMI recovery and BGP route readiness.
+	readyForDependentTests bool
 }
 
 func (c *resilienceFilterClient) connect(t *testing.T, dut *ondatra.DUTDevice) {
@@ -60,6 +62,7 @@ func (c *resilienceFilterClient) connect(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (c *resilienceFilterClient) close(t *testing.T) {
 	t.Helper()
+	c.readyForDependentTests = false
 	if c.client == nil {
 		return
 	}
