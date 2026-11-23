@@ -279,10 +279,10 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// Pass: The gNMI Set RPC is rejected with a non-nil error.
 		// Fail: The gNMI Set RPC succeeds without error.
 		t.Log("DP-1.20.1 Steps 2-3: Pushing invalid min-threshold > max-threshold config via gNMI Set and verifying rejection")
-		errStr := testt.ExpectFatal(t, func(t testing.TB) {
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
 		})
-		if errStr == "" {
+		if errMsg == nil {
 			t.Errorf("DP-1.20.1 Step 3 failed: expected gNMI Set error when min-threshold (%d) > max-threshold (%d), got nil", cfg.MinThreshold, cfg.MaxThreshold)
 		}
 	})
@@ -304,10 +304,10 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// Pass: The gNMI Set RPC is rejected with a non-nil error.
 		// Fail: The gNMI Set RPC succeeds without error.
 		t.Log("DP-1.20.2 Steps 2-3: Pushing out-of-range max-drop-probability-percent (101) via gNMI Set and verifying rejection")
-		errStr := testt.ExpectFatal(t, func(t testing.TB) {
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
 		})
-		if errStr == "" {
+		if errMsg == nil {
 			t.Errorf("DP-1.20.2 Step 3 failed: expected gNMI Set error when max-drop-probability-percent = %d (> 100), got nil", cfg.MaxDropProbabilityPercent)
 		}
 	})
@@ -327,10 +327,10 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// Pass: The gNMI Set RPC is rejected with a non-nil error.
 		// Fail: The gNMI Set RPC succeeds without error.
 		t.Log("DP-1.20.3 Steps 2-3: Pushing non-existent profile assignment via gNMI Set and verifying rejection")
-		errStr := testt.ExpectFatal(t, func(t testing.TB) {
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
 		})
-		if errStr == "" {
+		if errMsg == nil {
 			t.Errorf("DP-1.20.3 Step 3 failed: expected gNMI Set error when assigning non-existent profile %q, got nil", bogusProfileName)
 		}
 	})
@@ -363,7 +363,7 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// /qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]
 		// using gNMI Set (Delete).
 		t.Log("DP-1.20.4 Step 3: Attempting to delete actively applied ECN_VALID_PROFILE using gNMI Set (Delete)")
-		errStr := testt.ExpectFatal(t, func(t testing.TB) {
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(validProfileName).Config())
 		})
 
@@ -373,7 +373,7 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// /qos/interfaces/interface[interface-id=Ethernet1]/output/queues/queue[name=0]/state/queue-management-profile
 		// confirms ECN_VALID_PROFILE remains applied.
 		t.Log("DP-1.20.4 Step 4: Verifying deletion was rejected and ECN_VALID_PROFILE remains applied on Ethernet1 queue 0")
-		if errStr == "" {
+		if errMsg == nil {
 			t.Errorf("DP-1.20.4 Step 4 failed: expected gNMI Delete error when deleting actively applied profile %q, got nil", validProfileName)
 		}
 		qoscfg.VerifyLeaf(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), validProfileName, time.Minute)
