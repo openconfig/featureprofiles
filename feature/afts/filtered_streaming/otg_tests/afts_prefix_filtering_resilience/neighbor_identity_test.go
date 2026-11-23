@@ -28,7 +28,7 @@ func ciscoIPv6NeighborMatches(t *testing.T, output, intf string, address netip.A
 	// XR's native ND table abbreviates these interface types. Preserve the
 	// complete port suffix so another port (for example /10 versus /100)
 	// cannot verify this peer.
-	for longName, shortPrefix := range map[string]string{"FourHundredGigE": "FH", "TenGigE": "Te"} {
+	for longName, shortPrefix := range map[string]string{"FourHundredGigE": "FH", "HundredGigE": "Hu", "TenGigE": "Te"} {
 		if strings.HasPrefix(intf, longName) {
 			shortName := shortPrefix + strings.TrimPrefix(intf, longName)
 			interfaceNames[shortName] = true
@@ -118,6 +118,7 @@ func ciscoIPv6NeighborMatches(t *testing.T, output, intf string, address netip.A
 func TestCiscoIPv6NeighborMatches(t *testing.T) {
 	const peer = "fe80::2ff:fe01:101"
 	const row = peer + " 41 0200.0201.0101 REACH Te0/0/0/0/0 0/0/CPU0"
+	const huRow = peer + " 32 0200.0201.0101 REACH Hu0/0/0/4/0 0/0/CPU0"
 	mac, err := net.ParseMAC("02:00:02:01:01:01")
 	if err != nil {
 		t.Fatal(err)
@@ -130,6 +131,14 @@ func TestCiscoIPv6NeighborMatches(t *testing.T) {
 		{name: "full interface name", output: strings.ReplaceAll(row, "Te0/0/0/0/0", "TenGigE0/0/0/0/0"), intf: "TenGigE0/0/0/0/0", want: true},
 		{name: "subinterface zero", output: strings.ReplaceAll(row, "Te0/0/0/0/0", "Te0/0/0/0/0.0"), intf: "TenGigE0/0/0/0/0", want: true},
 		{name: "FourHundredGigE native abbreviation", output: strings.ReplaceAll(row, "Te0/0/0/0/0", "FH0/0/0/0"), intf: "FourHundredGigE0/0/0/0", want: true},
+		{name: "HundredGigE native abbreviation", output: huRow, intf: "HundredGigE0/0/0/4/0", want: true},
+		{name: "HundredGigE full interface name", output: strings.ReplaceAll(huRow, "Hu0/0/0/4/0", "HundredGigE0/0/0/4/0"), intf: "HundredGigE0/0/0/4/0", want: true},
+		{name: "HundredGigE subinterface zero", output: strings.ReplaceAll(huRow, "Hu0/0/0/4/0", "Hu0/0/0/4/0.0"), intf: "HundredGigE0/0/0/4/0", want: true},
+		{name: "HundredGigE wrapped neighbor", output: peer + "\n 32 0200.0201.0101 REACH Hu0/0/0/4/0 0/0/CPU0", intf: "HundredGigE0/0/0/4/0", want: true},
+		{name: "HundredGigE wrong MAC", output: strings.ReplaceAll(huRow, "0200.0201.0101", "0200.0401.0101"), intf: "HundredGigE0/0/0/4/0"},
+		{name: "HundredGigE wrong interface", output: huRow, intf: "HundredGigE0/0/0/4/1"},
+		{name: "HundredGigE interface prefix collision", output: strings.ReplaceAll(huRow, "Hu0/0/0/4/0", "Hu0/0/0/4/00"), intf: "HundredGigE0/0/0/4/0"},
+		{name: "HundredGigE wrong interface family", output: strings.ReplaceAll(huRow, "Hu0/0/0/4/0", "Te0/0/0/4/0"), intf: "HundredGigE0/0/0/4/0"},
 		{name: "wrapped neighbor", output: peer + "\n 41 0200.0201.0101 REACH Te0/0/0/0/0 0/0/CPU0", intf: "TenGigE0/0/0/0/0", want: true},
 		{name: "multicast follows resolved peer", output: row + "\n[Mcast adjacency] - 0000.0000.0000 REACH Te0/0/0/0/0 0/0/CPU0", intf: "TenGigE0/0/0/0/0", want: true},
 		{name: "wrong MAC", output: strings.ReplaceAll(row, "0200.0201.0101", "0200.0401.0101"), intf: "TenGigE0/0/0/0/0"},

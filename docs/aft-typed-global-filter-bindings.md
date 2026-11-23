@@ -143,7 +143,7 @@ are skipped rather than producing cascading failures.
 AFT-6.3 checks collector stopping conditions every five seconds. This avoids
 scheduling the first check at the same instant as the two-minute subscription
 deadline; subscription, scale and policy-change deadlines remain unchanged.
-The native IPv6 neighbor fallback recognizes XR's `Te` and `FH` interface
+The native IPv6 neighbor fallback recognizes XR's `Te`, `Hu` and `FH` interface
 abbreviations and still requires the exact address, complete interface suffix
 and expected MAC in the same neighbor record.
 
