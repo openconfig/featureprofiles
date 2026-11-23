@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -90,6 +91,21 @@ const (
 var (
 	sharedBaseline string
 	defaultNI      string
+
+	// testMTUs are the MTUs configured by this test. setCLINoMTU treats any other MTU as the
+	// platform or testbed default. Some of these share a value, so this is a slice rather
+	// than a map literal.
+	testMTUs = []uint16{
+		overlapMTUOC,
+		overlapMTUCLI,
+		nonOverlapMTU,
+		moveIPMTU,
+		badIntfMTU,
+		addMTUOC,
+		addMTUCLI,
+		changeMTUOC1,
+		changeMTUOC2,
+	}
 )
 
 type cliInterfaceConfigOpts struct {
@@ -209,45 +225,70 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 		t.Fatalf("unsupported vendor: %v", dut.Vendor())
 	}
 	helpers.GnmiCLIConfig(t, dut, cli)
-	// Wait for the MTU to be removed (i.e., not equal to 1500/1514/9232).
-	gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
+	// Wait for the MTU to be removed, i.e. for the MTU to fall back to a platform or testbed
+	// default. Defaults vary (e.g. 1500, 1514, 9232, or an Arista "interface defaults mtu 9214"),
+	// so any value other than an MTU configured by this test is accepted.
+	mtuPath := gnmi.OC().Interface(portName).Mtu().State()
+	if deviations.OmitL2MTU(dut) {
+		mtuPath = gnmi.OC().Interface(portName).Subinterface(defaultSubif).Ipv4().Mtu().State()
+	}
+	lastMTU := "none observed"
+	_, ok := gnmi.Watch(t, dut, mtuPath, awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
 		m, present := val.Val()
 		if !present {
-			t.Logf("Got MTU not present, want 1500, 1514, or 9232.")
+			lastMTU = "not present"
 			return false
 		}
-		if m == 1500 || m == 1514 || m == 9232 {
-			return true
-		}
-		return false
+		lastMTU = fmt.Sprint(m)
+		return !slices.Contains(testMTUs, m)
 	}).Await(t)
+	if !ok {
+		t.Logf("MTU on %s did not return to a non-test default within %v after removing the CLI MTU, last MTU: %s", portName, awaitTimeOut, lastMTU)
+	}
 }
 
 // setCLIunionReplace adds any necessary modifications to the base CLI configuration
 // for union replace.
 func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	clicfg1 := ""
-
 	if dut.Vendor() == ondatra.ARISTA {
-		// Add  "operation set namespace" command from the CLI config as this is required for Arista
-		// when using union replace.
-		clicfg1 = "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
-		helpers.GnmiCLIConfig(t, dut, clicfg1)
-		// Poll for config to be applied.
-		start := time.Now()
-		for {
-			if time.Since(start) > 1*time.Minute {
-				t.Fatal("setCLIunionReplace config not applied in time")
-			}
-			clicfg2 := cliConfig(t, dut)
-			if strings.Contains(clicfg2, "operation set namespace") && strings.Contains(clicfg2, "operation set persistence") {
-				break
-			}
-			time.Sleep(1 * time.Second)
+		// Add "operation set namespace" command to the CLI config as this is required for Arista
+		// when using union replace. helpers.GnmiCLIConfig is a synchronous gNMI Set, so check the
+		// running-config once afterwards instead of polling, to fail fast if the config was not
+		// applied by the time the Set returned.
+		clicfg := "configure terminal\nmanagement api gnmi\n  provider eos-native\n  operation set persistence\n  operation set namespace\n"
+		helpers.GnmiCLIConfig(t, dut, clicfg)
+		gnmiBlock := cliSection(cliConfig(t, dut), "management api gnmi")
+		if !strings.Contains(gnmiBlock, "operation set namespace") || !strings.Contains(gnmiBlock, "operation set persistence") {
+			t.Fatalf("union_replace support (operation set namespace and persistence) not in running-config \"management api gnmi\" block after gNMI Set, got block:\n%s", gnmiBlock)
 		}
 	}
+}
 
+// cliSection returns the top-level section of the CLI config cli whose header line is header,
+// together with all of its indented sub-lines. The section ends at the next top-level
+// (non-indented) line, so nested "!" separators inside the section are included. It returns
+// "" if no such section exists.
+func cliSection(cli, header string) string {
+	var sb strings.Builder
+	inside := false
+	for _, line := range strings.Split(cli, "\n") {
+		line = strings.TrimRight(line, " \t\r")
+		if !inside {
+			if line == header {
+				inside = true
+				sb.WriteString(line)
+				sb.WriteByte('\n')
+			}
+			continue
+		}
+		if line != "" && line[0] != ' ' && line[0] != '\t' {
+			break
+		}
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	return sb.String()
 }
 
 // Remove description lines from the base CLI config.
@@ -465,7 +506,7 @@ func configureOCInterface(t *testing.T, root *oc.Root, dut *ondatra.DUTDevice, i
 		intf.Description = ygot.String(desc)
 	}
 	if mtu > 0 {
-		intf.Mtu = ygot.Uint16(mtu)
+		setOCMTU(dut, intf, mtu)
 	}
 	if ipv4 != "" {
 		subif := defaultSubif
@@ -501,8 +542,29 @@ func ocInterface(root *oc.Root, dut *ondatra.DUTDevice, intfName string) *oc.Int
 	return intf
 }
 
+// setOCMTU sets the MTU of intf. DUTs that do not support setting the L2 MTU (omit_l2_mtu) take
+// the MTU on the subinterface 0 IPv4 and IPv6 MTU leaves instead. In this test only Arista EOS
+// sets omit_l2_mtu. EOS has a single L3 "mtu" per interface for both IPv4 and IPv6, so the
+// IPv4 and IPv6 MTU leaves must be set to the same value. Because they are the same EOS
+// setting, the test verifies only the IPv4 MTU (see verifyInterfaceMTU). As in
+// attrs.NewOCInterface, IPv4 is enabled on the subinterface that carries the IPv4 MTU.
+func setOCMTU(dut *ondatra.DUTDevice, intf *oc.Interface, mtu uint16) {
+	if !deviations.OmitL2MTU(dut) {
+		intf.Mtu = ygot.Uint16(mtu)
+		return
+	}
+	subif := intf.GetOrCreateSubinterface(defaultSubif)
+	s4 := subif.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4.Mtu = ygot.Uint16(mtu)
+	subif.GetOrCreateIpv6().Mtu = ygot.Uint32(uint32(mtu))
+}
+
 // batchUnionReplaceOCInterface adds an OC union_replace of the interface
-// intfName to sb, initialized via ocInterface and customized by set.
+// intfName to sb, initialized via ocInterface and customized by set. Callers that
+// set an MTU must use setOCMTU inside set so that omit_l2_mtu is honored.
 func batchUnionReplaceOCInterface(sb *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, set func(*oc.Interface)) {
 	intf := ocInterface(&oc.Root{}, dut, intfName)
 	set(intf)
@@ -567,7 +629,11 @@ func verifyInterfaceNoIP(t *testing.T, dut *ondatra.DUTDevice, intfName, ipv4 st
 
 func verifyInterfaceMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantMTU uint16) error {
 	t.Helper()
-	if got, ok := awaitStateEq(t, dut, gnmi.OC().Interface(intfName).Mtu().State(), wantMTU, awaitTimeOut); ok {
+	mtuPath := gnmi.OC().Interface(intfName).Mtu().State()
+	if deviations.OmitL2MTU(dut) {
+		mtuPath = gnmi.OC().Interface(intfName).Subinterface(defaultSubif).Ipv4().Mtu().State()
+	}
+	if got, ok := awaitStateEq(t, dut, mtuPath, wantMTU, awaitTimeOut); ok {
 		t.Logf("Interface %s MTU state verified: %v", intfName, got)
 		return nil
 	}
@@ -577,6 +643,9 @@ func verifyInterfaceMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, w
 	return fmt.Errorf("interface %s MTU validation failed, want %v", intfName, wantMTU)
 }
 
+// verifyCLIMTU reports whether the CLI running-config sets the MTU of intfName to wantMTU.
+// A DUT with separate CLI and OC configuration stores can hold a different MTU in CLI than in
+// OC, so the CLI MTU is verified separately from the OC MTU.
 func verifyCLIMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantMTU uint16) bool {
 	t.Helper()
 	interfaceConfig := cliInterface(dut, cliConfig(t, dut), intfName)
@@ -709,15 +778,23 @@ func interfaceBase(t *testing.T, intfName string) string {
 	return intfName[:lastIndex]
 }
 
-func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName string, noOfIntfs uint8) []string {
+func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName string, breakout breakoutConfig) []string {
 	t.Helper()
 	var intfs []string
 	baseName := baseIntfName
 	if dut.Vendor() != ondatra.NOKIA {
 		baseName = interfaceBase(t, baseIntfName)
 	}
-	for index := uint8(0); index < noOfIntfs; index++ {
-		intfs = append(intfs, fmt.Sprintf("%s/%d", baseName, index+1))
+	step := uint8(1)
+	// Arista EOS names breakout child interfaces after their first lane, e.g. /1 and /3 for a
+	// 2x50G breakout that uses 2 lanes per child. Using numChannels as the step assumes that
+	// num-physical-channels equals the number of lanes per child, which holds for the breakout
+	// modes breakoutParams selects for Arista (4x100G-2 and 2x50G-2).
+	if dut.Vendor() == ondatra.ARISTA && breakout.numChannels > 0 {
+		step = breakout.numChannels
+	}
+	for index := uint8(0); index < breakout.numBreakouts; index++ {
+		intfs = append(intfs, fmt.Sprintf("%s/%d", baseName, index*step+1))
 	}
 	return intfs
 }
@@ -939,7 +1016,7 @@ func configureUnionReplaceSupport(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		helpers.GnmiCLIConfig(t, dut, "management api gnmi\n   operation set namespace\n")
+		setCLIunionReplace(t, dut)
 	case ondatra.NOKIA:
 		if deviations.VendorPreConfigRequired(dut) {
 			// Remove Caelum's bootz TCP rule at sequence-id 380 in the cpm ipv6 ACL filter and
@@ -975,7 +1052,7 @@ func TestUnionReplace(t *testing.T) {
 	// Looked up before breakout since the parent interface may disappear once broken out.
 	noTransceiverHWPort, _ := gnmi.Lookup(t, dut, gnmi.OC().Interface(interfaceWithoutTransceiver).HardwarePort().State()).Val()
 	breakout := breakoutParams(t, dut, interfaceWithoutTransceiver)
-	breakoutIntfs := breakoutInterfaces(t, dut, interfaceWithoutTransceiver, breakout.numBreakouts)
+	breakoutIntfs := breakoutInterfaces(t, dut, interfaceWithoutTransceiver, breakout)
 	breakoutOperIntf := breakoutIntfs[0]
 
 	// resetConfig takes the subtest's t so that a failed reset fails only that
@@ -1043,7 +1120,7 @@ func TestUnionReplace(t *testing.T) {
 				mtu := addMTUOC
 				cliConfig2 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig2)
-				batchUnionReplaceOCInterface(sb1, dut, dp1.Name(), func(i *oc.Interface) { i.Mtu = ygot.Uint16(mtu) })
+				batchUnionReplaceOCInterface(sb1, dut, dp1.Name(), func(i *oc.Interface) { setOCMTU(dut, i, mtu) })
 				t.Logf("Generated BatchUnionReplace: %#v\n", sb1.String())
 
 				setResult := sb1.Set(t, dut)
@@ -1074,7 +1151,7 @@ func TestUnionReplace(t *testing.T) {
 				cliMTU := addMTUCLI
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig1)
-				batchUnionReplaceOCInterface(sb1, dut, dp2.Name(), func(i *oc.Interface) { i.Mtu = ygot.Uint16(ocMTU) })
+				batchUnionReplaceOCInterface(sb1, dut, dp2.Name(), func(i *oc.Interface) { setOCMTU(dut, i, ocMTU) })
 				sb1.Set(t, dut)
 				if err := verifyInterfaceMTU(t, dut, dp2.Name(), ocMTU); err != nil {
 					return err
@@ -1135,7 +1212,7 @@ func TestUnionReplace(t *testing.T) {
 				mtu2 := changeMTUOC2
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, cliConfig1)
-				batchUnionReplaceOCInterface(sb, dut, portName, func(i *oc.Interface) { i.Mtu = ygot.Uint16(mtu1) })
+				batchUnionReplaceOCInterface(sb, dut, portName, func(i *oc.Interface) { setOCMTU(dut, i, mtu1) })
 				sb.Set(t, dut)
 
 				if err := verifyInterfaceMTU(t, dut, portName, mtu1); err != nil {
@@ -1145,7 +1222,7 @@ func TestUnionReplace(t *testing.T) {
 				// Change the MTU using OC config.
 				// reuse the same CLI config without any MTU config.
 				sb2 := &gnmi.SetBatch{}
-				batchUnionReplaceOCInterface(sb2, dut, portName, func(i *oc.Interface) { i.Mtu = ygot.Uint16(mtu2) })
+				batchUnionReplaceOCInterface(sb2, dut, portName, func(i *oc.Interface) { setOCMTU(dut, i, mtu2) })
 				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, cliConfig1)
 				sb2.Set(t, dut)
 
@@ -1172,18 +1249,9 @@ func TestUnionReplace(t *testing.T) {
 				cliConfig1 := cliConfig(t, dut)
 				gnmi.BatchUnionReplaceCLI(sb1, cliOrigin, cliConfig1)
 				sb1.Set(t, dut)
-				gnmi.Watch(t, dut, gnmi.OC().Interface(port1Name).Description().State(), awaitTimeOut, func(val *ygnmi.Value[string]) bool {
-					desc, present := val.Val()
-					if !present {
-						t.Logf("Description not present. Want: %q, got: not present", port1DescriptionOC)
-						return false
-					}
-					if desc != port1DescriptionOC {
-						t.Logf("Description not set to OC configured value. Want: %q, got: %q", port1DescriptionOC, desc)
-						return false
-					}
-					return true
-				}).Await(t)
+				if err := verifyInterfaceDescription(t, dut, port1Name, port1DescriptionOC); err != nil {
+					return err
+				}
 
 				// Change the interface description using CLI config.
 				// the OC configuration does not include an interface description.
@@ -1201,20 +1269,8 @@ func TestUnionReplace(t *testing.T) {
 				requireOCWithCLI(t, dut, sb2)
 				sb2.Set(t, dut)
 
-				// Watch for the description to be updated to the CLI configured value.
-				gnmi.Watch(t, dut, gnmi.OC().Interface(port1Name).Description().State(), awaitTimeOut, func(val *ygnmi.Value[string]) bool {
-					desc, present := val.Val()
-					if !present {
-						t.Logf("Description not present. Want: %q, got: not present", port1DescriptionCLI)
-						return false
-					}
-					if desc != port1DescriptionCLI {
-						t.Logf("Description does not match the CLI configured value.  want: %q, got: %q", port1DescriptionCLI, desc)
-						return false
-					}
-					return true // Description is now port1DescriptionCLI
-				}).Await(t)
-				return nil
+				// Wait for the description to be updated to the CLI configured value.
+				return verifyInterfaceDescription(t, dut, port1Name, port1DescriptionCLI)
 			},
 		},
 		{
@@ -1429,7 +1485,7 @@ func TestUnionReplace(t *testing.T) {
 
 				// Verify the port speed CONFIG leaf is the targetSpeed.  It is expected that the port speed config
 				// leaf is updated to the target speed.
-				gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), awaitTimeOut, func(val *ygnmi.Value[oc.E_IfEthernet_ETHERNET_SPEED]) bool {
+				if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), awaitTimeOut, func(val *ygnmi.Value[oc.E_IfEthernet_ETHERNET_SPEED]) bool {
 					speed, present := val.Val()
 					if !present {
 						t.Logf("PortSpeed config not present. Want: %v, got: not present", targetSpeed)
@@ -1441,7 +1497,9 @@ func TestUnionReplace(t *testing.T) {
 					}
 					t.Logf("PortSpeed config is set to target speed: %v", speed)
 					return true
-				}).Await(t)
+				}).Await(t); !ok {
+					return fmt.Errorf("DUT port %s PortSpeed config not set to target speed %v", dp1.Name(), targetSpeed)
+				}
 
 				// Verify the port speed state leaf is the beforeSpeed or UNKNOWN.   It is expected that the
 				// PortSpeed state leaf was not affected by the new configuration and reflects the actual
@@ -1452,7 +1510,7 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				want := oc.Interface_OperStatus_DOWN
-				gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), awaitTimeOut, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+				if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), awaitTimeOut, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 					status, present := val.Val()
 					if !present {
 						t.Logf("OperStatus not present yet")
@@ -1464,7 +1522,9 @@ func TestUnionReplace(t *testing.T) {
 					}
 					t.Logf("OperStatus is in expected state: %v", status)
 					return true
-				}).Await(t)
+				}).Await(t); !ok {
+					return fmt.Errorf("DUT port %s OperStatus state not in expected state %v", dp1.Name(), want)
+				}
 				return nil
 			},
 		},
@@ -1567,7 +1627,7 @@ func TestUnionReplace(t *testing.T) {
 
 				// Verify the port speed CONFIG leaf is the before speed.  It is expected that the port speed config
 				// leaf is updated to the target speed.
-				gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), awaitTimeOut, func(val *ygnmi.Value[oc.E_IfEthernet_ETHERNET_SPEED]) bool {
+				if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), awaitTimeOut, func(val *ygnmi.Value[oc.E_IfEthernet_ETHERNET_SPEED]) bool {
 					speed, present := val.Val()
 					if !present {
 						t.Logf("PortSpeed config not present. Want: %v, got: not present", targetSpeed)
@@ -1579,7 +1639,9 @@ func TestUnionReplace(t *testing.T) {
 					}
 					t.Logf("PortSpeed config is set to target speed: %v", speed)
 					return true
-				}).Await(t)
+				}).Await(t); !ok {
+					return fmt.Errorf("DUT port %s PortSpeed config not set to target speed %v", dp1.Name(), targetSpeed)
+				}
 
 				// Verify the port speed state leaf is the beforeSpeed or UNKNOWN.   It is expected that the
 				// PortSpeed state leaf was not affected by the new configuration and reflects the actual
@@ -1590,7 +1652,7 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				want := oc.Interface_OperStatus_DOWN
-				gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), awaitTimeOut, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+				if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), awaitTimeOut, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 					status, present := val.Val()
 					if !present {
 						t.Logf("OperStatus not present yet")
@@ -1602,7 +1664,9 @@ func TestUnionReplace(t *testing.T) {
 					}
 					t.Logf("OperStatus is in expected state: %v", status)
 					return true
-				}).Await(t)
+				}).Await(t); !ok {
+					return fmt.Errorf("DUT port %s OperStatus state not in expected state %v", dp1.Name(), want)
+				}
 				return nil
 			},
 		},
@@ -1702,12 +1766,16 @@ func TestUnionReplace(t *testing.T) {
 					t.Log("Get configuration from DUT")
 					configPath := gnmi.OC().Interface(intf1Name).Mtu().Config()
 					statePath := gnmi.OC().Interface(intf1Name).Mtu().State()
+					if deviations.OmitL2MTU(dut) {
+						configPath = gnmi.OC().Interface(intf1Name).Subinterface(defaultSubif).Ipv4().Mtu().Config()
+						statePath = gnmi.OC().Interface(intf1Name).Subinterface(defaultSubif).Ipv4().Mtu().State()
+					}
 					beforeConfig, beforeConfigPresent := gnmi.Lookup(t, dut, configPath).Val()
 					beforeState, beforeStatePresent := gnmi.Lookup(t, dut, statePath).Val()
 
 					t.Logf("Set MTU=%d in OC and MTU=%d in CLI (conflict)", overlapMTUOC, overlapMTUCLI)
 					ocDelta := &oc.Root{}
-					ocInterface(ocDelta, dut, intf1Name).Mtu = ygot.Uint16(overlapMTUOC)
+					setOCMTU(dut, ocInterface(ocDelta, dut, intf1Name), overlapMTUOC)
 					cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descOverlapTest, MTU: overlapMTUCLI, IPv4: port1IPv4, IPv4PrefixLen: ipv4PrefixLen})
 
 					t.Log("Push via union_replace")
@@ -1733,15 +1801,16 @@ func TestUnionReplace(t *testing.T) {
 					} else {
 						t.Log("Option 2 behavior: DUT accepted overlapping config, CLI value should take effect in state")
 						// Option 2 of the gNMI union_replace specification does not specify what
-						// value the OC config path should report when CLI and OC overlap. Nokia
-						// uses a unified datastore that reflects the winning CLI value on the OC
-						// config path, whereas dual-datastore implementations retain the OC value.
+						// value the OC config path should report when CLI and OC overlap. Nokia and
+						// Arista report the winning CLI value on the OC config path, whereas
+						// dual-datastore implementations retain the OC value.
 						wantConfig := overlapMTUOC
 						switch dut.Vendor() {
-						case ondatra.NOKIA:
+						case ondatra.ARISTA, ondatra.NOKIA:
 							wantConfig = overlapMTUCLI
 						}
 						gotConfig := gnmi.Get(t, dut, configPath)
+						t.Logf("Interface %s OC MTU config after Option 2 accept: %d (OC value %d, CLI value %d)", intf1Name, gotConfig, overlapMTUOC, overlapMTUCLI)
 						if gotConfig != wantConfig {
 							errs = append(errs, fmt.Errorf("MTU config: got %d, want %d", gotConfig, wantConfig))
 						}
@@ -1762,12 +1831,16 @@ func TestUnionReplace(t *testing.T) {
 					t.Log("Get configuration from DUT")
 					configPath := gnmi.OC().Interface(intf1Name).Mtu().Config()
 					statePath := gnmi.OC().Interface(intf1Name).Mtu().State()
+					if deviations.OmitL2MTU(dut) {
+						configPath = gnmi.OC().Interface(intf1Name).Subinterface(defaultSubif).Ipv4().Mtu().Config()
+						statePath = gnmi.OC().Interface(intf1Name).Subinterface(defaultSubif).Ipv4().Mtu().State()
+					}
 					beforeConfig, beforeConfigPresent := gnmi.Lookup(t, dut, configPath).Val()
 					beforeState, beforeStatePresent := gnmi.Lookup(t, dut, statePath).Val()
 
 					t.Logf("Set MTU=%d in both OC and CLI (same value overlap)", overlapMTUOC)
 					ocDelta := &oc.Root{}
-					ocInterface(ocDelta, dut, intf1Name).Mtu = ygot.Uint16(overlapMTUOC)
+					setOCMTU(dut, ocInterface(ocDelta, dut, intf1Name), overlapMTUOC)
 					cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descOverlapSame, MTU: overlapMTUOC, IPv4: port1IPv4, IPv4PrefixLen: ipv4PrefixLen})
 
 					t.Log("Push via union_replace")
@@ -1948,7 +2021,7 @@ func TestUnionReplace(t *testing.T) {
 				ocDelta := &oc.Root{}
 				p1Intf := ocInterface(ocDelta, dut, intf1Name)
 				p1Intf.Description = ygot.String(descOCDescP1)
-				p1Intf.Mtu = ygot.Uint16(nonOverlapMTU)
+				setOCMTU(dut, p1Intf, nonOverlapMTU)
 
 				cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf2Name, Description: descCLIDescP2})
 
