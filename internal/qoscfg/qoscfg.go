@@ -17,6 +17,7 @@ package qoscfg
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -231,7 +232,7 @@ func ReplaceQueueManagementProfile(t *testing.T, dut *ondatra.DUTDevice, batch *
 	// scheduler-policy first so the subsequent batch attaches a single egress policy.
 	if deviations.QosSchedulerConfigRequired(dut) {
 		schedPath := gnmi.OC().Qos().Interface(qosIntfID).Output().SchedulerPolicy().Name().Config()
-		if gnmi.LookupConfig(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithUseGet()), schedPath).IsPresent() {
+		if lookupConfigWithGet(t, dut, schedPath).IsPresent() {
 			clearBatch := &gnmi.SetBatch{}
 			gnmi.BatchDelete(clearBatch, gnmi.OC().Qos().Interface(qosIntfID).Output().Config())
 			gnmi.BatchDelete(clearBatch, gnmi.OC().Qos().SchedulerPolicy("scheduler").Config())
@@ -301,6 +302,29 @@ func qosStateUnsupported(dut *ondatra.DUTDevice) bool {
 // configPollInterval is the delay between config path reads in verifyLeaf.
 const configPollInterval = 2 * time.Second
 
+// nilValUpdateErr is the ygnmi error reported when a DUT answers a gNMI Get
+// with an update that carries a path but no value.
+const nilValUpdateErr = "invalid nil Val in update"
+
+// lookupConfigWithGet reads a config leaf using gNMI Get. Some DUTs answer a
+// Get for an unset leaf with an update that carries only the parent path and
+// no value, which ygnmi reports as nilValUpdateErr. That response is treated
+// as the leaf being absent; any other error is fatal.
+func lookupConfigWithGet[T any](t testing.TB, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T]) *ygnmi.Value[T] {
+	t.Helper()
+	var v *ygnmi.Value[T]
+	if msg := testt.CaptureFatal(t, func(t testing.TB) {
+		v = gnmi.LookupConfig(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithUseGet()), q)
+	}); msg != nil {
+		if !strings.Contains(*msg, nilValUpdateErr) {
+			t.Fatal(*msg)
+		}
+		t.Logf("lookupConfigWithGet(%v): DUT returned an update with no value; treating leaf as absent", q)
+		return &ygnmi.Value[T]{}
+	}
+	return v
+}
+
 // verifyLeaf waits up to timeout for a QoS leaf to satisfy pred, and reports a
 // test error showing want as the expected value if it does not.
 //
@@ -315,7 +339,7 @@ func verifyLeaf[T any](t testing.TB, dut *ondatra.DUTDevice, state ygnmi.Singlet
 		deadline := time.Now().Add(timeout)
 		var got *ygnmi.Value[T]
 		for {
-			got = gnmi.LookupConfig(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithUseGet()), config)
+			got = lookupConfigWithGet(t, dut, config)
 			if pred(got) {
 				return
 			}
