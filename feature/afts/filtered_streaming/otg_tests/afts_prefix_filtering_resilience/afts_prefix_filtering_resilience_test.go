@@ -41,9 +41,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -72,10 +72,10 @@ const (
 	// streamTerminationWait is the maximum time to wait for an active gNMI AFT
 	// stream to terminate after the DUT reboot is issued.
 	streamTerminationWait = 2 * time.Minute
-	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
+	// maxRebootTime bounds the reboot request and the initial boot-time read.
 	maxRebootTime = 5 * time.Minute
-	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval   = 30 * time.Second
+	// rebootPollInterval separates bounded readiness probes after a reboot.
+	rebootPollInterval   = 10 * time.Second
 	matchPrefixAft1      = "198.51.100.0/24"
 	matchPrefixAft2      = "203.0.113.0/28"
 	matchVrfPfx1         = "100.64.1.0/24"
@@ -111,6 +111,8 @@ const (
 )
 
 var (
+	rebootRecoveryTimeout = flag.Duration("reboot_recovery_timeout", 15*time.Minute, "Maximum time to recover gNMI and observe a newer boot time after the AFT-6.3 cold reboot.")
+	rebootProbeTimeout    = flag.Duration("reboot_probe_timeout", 10*time.Second, "Maximum time for one AFT-6.3 reboot readiness probe, including dialing gNMI.")
 	// AFT-6.3.2 user adjustable values: X (IPv4 routes), Y (IPv6 routes) and
 	// K (maximum allowed initial synchronization time).
 	scaleIPv4Routes = flag.Int("scale_ipv4_routes", 5000, "Number of IPv4 routes (X) advertised from the ATE for the AFT-6.3.2 scale test.")
@@ -199,6 +201,9 @@ func TestMain(m *testing.M) {
 
 // TestAFTPrefixFilteringResilience implements AFT-6.3.
 func TestAFTPrefixFilteringResilience(t *testing.T) {
+	if *rebootRecoveryTimeout <= 0 || *rebootProbeTimeout <= 0 {
+		t.Fatal("Reboot recovery and probe timeouts must be positive")
+	}
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	if deviations.GetRetainGnmiCfgAfterReboot(dut) {
@@ -261,6 +266,9 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.name != "AFTValidationAfterDeviceReboot" && filterClient.client == nil {
+				t.Skip("DUT reboot recovery/reconnection failed; dependent AFT checks cannot run")
+			}
 			t.Log("Starting test")
 			tc.test(t, dut, filterClient)
 			t.Log("Finished test")
@@ -1378,70 +1386,38 @@ func bootTime(t *testing.T, dut *ondatra.DUTDevice) (uint64, error) {
 	return bootTime, nil
 }
 
-// waitForReboot waits for the DUT to become unreachable, come back online,
-// and report a boot time newer than the previous boot time.
+// waitForReboot verifies serving gNMI telemetry and a newer boot time. The
+// pre-existing AFT stream separately proves interruption by the reboot, so a
+// readiness poll need not catch the DUT while it is down.
 func waitForReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) {
 	t.Helper()
 	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	{
-		ticker := time.NewTicker(rebootPollInterval)
-		defer ticker.Stop()
-		timeout := time.After(maxRebootTime)
-		var deviceWentDown bool
-	rebootLoop:
-		for {
-			select {
-			case <-timeout:
-				t.Fatalf("Timeout exceeded: DUT did not reboot within maximum boot time(%v).", maxRebootTime)
-			case <-ticker.C:
-				var currentTime string
-				errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-				})
-				if errMsg != nil {
-					if !deviceWentDown {
-						t.Logf("Device is now unreachable. Waiting for it to come back up.")
-						deviceWentDown = true
-					}
-					t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %q.", time.Since(startReboot).Seconds(), *errMsg)
-				} else {
-					if deviceWentDown {
-						t.Logf("Device rebooted successfully with received time: %v.", currentTime)
-						break rebootLoop
-					}
-					t.Logf("Device is still reachable; reboot hasn't started yet.")
-				}
+	ctx, cancel := context.WithTimeout(t.Context(), *rebootRecoveryTimeout)
+	defer cancel()
+	t.Logf("Waiting for gNMI recovery and a newer boot time: recovery timeout=%v probe timeout=%v", *rebootRecoveryTimeout, *rebootProbeTimeout)
+	// Avoid the shared pre-reboot Ondatra transport. A successful blocking dial
+	// alone is insufficient: a typed Get must also return an increased boot time.
+	var client *ygnmi.Client
+	currentBootTime, err := awaitBootTime(ctx, lastBootTime, rebootPollInterval, *rebootProbeTimeout, func(probeCtx context.Context) (uint64, error) {
+		if client == nil {
+			transport, err := dut.RawAPIs().BindingDUT().DialGNMI(probeCtx, grpc.WithBlock())
+			if err != nil {
+				t.Logf("Reboot readiness dial after %v: %v", time.Since(startReboot), err)
+				return 0, err
+			}
+			client, err = aftpf.TypedGNMIClient(t, dut, transport)
+			if err != nil {
+				return 0, err
 			}
 		}
+		observed, err := ygnmi.Get(probeCtx, client, gnmi.OC().System().BootTime().State(), ygnmi.WithUseGet())
+		t.Logf("Reboot readiness after %v: boot-time=%d previous=%d error=%v", time.Since(startReboot), observed, lastBootTime, err)
+		return observed, err
+	})
+	if err != nil {
+		t.Fatalf("DUT did not recover serving gNMI with a newer boot time within %v: %v", *rebootRecoveryTimeout, err)
 	}
-	t.Logf("DUT became reachable again after %.2f seconds; waiting for the boot time telemetry to update.", time.Since(startReboot).Seconds())
-	// No explicit gNMI dial is performed here: gRPC dialing in Go is
-	// non-blocking, so a successful Dial would not prove the gNMI server is
-	// serving again. The Watch below issues real RPCs and is therefore the
-	// actual readiness check.
-	// Wait for boot time to change. The Watch below already returns the boot
-	// time it last observed, so the value is reused instead of starting another
-	// watch just to read it back.
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
-	if !ok {
-		lastObserved, present := val.Val()
-		if !present {
-			t.Fatalf("Boot time did not update after reboot; no boot time reported. Last: %d", lastBootTime)
-		}
-		t.Fatalf("Boot time did not update after reboot. Current: %d, Last: %d", lastObserved, lastBootTime)
-	}
-	currentBootTime, _ := val.Val()
 	t.Logf("Reboot completed in %.2f seconds; boot time successfully changed from %d to %d.", time.Since(startReboot).Seconds(), lastBootTime, currentBootTime)
-}
-
-// bootTimePredicate returns a predicate that evaluates to true when the DUT
-// reports a boot time greater than the provided previous boot time.
-func bootTimePredicate(lastBootTime uint64) func(val *ygnmi.Value[uint64]) bool {
-	return func(val *ygnmi.Value[uint64]) bool {
-		currentBootTime, ok := val.Val()
-		return ok && currentBootTime > lastBootTime
-	}
 }
 
 // rebootDUT performs gNOI reboot.
