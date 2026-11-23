@@ -905,10 +905,6 @@ message Metadata {
     // Devices that do not support import export policies configured in network instance
     bool network_instance_import_export_policy_oc_unsupported = 318;
 
-    // Device does not support 'origin' field in gNMI/gNOI RPC paths.
-    // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
-    bool skip_origin = 319;
-
     // Devices that support pre-defined max ecmp paths
     // Juniper b/422688435
     bool predefined_max_ecmp_paths = 320;
@@ -1014,9 +1010,6 @@ message Metadata {
     // bandwidth.
     bool advertised_cumulative_lbw_oc_unsupported = 344;
 
-    // disable hardware nexthop proxying
-    // Arista : https://partnerissuetracker.corp.google.com/issues/422275961
-    bool disable_hardware_nexthop_proxy = 345;
 
     // Devices does not support uRPF configuration.
     // Arista https://partnerissuetracker.corp.google.com/issues/444942109
@@ -1631,7 +1624,7 @@ message Metadata {
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }
 
   message PlatformExceptions {
