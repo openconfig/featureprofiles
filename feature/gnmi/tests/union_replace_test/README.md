@@ -9,8 +9,7 @@ tested.
 
 ## Testbed type
 
-* [Single DUT
-  testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut.testbed)
+* [`featureprofiles/topologies/dut_2links.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut_2links.testbed)
 
 ## Procedure
 

@@ -268,8 +268,10 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 				tcArgs.validateTrafficFlows(t, ate, ateTop, baselineFlow, backupFlow)
 			})
 
+			t.Cleanup(func() {
+				tc.removeImpairmentFn()
+			})
 			tc.applyImpairmentFn()
-			defer tc.removeImpairmentFn()
 
 			t.Run("Validate Backup Path Traffic Delivery", func(t *testing.T) {
 				if deviations.BackupNHGRequiresVrfWithDecap(dut) {
