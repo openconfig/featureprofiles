@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -369,4 +370,140 @@ func VerifyLeafDetached[T comparable](t testing.TB, dut *ondatra.DUTDevice, stat
 		}
 		return true
 	})
+}
+
+// ECNProfileConfig holds parameters for an OpenConfig QoS WRED/ECN queue
+// management profile.
+type ECNProfileConfig struct {
+	Name                      string
+	MinThreshold              uint64
+	MaxThreshold              uint64
+	EnableECN                 bool
+	Drop                      bool
+	Weight                    uint32
+	MaxDropProbabilityPercent uint8
+}
+
+// BuildECNQueueManagementProfile populates a WRED uniform queue management
+// profile in qos from cfg, respecting vendor deviations for the weight leaf.
+func BuildECNQueueManagementProfile(dut *ondatra.DUTDevice, qos *oc.Qos, cfg ECNProfileConfig) {
+	profile := qos.GetOrCreateQueueManagementProfile(cfg.Name)
+	profile.SetName(cfg.Name)
+	uniform := profile.GetOrCreateWred().GetOrCreateUniform()
+	uniform.SetEnableEcn(cfg.EnableECN)
+	uniform.SetDrop(cfg.Drop)
+	uniform.SetMinThreshold(cfg.MinThreshold)
+	uniform.SetMaxThreshold(cfg.MaxThreshold)
+	uniform.SetMaxDropProbabilityPercent(cfg.MaxDropProbabilityPercent)
+	if !deviations.QosSetWeightConfigUnsupported(dut) {
+		uniform.SetWeight(cfg.Weight)
+	}
+}
+
+// VerifyECNQueueManagementProfile verifies the state (or config on DUTs
+// without QoS state support) of a WRED uniform queue management profile.
+func VerifyECNQueueManagementProfile(t testing.TB, dut *ondatra.DUTDevice, cfg ECNProfileConfig, timeout time.Duration) {
+	t.Helper()
+	profilePath := gnmi.OC().Qos().QueueManagementProfile(cfg.Name)
+	VerifyLeaf(t, dut, profilePath.Name().State(), profilePath.Name().Config(), cfg.Name, timeout)
+	uniformPath := profilePath.Wred().Uniform()
+	VerifyLeaf(t, dut, uniformPath.MinThreshold().State(), uniformPath.MinThreshold().Config(), cfg.MinThreshold, timeout)
+	VerifyLeaf(t, dut, uniformPath.MaxThreshold().State(), uniformPath.MaxThreshold().Config(), cfg.MaxThreshold, timeout)
+	VerifyLeaf(t, dut, uniformPath.EnableEcn().State(), uniformPath.EnableEcn().Config(), cfg.EnableECN, timeout)
+	if !deviations.QosSetWeightConfigUnsupported(dut) {
+		VerifyLeaf(t, dut, uniformPath.Weight().State(), uniformPath.Weight().Config(), cfg.Weight, timeout)
+	}
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+		VerifyLeaf(t, dut, uniformPath.Drop().State(), uniformPath.Drop().Config(), cfg.Drop, timeout)
+	}
+	VerifyLeaf(t, dut, uniformPath.MaxDropProbabilityPercent().State(), uniformPath.MaxDropProbabilityPercent().Config(), cfg.MaxDropProbabilityPercent, timeout)
+}
+
+// BuildInputClassifierAttachment adds an input classifier attachment for
+// classType and className on intfID to qos using deviations rather than
+// vendor checks.
+func BuildInputClassifierAttachment(dut *ondatra.DUTDevice, qos *oc.Qos, intfID string, classType oc.E_Input_Classifier_Type, className string) {
+	qosIntfID := QosClassifierInterfaceID(dut, intfID)
+	intf := qos.GetOrCreateInterface(qosIntfID)
+	intf.SetInterfaceId(qosIntfID)
+	intf.GetOrCreateInterfaceRef().SetInterface(intfID)
+	if !deviations.QosSchedulerConfigRequired(dut) {
+		intf.GetOrCreateInterfaceRef().SetSubinterface(0)
+	}
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
+	}
+	clf := intf.GetOrCreateInput().GetOrCreateClassifier(classType)
+	clf.SetType(classType)
+	clf.SetName(className)
+}
+
+// VerifyInputClassifier verifies that input classifier className of classType
+// is attached to intfID.
+func VerifyInputClassifier(t testing.TB, dut *ondatra.DUTDevice, intfID string, classType oc.E_Input_Classifier_Type, className string, timeout time.Duration) {
+	t.Helper()
+	qosIntfID := QosClassifierInterfaceID(dut, intfID)
+	inClassifierPath := gnmi.OC().Qos().Interface(qosIntfID).Input().Classifier(classType)
+	VerifyLeaf(t, dut, inClassifierPath.Name().State(), inClassifierPath.Name().Config(), className, timeout)
+	VerifyLeaf(t, dut, inClassifierPath.Type().State(), inClassifierPath.Type().Config(), classType, timeout)
+}
+
+// CleanupQosSetup reverts the setup QoS classifiers, forwarding groups,
+// queues, QoS interface bindings, and IPv4/IPv6 interface addresses on ports.
+func CleanupQosSetup(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port, classifiers, forwardingGroups, queues []string) {
+	t.Helper()
+	bestEffort := func(desc string, fn func(t testing.TB)) {
+		if msg := testt.CaptureFatal(t, fn); msg != nil {
+			t.Logf("Cleanup: %s failed (ignored): %s", desc, *msg)
+		}
+	}
+	for _, dp := range ports {
+		clfIntfID := QosClassifierInterfaceID(dut, dp.Name())
+		for _, ct := range []oc.E_Input_Classifier_Type{oc.Input_Classifier_Type_IPV4, oc.Input_Classifier_Type_IPV6} {
+			bestEffort(fmt.Sprintf("detach input classifier %v on %s", ct, clfIntfID), func(t testing.TB) {
+				gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(clfIntfID).Input().Classifier(ct).Config())
+			})
+		}
+		bestEffort("delete QoS classifier interface "+clfIntfID, func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(clfIntfID).Config())
+		})
+		qosIntfID := QosInterfaceID(dut, dp.Name())
+		if qosIntfID != clfIntfID {
+			bestEffort("delete QoS interface "+qosIntfID, func(t testing.TB) {
+				gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(qosIntfID).Config())
+			})
+		}
+	}
+	if deviations.QOSBufferAllocationConfigRequired(dut) {
+		bestEffort("delete buffer allocation profile ballocprofile", func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().BufferAllocationProfile("ballocprofile").Config())
+		})
+	}
+	for _, className := range classifiers {
+		bestEffort("delete QoS classifier "+className, func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Classifier(className).Config())
+		})
+	}
+	for _, fg := range forwardingGroups {
+		bestEffort("delete QoS forwarding group "+fg, func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().ForwardingGroup(fg).Config())
+		})
+	}
+	allQueues := append([]string(nil), queues...)
+	if deviations.QosSchedulerConfigRequired(dut) {
+		allQueues = append(allQueues, "7")
+	}
+	for _, qName := range allQueues {
+		bestEffort("delete QoS queue "+qName, func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().Queue(qName).Config())
+		})
+	}
+	for _, dp := range ports {
+		bestEffort("delete IPv4 subinterface config on "+dp.Name(), func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Subinterface(0).Ipv4().Config())
+		})
+		bestEffort("delete IPv6 subinterface config on "+dp.Name(), func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Subinterface(0).Ipv6().Config())
+		})
+	}
 }

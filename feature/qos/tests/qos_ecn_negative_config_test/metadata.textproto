@@ -1,0 +1,57 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6f9b88bb-3fbd-4309-833f-507ee9f3e407"
+plan_id: "DP-1.20"
+description: "QoS ECN negative feature config"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_ref_interface_id_format: true
+    state_path_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    qos_queue_requires_id: true
+    qos_buffer_allocation_config_required: true
+    ecn_min_greater_max_threshold_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    qos_get_state_path_unsupported: true
+    state_path_unsupported: true
+    interface_ref_config_unsupported: true
+    ecn_min_greater_max_threshold_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    qos_get_state_path_unsupported: true
+    state_path_unsupported: true
+    drop_weight_leaves_unsupported: true
+    qos_queue_requires_id: true
+    ecn_min_greater_max_threshold_unsupported: true
+    qos_set_weight_config_unsupported: true
+    qos_scheduler_config_required: true
+  }
+}
