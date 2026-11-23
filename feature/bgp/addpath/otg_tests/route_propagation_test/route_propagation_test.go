@@ -1056,6 +1056,9 @@ func TestAddPath(t *testing.T) {
 			t.Run(af.name+" "+tc.name, func(t *testing.T) {
 				tag := fmt.Sprintf("[%s %s]", tc.id, af.name)
 				receiveOn := (tc.cfg.nbrReceive != nil && *tc.cfg.nbrReceive) || (tc.cfg.nbrReceive == nil && tc.cfg.pgReceive != nil && *tc.cfg.pgReceive)
+				if receiveOn && deviations.SkipBgpAddPathReceiveEnabled(dut) {
+					t.Skipf("%s requires neighbor/peer-group-only ADD-PATH receive and ADD_PATHS capability telemetry", tag)
+				}
 				wantRcv := af.ate.prefixesCount
 				if receiveOn {
 					wantRcv = af.ate.prefixesCount * uint32(len(af.ate.routePathIDs()))
