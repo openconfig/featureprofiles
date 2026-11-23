@@ -771,7 +771,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	state, _ := status.Val()
 	t.Logf("BGP adjacency for %s: %v", otgIsisPort4LoopV4, state)
 	if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-		t.Errorf("BGP peer %s status got %d, want %d", otgIsisPort4LoopV4, state, want)
+		t.Errorf("BGP peer %s status got %v, want %v", otgIsisPort4LoopV4, state, want)
 	}
 }
 
