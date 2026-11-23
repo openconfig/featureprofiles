@@ -24,6 +24,20 @@ nodes: {
         }
     }
     services: {
+        key: 57400
+        value: {
+            name: "gnsi"
+            inside: 9339
+        }
+    }
+    services: {
+        key: 57401
+        value: {
+            name: "gnoi"
+            inside: 9339
+        }
+    }
+    services: {
         key: 9340
         value: {
             name: "gribi"
