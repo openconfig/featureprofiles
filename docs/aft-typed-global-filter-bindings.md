@@ -140,10 +140,18 @@ the policy-change convergence checks are unchanged. If reboot or subsequent
 BGP readiness fails, the reboot case fails and the dependent scale/VRF cases
 are skipped rather than producing cascading failures.
 
-The readiness unit cases run without a DUT or ATE:
+AFT-6.3 checks collector stopping conditions every five seconds. This avoids
+scheduling the first check at the same instant as the two-minute subscription
+deadline; subscription, scale and policy-change deadlines remain unchanged.
+The native IPv6 neighbor fallback recognizes XR's `Te` and `FH` interface
+abbreviations and still requires the exact address, complete interface suffix
+and expected MAC in the same neighbor record.
+
+The readiness and neighbor-identity unit cases run without a DUT or ATE:
 
 ```sh
 go test ./feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/reboot_recovery_test.go
+go test ./feature/afts/filtered_streaming/otg_tests/afts_prefix_filtering_resilience/neighbor_identity_test.go
 ```
 
 ## Validation

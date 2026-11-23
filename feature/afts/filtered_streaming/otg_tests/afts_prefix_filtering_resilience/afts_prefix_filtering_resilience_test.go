@@ -19,7 +19,6 @@ import (
 	"net"
 	"net/netip"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -66,9 +65,9 @@ const (
 	// policyChangeWait is the maximum time allowed, per AFT-6.3.3, for a
 	// collector to observe prefixes newly admitted by a global-filter change.
 	policyChangeWait = 60 * time.Second
-	// The final policy-change check must run before its 60-second deadline;
-	// the AFT cache's default two-minute periodic check cannot do that.
-	policyChangeCheckInterval = 5 * time.Second
+	// Check before the shortest (60-second) deadline. The AFT cache default
+	// of two minutes also races the initial subscription deadline.
+	collectorCheckInterval = 5 * time.Second
 	// streamTerminationWait is the maximum time to wait for an active gNMI AFT
 	// stream to terminate after the DUT reboot is issued.
 	streamTerminationWait = 2 * time.Minute
@@ -620,8 +619,8 @@ func configureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefau
 // sequential collections.
 func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool, timeout time.Duration) (*aftcache.AFTData, error) {
 	t.Helper()
-	runCollectorsConcurrently(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout},
-		aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout})
+	runCollectorsConcurrently(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout, CheckInterval: collectorCheckInterval},
+		aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout, CheckInterval: collectorCheckInterval})
 	aft1, err := aftSession1.ToAFT(t, dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session1: %v", err)
@@ -1126,100 +1125,6 @@ func verifiedDefaultPeerValidator(ctx context.Context, t *testing.T, dut *ondatr
 	}
 }
 
-// ciscoIPv6NeighborMatches requires the address, interface and MAC in the same
-// native neighbor record. Wrapped rows are supported; an entry on another port
-// cannot verify this peer, and conflicting MACs on the expected port fail.
-func ciscoIPv6NeighborMatches(t *testing.T, output, intf string, address netip.Addr, wantMAC net.HardwareAddr) (bool, error) {
-	t.Helper()
-	interfaceNames := map[string]bool{intf: true, intf + ".0": true}
-	// XR's native ND table prints FourHundredGigE as FH. Accept that
-	// specific alias with the complete port suffix, not a substring match
-	// that could mistake another port (for example /10 versus /100).
-	if strings.HasPrefix(intf, "FourHundredGigE") {
-		shortName := "FH" + strings.TrimPrefix(intf, "FourHundredGigE")
-		interfaceNames[shortName] = true
-		interfaceNames[shortName+".0"] = true
-	}
-	var records [][]string
-	// Only a partially printed neighbor may consume a continuation line.
-	// In particular, [Mcast adjacency] is a separate record, not a neighbor's
-	// continuation: its zero MAC must never be attributed to the peer above it.
-	pending := -1
-	complete := func(fields []string) bool {
-		hasMAC, hasInterface := false, false
-		for _, field := range fields {
-			if mac, err := net.ParseMAC(field); err == nil && len(mac) == 6 {
-				hasMAC = true
-			}
-			if strings.Contains(field, "/") && !strings.Contains(field, ":") {
-				// Interface names have a port suffix; locations such as
-				// 0/0/CPU0 do not start with a letter.
-				hasInterface = hasInterface || (field[0] >= 'A' && field[0] <= 'Z') || (field[0] >= 'a' && field[0] <= 'z')
-			}
-		}
-		return hasMAC && hasInterface
-	}
-	for _, line := range strings.Split(output, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			pending = -1
-			continue
-		}
-		if ip, err := netip.ParseAddr(fields[0]); err == nil && ip.Is6() {
-			records = append(records, fields)
-			pending = len(records) - 1
-		} else {
-			// Wrapped XR rows begin with an age or a MAC. Reject headers,
-			// multicast rows and unrelated CLI text as record boundaries.
-			_, ageErr := strconv.ParseUint(fields[0], 10, 64)
-			mac, macErr := net.ParseMAC(fields[0])
-			continuation := ageErr == nil || fields[0] == "-" || (macErr == nil && len(mac) == 6) || interfaceNames[fields[0]]
-			if pending < 0 || !continuation {
-				pending = -1
-				continue
-			}
-			records[pending] = append(records[pending], fields...)
-		}
-		if pending >= 0 && complete(records[pending]) {
-			pending = -1
-		}
-	}
-	matched := false
-	for _, record := range records {
-		ip, err := netip.ParseAddr(record[0])
-		if err != nil || ip.WithZone("") != address {
-			continue
-		}
-		correctInterface := false
-		var macs []net.HardwareAddr
-		for _, field := range record[1:] {
-			if interfaceNames[field] {
-				correctInterface = true
-			}
-			if mac, err := net.ParseMAC(field); err == nil && len(mac) == 6 {
-				macs = append(macs, mac)
-			}
-		}
-		if !correctInterface {
-			continue
-		}
-		t.Logf("IPv6 neighbor validation selected record: address=%s interface=%s fields=%v", address, intf, record)
-		if len(macs) == 0 {
-			return false, fmt.Errorf("neighbor %s on %s has no resolved MAC: %v", address, intf, record)
-		}
-		for _, mac := range macs {
-			if !strings.EqualFold(mac.String(), wantMAC.String()) {
-				return false, fmt.Errorf("neighbor %s on %s has MAC %s, want %s", address, intf, mac, wantMAC)
-			}
-		}
-		matched = true
-	}
-	if !matched {
-		return false, fmt.Errorf("no native neighbor record for %s with MAC %s on %s", address, wantMAC, intf)
-	}
-	return true, nil
-}
-
 func logRawNextHop(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, prefix string, nextHop *aftcache.NextHop) {
 	t.Helper()
 	t.Logf("Global next hop has no decoded interface-ref: prefix=%s index=%d IP=%s decoded=%+v; checking raw DUT telemetry", prefix, nextHop.Index, nextHop.IP, nextHop)
@@ -1708,8 +1613,8 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice, filterClient *resi
 		t.Logf("AFT VRF-A readiness UTC=%s stream=%+v (CLIENT buffer, not DUT queue)", time.Now().UTC().Format(time.RFC3339Nano), session.Progress())
 		return checkVRF(session)
 	}
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait})
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait, CheckInterval: collectorCheckInterval})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait, CheckInterval: collectorCheckInterval})
 	defaultAFT, err := collector1.ToAFT(t, dut)
 	if err != nil {
 		t.Fatalf("Collector1 ToAFT failed: %v", err)
@@ -1820,7 +1725,7 @@ func verifyPrefixesFilteredDuringStream(ctx context.Context, t *testing.T, dut *
 			return true, nil
 		},
 	}
-	session.ListenUntil(ctx, t, cfg.Timeout, stoppingCondition)
+	session.ListenUntilWithInterval(ctx, t, cfg.Timeout, collectorCheckInterval, stoppingCondition)
 }
 
 // waitForPrefixesPresent validates that all prefixes appear on the collector's
@@ -1829,7 +1734,7 @@ func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	t.Helper()
 	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: prefixes, V6Prefixes: nil, PfxCount: pfxCount})
 	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{nextHop: true}, nil)
-	session.ListenUntilWithInterval(ctx, t, timeout, policyChangeCheckInterval, stoppingCondition)
+	session.ListenUntilWithInterval(ctx, t, timeout, collectorCheckInterval, stoppingCondition)
 }
 
 // reestablishAFTSession dials a new gNMI client and returns a fresh AFT stream
