@@ -799,16 +799,23 @@ func verifyDirectoryStat(ctx context.Context, t *testing.T, fc fpb.FileClient, s
 	}
 }
 
-// verifyErrorDigestHex asserts that every standalone hex token of 16 or more
-// characters in a File.Put hash-mismatch error message uses the fixed-length,
-// zero-padded unsigned %02x encoding (64 chars for SHA256, 32 chars for MD5),
-// and that any token other than the all-zero digest sent by the client equals
-// the expected digest of the transmitted payload.
+// verifyErrorDigestHex asserts that every hex digest in a File.Put
+// hash-mismatch error message uses the fixed-length, zero-padded unsigned %02x
+// encoding (64 chars for SHA256, 32 chars for MD5), and that any digest other
+// than the all-zero digest sent by the client equals the expected digest of the
+// transmitted payload. Only standalone hex tokens (16+ chars) that are likely
+// to be a digest are checked: tokens with the expected digest length, and
+// tokens that are a suffix of the expected or all-zero digest (omitted leading
+// zeros). Unrelated hex tokens such as connection or trace IDs are ignored.
+// Signed-char sign-extension is checked separately by signExtensionHexPattern.
 func verifyErrorDigestHex(t *testing.T, errMsg, wantHex string) {
 	t.Helper()
 	zeroHex := strings.Repeat("0", len(wantHex))
 	for _, m := range errorDigestHexPattern.FindAllStringSubmatch(errMsg, -1) {
 		gotHex := strings.ToLower(m[1])
+		if len(gotHex) != len(wantHex) && !strings.HasSuffix(wantHex, gotHex) && !strings.HasSuffix(zeroHex, gotHex) {
+			continue
+		}
 		switch {
 		case len(gotHex) != len(wantHex):
 			t.Errorf("gNOI-5.4.3 Defect: error message %q contains digest %q with %d hex chars, want fixed-length zero-padded %d-char hex (e.g. %q)", errMsg, m[1], len(gotHex), len(wantHex), wantHex)
@@ -1280,12 +1287,16 @@ func TestGNOIFileConformance(t *testing.T) {
 		t.Log("gNOI-5.4.5 - Step 4: Final gnoi.file.File.Remove verification across all 13 committed files")
 		allCommitted := append([]fileSpec{}, baselineSpecs...)
 		allCommitted = append(allCommitted, scaleSpecs...)
+		allRemoved := true
 		for _, spec := range allCommitted {
 			if err := removeFile(ctx, fc, spec.path); err != nil {
 				t.Errorf("gnoi.file.File.Remove(%q) failed: %v", spec.path, err)
+				allRemoved = false
 			}
 			verifyFileStatNotFound(ctx, t, fc, spec.path)
 		}
-		filesRemoved = true
+		// Skip the deferred cleanup only if every file was removed; otherwise
+		// the cleanup retries removal of all test files.
+		filesRemoved = allRemoved
 	})
 }
