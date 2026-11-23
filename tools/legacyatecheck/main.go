@@ -364,6 +364,9 @@ func runGoList(workDir string, args []string) ([]*goListPackage, error) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
 			_ = cmd.Wait()
 			return nil, fmt.Errorf("decoding go list output: %w", err)
 		}
