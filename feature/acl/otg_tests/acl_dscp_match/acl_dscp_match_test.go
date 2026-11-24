@@ -329,7 +329,11 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		ipv4Acl := aclAcceptEntryv4.GetOrCreateIpv4()
 		ipv4Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv4, ipv4PrefixLen))
 		ipv4Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv4, ipv4PrefixLen))
-		ipv4Acl.SetDscp(uint8(tc.aclDscpValue))
+		if deviations.ACLDscpLeafUnsupported(dut) {
+			ipv4Acl.SetDscpSet([]uint8{uint8(tc.aclDscpValue)})
+		} else {
+			ipv4Acl.SetDscp(uint8(tc.aclDscpValue))
+		}
 
 		if len(tc.srcDstPortPair) == 2 {
 			aclAcceptEntryv4.GetOrCreateIpv4().SetProtocol(oc.UnionUint8(ipProtoTCP))
@@ -354,7 +358,11 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		ipv6Acl := aclAcceptEntryv6.GetOrCreateIpv6()
 		ipv6Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv6, ipv6PrefixLen))
 		ipv6Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv6, ipv6PrefixLen))
-		ipv6Acl.SetDscp(uint8(tc.aclDscpValue))
+		if deviations.ACLDscpLeafUnsupported(dut) {
+			ipv6Acl.SetDscpSet([]uint8{uint8(tc.aclDscpValue)})
+		} else {
+			ipv6Acl.SetDscp(uint8(tc.aclDscpValue))
+		}
 
 		if len(tc.srcDstPortPair) == 2 {
 			aclAcceptEntryv6.GetOrCreateIpv6().SetProtocol(oc.UnionUint8(ipProtoTCP))
