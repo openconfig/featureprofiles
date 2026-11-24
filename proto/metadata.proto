@@ -1554,19 +1554,6 @@ message Metadata {
     // queue-management-profiles.
     bool qos_red_unsupported = 475;
 
-<<<<<<< HEAD
-    // Device does not support the OpenConfig AFT telemetry required by the test.
-    bool gribi_aft_unsupported = 490;
-
-    //static ip arp
-    bool gribi_static_arp_unique_next_hop_ip_required = 491;
-
-    //convert default MTU from 1500 to 1514
-    bool interface_mtu_1500_maps_to_1514 = 492;
-
-    //out-pkts counter
-    bool interface_out_pkts_counter_includes_unsent = 483;
-=======
     // Devices that don't pre-check invalid interface numbers when configured
     // Cisco: https://partnerissuetracker.corp.google.com/issues/570523357
     bool invalid_interface_number_allowed = 476;
@@ -1635,7 +1622,18 @@ message Metadata {
     // for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
->>>>>>> upstream/main
+
+    // Device does not support the OpenConfig AFT telemetry required by the test.
+    bool gribi_aft_unsupported = 490;
+
+    //static ip arp
+    bool gribi_static_arp_unique_next_hop_ip_required = 491;
+
+    //convert default MTU from 1500 to 1514
+    bool interface_mtu_1500_maps_to_1514 = 492;
+
+    //out-pkts counter
+    bool interface_out_pkts_counter_includes_unsent = 493;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
