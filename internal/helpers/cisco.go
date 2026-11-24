@@ -31,11 +31,10 @@ const (
 	maxRebootTime = 30 // minutes
 )
 
-// ConfigureHwProfile configures Cisco hardware profile with route scale on the DUT.
+// ConfigureHwProfile configures the Cisco hardware profile required for AFT scale on the DUT.
 func ConfigureHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	ciscoConfig := `
-		hw-module profile route scale lpm tcam-banks
 		hw-module profile cef iptunnel scale
 		customshowtech GRPC_CUSTOM
 		command show health gsp
@@ -70,7 +69,6 @@ func ConfigureHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 func ConfigureDefaultHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	ciscoConfig := `
-	    no hw-module profile route scale lpm tcam-banks
 		no hw-module profile cef iptunnel scale
 		`
 	GnmiCLIConfig(t, dut, ciscoConfig)
