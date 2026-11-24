@@ -54,6 +54,60 @@ VRF.
 * Execute above procedure for $VRF-name = "VRF-foo"
 ```
 
+## Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT"
+      }
+    ]
+  },
+  "system": {
+    "logging": {
+      "remote-servers": {
+        "remote-server": [
+          {
+            "config": {
+              "host": "203.0.113.1",
+              "network-instance": "DEFAULT",
+              "source-address": "192.0.2.1"
+            },
+            "host": "203.0.113.1",
+            "selectors": {
+              "selector": [
+                {
+                  "config": {
+                    "facility": "LOCAL7",
+                    "severity": "DEBUG"
+                  },
+                  "facility": "LOCAL7",
+                  "severity": "DEBUG",
+                  "state": {
+                    "facility": "LOCAL7",
+                    "severity": "DEBUG"
+                  }
+                }
+              ]
+            },
+            "state": {
+              "host": "203.0.113.1",
+              "network-instance": "DEFAULT",
+              "source-address": "192.0.2.1"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

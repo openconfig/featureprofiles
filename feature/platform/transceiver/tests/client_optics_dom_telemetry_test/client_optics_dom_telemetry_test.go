@@ -15,7 +15,9 @@
 package client_optics_dom_telemetry_test
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -31,6 +33,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc/platform"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -589,6 +593,127 @@ func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.P
 	}
 }
 
+// indexDataPoint is one streamed value of a physical channel state/index leaf.
+type indexDataPoint struct {
+	val       uint64
+	timestamp time.Time
+}
+
+// readPhysicalChannelIndices subscribes (ONCE) to
+// /components/component[name=<transceiver>]/transceiver/physical-channels/channel[index=*]/state/index
+// and returns all streamed values, keyed by the channel list key. A raw gNMI
+// subscription is used instead of ygnmi so that duplicate data points for the
+// same leaf, which ygnmi rejects, can still be validated and reported.
+func readPhysicalChannelIndices(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) map[string][]indexDataPoint {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	path := &gpb.Path{
+		Origin: "openconfig",
+		Elem: []*gpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: map[string]string{"name": transceiverName}},
+			{Name: "transceiver"},
+			{Name: "physical-channels"},
+			{Name: "channel", Key: map[string]string{"index": "*"}},
+			{Name: "state"},
+			{Name: "index"},
+		},
+	}
+	sub, err := dut.RawAPIs().GNMI(t).Subscribe(ctx)
+	if err != nil {
+		t.Fatalf("Failed to create subscribe client for %v: %v", path, err)
+	}
+	if err := sub.Send(&gpb.SubscribeRequest{
+		Request: &gpb.SubscribeRequest_Subscribe{
+			Subscribe: &gpb.SubscriptionList{
+				Prefix:       &gpb.Path{Target: dut.Name()},
+				Mode:         gpb.SubscriptionList_ONCE,
+				Encoding:     gpb.Encoding_PROTO,
+				Subscription: []*gpb.Subscription{{Path: path}},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("Failed to send subscribe request for %v: %v", path, err)
+	}
+	points := make(map[string][]indexDataPoint)
+	for {
+		resp, err := sub.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Subscribe to %v failed before SyncResponse: %v", path, err)
+		}
+		if resp.GetSyncResponse() {
+			break
+		}
+		n := resp.GetUpdate()
+		for _, u := range n.GetUpdate() {
+			elems := append(append([]*gpb.PathElem{}, n.GetPrefix().GetElem()...), u.GetPath().GetElem()...)
+			if len(elems) == 0 || elems[len(elems)-1].GetName() != "index" {
+				continue
+			}
+			key := physicalChannelKey(&gpb.Path{Elem: elems})
+			points[key] = append(points[key], indexDataPoint{val: u.GetVal().GetUintVal(), timestamp: time.Unix(0, n.GetTimestamp())})
+		}
+	}
+	return points
+}
+
+// validatePhysicalChannelIndices verifies that the DUT streams
+// /components/component/transceiver/physical-channels/channel/state/index for
+// the physical channels of the given transceiver, and that every streamed value
+// matches the channel list key it was reported under. Duplicate data points for
+// the same leaf are reported as a warning. It returns the set of physical
+// channel indices that were streamed with the correct value.
+func validatePhysicalChannelIndices(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) map[uint16]bool {
+	t.Helper()
+	idxPathStr := getPathStr(gnmi.OC().Component(transceiverName).Transceiver().ChannelAny().Index().State().PathStruct())
+	channels := make(map[uint16]bool)
+	for key, points := range readPhysicalChannelIndices(t, dut, transceiverName) {
+		var want uint64
+		if _, err := fmt.Sscan(key, &want); err != nil {
+			tracePath(t, idxPathStr, statusFail, "Transceiver %s: invalid physical channel key %q", transceiverName, key)
+			continue
+		}
+		chIndexPath := getPathStr(gnmi.OC().Component(transceiverName).Transceiver().Channel(uint16(want)).Index().State().PathStruct())
+		if len(points) > 1 {
+			var details []string
+			for _, p := range points {
+				details = append(details, fmt.Sprintf("%d@%s", p.val, p.timestamp.Format(time.RFC3339)))
+			}
+			tracePath(t, chIndexPath, statusWarning, "Transceiver %s: DUT streamed %d data points for the same leaf in one response: %v", transceiverName, len(points), details)
+		}
+		correct := true
+		for _, p := range points {
+			if p.val != want {
+				correct = false
+				tracePath(t, chIndexPath, statusFail, "Transceiver %s: channel[index=%s] streamed state/index %d, want %d", transceiverName, key, p.val, want)
+			}
+		}
+		if correct {
+			channels[uint16(want)] = true
+			tracePath(t, chIndexPath, statusPass, "Channel index: %d", want)
+		}
+	}
+	if len(channels) == 0 {
+		tracePath(t, idxPathStr, statusFail, "Transceiver %s: DUT did not stream any physical-channels/channel/state/index leaf with the correct value", transceiverName)
+	}
+	return channels
+}
+
+// physicalChannelKey returns the value of the physical channel list key
+// (channel[index=...]) in the given gNMI path, or "" if it is not present.
+func physicalChannelKey(p *gpb.Path) string {
+	for _, e := range p.GetElem() {
+		if e.GetName() == "channel" {
+			return e.GetKey()["index"]
+		}
+	}
+	return ""
+}
+
 func validateTransceiverInventory(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, intf *oc.Interface, comp *oc.Component, transceiverName string) {
 	t.Helper()
 	intfNamePath := getPathStr(gnmi.OC().Interface(dp.Name()).Name().State().PathStruct())
@@ -696,19 +821,12 @@ func validateTransceiverInventory(t *testing.T, dut *ondatra.DUTDevice, dp *onda
 		}
 	}
 
-	// Verify Channels and Physical Channels Mapping
-	channelsMap := make(map[uint16]bool)
-	if comp.GetTransceiver() != nil {
-		for chIdx, ch := range comp.GetTransceiver().Channel {
-			channelsMap[chIdx] = true
-			chIndexPath := getPathStr(gnmi.OC().Component(transceiverName).Transceiver().Channel(chIdx).Index().State().PathStruct())
-			if ch != nil && ch.Index != nil {
-				tracePath(t, chIndexPath, statusPass, "Channel index: %d", ch.GetIndex())
-			} else {
-				tracePath(t, chIndexPath, statusPass, "Channel index: %d", chIdx)
-			}
-		}
-	}
+	// Verify Channels and Physical Channels Mapping.
+	// The physical channel index leaf is subscribed to directly, rather than read
+	// from the component struct: ygnmi fills in list keys from the path, so a
+	// struct read cannot tell whether the DUT actually streams
+	// /components/component/transceiver/physical-channels/channel/state/index.
+	channelsMap := validatePhysicalChannelIndices(t, dut, transceiverName)
 
 	physicalChannel := intf.GetPhysicalChannel()
 	pcPath := getPathStr(gnmi.OC().Interface(dp.Name()).PhysicalChannel().State().PathStruct())
@@ -725,6 +843,36 @@ func validateTransceiverInventory(t *testing.T, dut *ondatra.DUTDevice, dp *onda
 	}
 }
 
+// setInterfaceEnabled sets /interfaces/interface/config/enabled for the given
+// interface. The interface name and type are set in the same update because
+// some devices require them when the interface has no OpenConfig configuration
+// yet (IOS-XR requires config/name to match the list key, Junos requires
+// config/type).
+func setInterfaceEnabled(t *testing.T, dut *ondatra.DUTDevice, name string, enabled bool) {
+	t.Helper()
+	gnmi.Update(t, dut, gnmi.OC().Interface(name).Config(), &oc.Interface{
+		Name:    ygot.String(name),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(enabled),
+	})
+}
+
+// restoreInterfaceEnabledOnCleanup registers a cleanup that restores
+// /interfaces/interface/config/enabled of the given interface to its value at
+// the time of the call, or deletes the leaf if it was not set.
+func restoreInterfaceEnabledOnCleanup(t *testing.T, dut *ondatra.DUTDevice, name string) {
+	t.Helper()
+	enabledPath := gnmi.OC().Interface(name).Enabled().Config()
+	originalEnabled, present := gnmi.Lookup(t, dut, enabledPath).Val()
+	t.Cleanup(func() {
+		if present {
+			gnmi.Update(t, dut, enabledPath, originalEnabled)
+		} else {
+			gnmi.Delete(t, dut, enabledPath)
+		}
+	})
+}
+
 // TestClientOpticsTelemetryAndInventory validates that all interfaces and transceivers
 // are enabled, links are UP, and all static inventory and dynamic telemetry parameters
 // (power, bias current, temperature, supply voltage, and alarm thresholds) are valid.
@@ -735,7 +883,8 @@ func TestClientOpticsTelemetryAndInventory(t *testing.T) {
 	for _, dp := range ports {
 		t.Run(fmt.Sprintf("Port:%s", dp.Name()), func(t *testing.T) {
 			// Ensure interface is enabled and wait for link to be UP
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), true)
+			restoreInterfaceEnabledOnCleanup(t, dut, dp.Name())
+			setInterfaceEnabled(t, dut, dp.Name(), true)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			intfLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).State())
@@ -786,14 +935,7 @@ func TestInterfaceEnabled(t *testing.T) {
 
 	for _, dp := range ports {
 		t.Run(fmt.Sprintf("Interface-Flap-%s", dp.Name()), func(t *testing.T) {
-			originalEnabled, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config()).Val()
-			t.Cleanup(func() {
-				if present {
-					gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), originalEnabled)
-				} else {
-					gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config())
-				}
-			})
+			restoreInterfaceEnabledOnCleanup(t, dut, dp.Name())
 
 			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
 			component := gnmi.OC().Component(transceiverName)
@@ -805,7 +947,7 @@ func TestInterfaceEnabled(t *testing.T) {
 			}
 
 			t.Run("Disable interface and verify link DOWN, output power drops", func(t *testing.T) {
-				gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), false)
+				setInterfaceEnabled(t, dut, dp.Name(), false)
 				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())
@@ -816,7 +958,7 @@ func TestInterfaceEnabled(t *testing.T) {
 			})
 
 			t.Run("Re-enable interface and verify link UP, telemetry parameters normal", func(t *testing.T) {
-				gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), true)
+				setInterfaceEnabled(t, dut, dp.Name(), true)
 				gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 				operPathStr := getPathStr(gnmi.OC().Interface(dp.Name()).OperStatus().State().PathStruct())

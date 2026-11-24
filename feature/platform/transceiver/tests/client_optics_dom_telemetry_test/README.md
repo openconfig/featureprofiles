@@ -13,6 +13,8 @@ Optics test requirements alongside the platform functional tests require optics 
 
 *   Step 1: Ensure interfaces and transceivers are enabled, wait for link UP, and validate inventory and telemetry:
     *   Validate static inventory metadata: `/components/component/state/mfg-name`, `/components/component/transceiver/state/form-factor`, `/components/component/state/serial-no`, `/components/component/state/part-no`, `/components/component/state/firmware-version`, `/components/component/state/hardware-version`, `/components/component/state/description`, `/components/component/state/mfg-date`, `/components/component/transceiver/physical-channels/channel/state/index`, `/interfaces/interface/state/physical-channel`, `/interfaces/interface/state/transceiver`.
+        *   Subscribe directly to `/components/component/transceiver/physical-channels/channel/state/index`: verify the DUT streams the leaf for at least one physical channel, that each streamed value equals its `channel[index]` list key, and that every value in `/interfaces/interface/state/physical-channel` has a streamed index.
+        *   If the DUT streams more than one data point for the same `state/index` leaf in the ONCE subscription response, every data point must still equal the list key; the duplicates are reported as a warning.
     *   Validate dynamic telemetry instant values are within the normal operating range bounded by WARNING and CRITICAL lower/upper thresholds (i.e., no threshold alarms are expected to be triggered during normal operation): module temperature, Tx output power, Rx input power, laser bias-current, and supply voltage.
         *   Nested-threshold rules apply: `critical_lower <= warning_lower <= instant <= warning_upper <= critical_upper`.
         *   Some hardware platforms or pluggables may report equal values for warning and critical thresholds (e.g., `warning_upper == critical_upper` or `warning_lower == critical_lower`), which is valid and supported.
@@ -24,6 +26,17 @@ Optics test requirements alongside the platform functional tests require optics 
 *   Step 3: Verify transceiver config enabled on/off lifecycle:
     *   Set `/components/component/transceiver/config/enabled` to `false`: verify oper-status is not UP and transceiver disabled.
     *   Set `/components/component/transceiver/config/enabled` to `true`: wait for link UP and verify all telemetry parameters are valid and within thresholds.
+
+## Cleanup
+
+*   After each test, `/interfaces/interface/config/enabled` and
+    `/components/component/transceiver/config/enabled` are restored to their
+    original values (or deleted if they were not set).
+*   When enabling or disabling an interface, `/interfaces/interface/config/name`
+    and `/interfaces/interface/config/type` are set together with `enabled`,
+    because some devices require them when the interface has no OpenConfig
+    configuration yet. These identify the existing interface and are left in
+    place.
 
 ## Canonical OC
 

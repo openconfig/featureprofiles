@@ -104,11 +104,18 @@ func testCarrierTransitions(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.P
 
 	// Flap the interface
 	t.Log("Disabling interface...")
+	portRestored := false
+	t.Cleanup(func() {
+		if !portRestored {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_DOWN)
 
 	t.Log("Enabling interface...")
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+	portRestored = true
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 
 	// Wait for one more sample interval to ensure we capture the final state
@@ -238,11 +245,18 @@ func testPhyCarrierTransitions(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatr
 
 	// Flap the interface
 	t.Log("Disabling interface for phy-carrier-transitions...")
+	portRestored := false
+	t.Cleanup(func() {
+		if !portRestored {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+		}
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_DOWN)
 
 	t.Log("Enabling interface for phy-carrier-transitions...")
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+	portRestored = true
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 
 	// Wait up to 60 seconds for the counter to update asynchronously.
