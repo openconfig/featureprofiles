@@ -14,6 +14,9 @@ This is a post-FEC decoder error metric.
     output power of one is the RX input power of the other module.
 *   To establish a point to point ZR link ensure the following:
       * Both transceivers state is enabled
+      * Retrieve the associated optical channel component for each transceiver
+        physical channel via
+        `/components/component/transceiver/physical-channels/channel/state/associated-optical-channel`
       * Both transceivers are set to a valid target TX output power
         example -10 dBm
       * Both transceivers are tuned to a valid centre frequency
@@ -43,6 +46,8 @@ paths:
     /components/component/transceiver/config/enabled:
         platform_type: ["OPTICAL_CHANNEL"]
     # Telemetry Parameter coverage
+    /components/component/transceiver/physical-channels/channel/state/associated-optical-channel:
+        platform_type: ["TRANSCEIVER"]
     /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
 
 rpcs:

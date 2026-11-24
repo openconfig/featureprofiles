@@ -24,10 +24,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/telemetry/transceiver"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -142,11 +142,8 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
 	// Disable interface
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(false)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	togglePort := transceiver.ToggleInterfacesWithCleanup(t, dut1, dp1)
+	togglePort(false)
 	compWithTemperature := gnmi.OC().Component(transceiverName)
 	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
 		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, compWithTemperature.SubcomponentAny().State())
@@ -195,11 +192,8 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 			t.Fatalf("The average is not between the maximum and minimum values")
 		}
 	}
-	i = d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(true)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	// Enable interface
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	togglePort(true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	temprStateData, _ = p1Stream.Next().Val()
 	instantTemp = temprStateData.GetInstant()
