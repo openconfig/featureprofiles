@@ -13,6 +13,7 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -372,11 +373,12 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	cs := otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(60 * time.Second)
 	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool) {

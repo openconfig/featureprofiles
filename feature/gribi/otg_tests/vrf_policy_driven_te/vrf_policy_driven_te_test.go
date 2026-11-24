@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -1557,18 +1558,14 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, flowLis
 	args.otg.StartProtocols(t)
 	time.Sleep(60 * time.Second)
 
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.otg.SetControlState(t, cs)
+	cs := otgutils.StartCapture(t, args.otg)
+	defer otgutils.StopCapture(t, args.otg, cs)
 
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	args.otg.StopTraffic(t)
-
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.otg.SetControlState(t, cs)
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss bool) {

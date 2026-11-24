@@ -2036,20 +2036,7 @@ deviations: {
     }
   }
 }
-deviations: {
-  name: "disable_hardware_nexthop_proxy"
-  type: DEVIATION_TYPE_UNSPECIFIED
-  platforms: {
-    issue_url: ""
-    platform: {
-      vendor: ARISTA
-      software_version_regex: "*.*"
-    }
-    clis: {
-      commands: "ip hardware fib next-hop proxy disabled"
-    }
-  }
-}
+
 deviations: {
   name: "isis_mpls_unsupported"
   type: DEVIATION_TYPE_PATH
@@ -2282,30 +2269,6 @@ deviations: {
     platform: {
       vendor: CISCO
       software_version_regex: "*.*"
-    }
-  }
-}
-deviations: {
-  name: "sflow_ingress_min_sampling_rate"
-  type: DEVIATION_TYPE_VALUE
-  impacted_paths: {
-    ocpaths: {
-      name: "/sampling/sflow/config/ingress-sampling-rate"
-    }
-  }
-  platforms: {
-    issue_url: "b/402672689"
-    platform: {
-      vendor: CISCO
-      software_version_regex: "*.*"
-    }
-    deviation_values: {
-      oc_standard_value: {
-        string_val: "1000000"
-      }
-      vendor_specific_value: {
-        string_val: "262144"
-      }
     }
   }
 }
