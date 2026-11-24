@@ -384,8 +384,9 @@ func TestAFTCacheEdgeCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nh := aft.NextHops[7]; nh == nil || nh.IP != "" || nh.IntfName != "" {
-		t.Fatalf("multi-field NH delete got %+v, want empty IP and IntfName", nh)
+	// Once all populated fields (ip-address and interface) are deleted, ToAFT omits the empty NH.
+	if nh := aft.NextHops[7]; nh != nil {
+		t.Fatalf("multi-field NH delete exported empty NH %+v, want nil (omitted)", nh)
 	}
 	// Stale NH update with timestamp older than the partial field delete (200 < 300) must be rejected.
 	if err := c.addAFTNotification(makeNHNoti("DEFAULT", 7, "192.0.2.7", "Ethernet7/1", 200, true)); !errors.Is(err, cache.ErrStale) {
@@ -609,6 +610,8 @@ func TestAFTCacheScaleMemoryAndSpeed(t *testing.T) {
 	}
 	ingestDur := time.Since(startIngest)
 
+	// Reclaim the 200k transient SubscribeResponse protos allocated by the test loop
+	// above so HeapAlloc measures the steady-state retained cache footprint.
 	runtime.GC()
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
@@ -620,5 +623,323 @@ func TestAFTCacheScaleMemoryAndSpeed(t *testing.T) {
 	if err != nil || !done {
 		t.Fatalf("scale stopping condition failed: done=%v err=%v", done, err)
 	}
-	t.Logf("200k routes: ingest=%v | ToAFT+Check=%v | HeapAlloc=%d MiB", ingestDur, checkDur, ms.HeapAlloc/1024/1024)
+	heapMiB := ms.HeapAlloc / 1024 / 1024
+	t.Logf("200k routes: ingest=%v | ToAFT+Check=%v | HeapAlloc=%d MiB", ingestDur, checkDur, heapMiB)
+	const maxExpectedHeapMiB = 256
+	if heapMiB > maxExpectedHeapMiB {
+		t.Fatalf("retained heap %d MiB exceeds upper bound of %d MiB", heapMiB, maxExpectedHeapMiB)
+	}
+}
+
+func TestAFTCacheCompletenessAndNegativePaths(t *testing.T) {
+	t.Run("empty_and_mismatched_state_prefix_rejected", func(t *testing.T) {
+		c := newAFTCache("dut", "DEFAULT")
+		for _, badVal := range []string{"", "198.51.100.99/32"} {
+			n := &gnmipb.SubscribeResponse{
+				Response: &gnmipb.SubscribeResponse_Update{
+					Update: &gnmipb.Notification{
+						Timestamp: 100,
+						Atomic:    true,
+						Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+							pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+							pElem("afts"), pElem("ipv4-unicast"), pElem("ipv4-entry", "prefix", "198.51.100.1/32"),
+						}},
+						Update: []*gnmipb.Update{
+							{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("state"), pElem("prefix")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_StringVal{StringVal: badVal}}},
+							{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("state"), pElem("next-hop-group")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 10}}},
+						},
+					},
+				},
+			}
+			if err := c.addAFTNotification(n); err == nil {
+				t.Fatalf("expected error for state/prefix=%q, got nil", badVal)
+			}
+		}
+	})
+
+	t.Run("prefix_missing_nhg_or_state_prefix_errors_in_ToAFT", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			updates []*gnmipb.Update
+		}{
+			{
+				name: "missing_nhg",
+				updates: []*gnmipb.Update{
+					{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("state"), pElem("prefix")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_StringVal{StringVal: "198.51.100.1/32"}}},
+				},
+			},
+			{
+				name: "missing_state_prefix",
+				updates: []*gnmipb.Update{
+					{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("state"), pElem("next-hop-group")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 10}}},
+				},
+			},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				c := newAFTCache("dut", "DEFAULT")
+				ss := &AFTStreamSession{Cache: c, start: time.Now()}
+				n := &gnmipb.SubscribeResponse{
+					Response: &gnmipb.SubscribeResponse_Update{
+						Update: &gnmipb.Notification{
+							Timestamp: 100,
+							Atomic:    true,
+							Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+								pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+								pElem("afts"), pElem("ipv4-unicast"), pElem("ipv4-entry", "prefix", "198.51.100.1/32"),
+							}},
+							Update: tc.updates,
+						},
+					},
+				}
+				if err := c.addAFTNotification(n); err != nil {
+					t.Fatalf("addAFTNotification failed: %v", err)
+				}
+				if _, err := ss.ToAFT(t, nil); err == nil {
+					t.Fatalf("expected ToAFT error for %s, got nil", tc.name)
+				}
+			})
+		}
+	})
+
+	t.Run("empty_nh_omitted_and_not_counted_by_AssertNextHopCount", func(t *testing.T) {
+		c := newAFTCache("dut", "DEFAULT")
+		ss := &AFTStreamSession{Cache: c, start: time.Now()}
+		emptyNH := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 100,
+					Atomic:    true,
+					Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+						pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+						pElem("afts"), pElem("next-hops"), pElem("next-hop", "index", "1"),
+					}},
+					Update: []*gnmipb.Update{
+						{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("state"), pElem("index")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 1}}},
+					},
+				},
+			},
+		}
+		for _, n := range []*gnmipb.SubscribeResponse{
+			emptyNH,
+			makeNHGNoti("DEFAULT", 10, map[uint64]uint64{1: 1}, 100, true),
+			makePrefixNoti("DEFAULT", "ipv4-unicast", "ipv4-entry", "198.51.100.1/32", 10, 100, true),
+		} {
+			if err := c.addAFTNotification(n); err != nil {
+				t.Fatal(err)
+			}
+		}
+		aft, err := ss.ToAFT(t, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := aft.NextHops[1]; ok {
+			t.Fatalf("empty NH should be omitted from ToAFT, got %+v", aft.NextHops[1])
+		}
+		hook := AssertNextHopCount(t, nil, map[string]bool{"198.51.100.1/32": true}, 1)
+		if done, err := hook.PeriodicFunc(ss); err != nil || done {
+			t.Fatalf("AssertNextHopCount on empty NH got done=%v err=%v, want false, nil", done, err)
+		}
+	})
+
+	t.Run("nhg_weight_count_mismatch_and_weight_leaf_delete", func(t *testing.T) {
+		c := newAFTCache("dut", "DEFAULT")
+		ss := &AFTStreamSession{Cache: c, start: time.Now()}
+		if err := c.addAFTNotification(makeNHGNoti("DEFAULT", 10, map[uint64]uint64{1: 1, 2: 1}, 100, true)); err != nil {
+			t.Fatal(err)
+		}
+		// Deleting only the weight leaf must NOT evict member 1 from NHIDs,
+		// causing ToAFT to return a weight-count mismatch error.
+		weightDel := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 200,
+					Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+						pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+						pElem("afts"), pElem("next-hop-groups"), pElem("next-hop-group", "id", "10"),
+					}},
+					Delete: []*gnmipb.Path{
+						{Elem: []*gnmipb.PathElem{pElem("next-hops"), pElem("next-hop", "index", "1"), pElem("state"), pElem("weight")}},
+					},
+				},
+			},
+		}
+		if err := c.addAFTNotification(weightDel); err != nil {
+			t.Fatalf("weight leaf delete failed: %v", err)
+		}
+		if gotNHIDs := len(c.nextHopGroups[10].data.NHIDs); gotNHIDs != 2 {
+			t.Fatalf("weight leaf delete erroneously evicted member: len(NHIDs)=%d, want 2", gotNHIDs)
+		}
+		if _, err := ss.ToAFT(t, nil); err == nil {
+			t.Fatalf("expected ToAFT error on NHG missing weight, got nil")
+		}
+	})
+
+	t.Run("mixed_stale_update_still_runs_delete_and_same_ts_delete_applies", func(t *testing.T) {
+		c := newAFTCache("dut", "DEFAULT")
+		ss := &AFTStreamSession{Cache: c, start: time.Now()}
+		for _, n := range []*gnmipb.SubscribeResponse{
+			makePrefixNoti("DEFAULT", "ipv4-unicast", "ipv4-entry", "198.51.100.1/32", 10, 300, true),
+			makePrefixNoti("DEFAULT", "ipv4-unicast", "ipv4-entry", "198.51.100.2/32", 10, 100, true),
+			makeNHGNoti("DEFAULT", 10, map[uint64]uint64{1: 1, 2: 1}, 100, true),
+		} {
+			if err := c.addAFTNotification(n); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Mixed notification at ts=200: update for .1 is stale (200 < 300),
+		// but delete for .2 (100 <= 200) must still run.
+		mixedStale := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 200,
+					Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+						pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+						pElem("afts"),
+					}},
+					Update: []*gnmipb.Update{
+						{
+							Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("ipv4-unicast"), pElem("ipv4-entry", "prefix", "198.51.100.1/32"), pElem("state"), pElem("next-hop-group")}},
+							Val:  &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 99}},
+						},
+					},
+					Delete: []*gnmipb.Path{
+						{Elem: []*gnmipb.PathElem{pElem("ipv4-unicast"), pElem("ipv4-entry", "prefix", "198.51.100.2/32")}},
+					},
+				},
+			},
+		}
+		if err := c.addAFTNotification(mixedStale); !errors.Is(err, cache.ErrStale) {
+			t.Fatalf("mixed stale notification got err=%v, want ErrStale", err)
+		}
+		aft, err := ss.ToAFT(t, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, exists := aft.Prefixes["198.51.100.2/32"]; exists {
+			t.Fatalf("delete in mixed notification was skipped after stale update")
+		}
+		if aft.Prefixes["198.51.100.1/32"] != 10 {
+			t.Fatalf("stale update overwrote .1 NHG: got %d, want 10", aft.Prefixes["198.51.100.1/32"])
+		}
+
+		// Same-timestamp update + delete on the same NHG adds member 3 and deletes member 1.
+		sameTSMixedNHG := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 250,
+					Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+						pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+						pElem("afts"), pElem("next-hop-groups"), pElem("next-hop-group", "id", "10"),
+					}},
+					Update: []*gnmipb.Update{
+						{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("next-hops"), pElem("next-hop", "index", "3"), pElem("state"), pElem("index")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 3}}},
+						{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("next-hops"), pElem("next-hop", "index", "3"), pElem("state"), pElem("weight")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 1}}},
+					},
+					Delete: []*gnmipb.Path{
+						{Elem: []*gnmipb.PathElem{pElem("next-hops"), pElem("next-hop", "index", "1")}},
+					},
+				},
+			},
+		}
+		if err := c.addAFTNotification(sameTSMixedNHG); err != nil {
+			t.Fatalf("same-ts mixed NHG notification failed: %v", err)
+		}
+		aft, err = ss.ToAFT(t, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := aft.NextHopGroups[10].NHIDs; len(got) != 2 || got[0] != 2 || got[1] != 3 {
+			t.Fatalf("same-ts mixed NHG got NHIDs=%v, want [2 3]", got)
+		}
+
+		// Zero-timestamp delete must NOT override a positive-timestamp entry.
+		zeroTSDel := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 0,
+					Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+						pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+						pElem("afts"),
+					}},
+					Delete: []*gnmipb.Path{
+						{Elem: []*gnmipb.PathElem{pElem("ipv4-unicast"), pElem("ipv4-entry", "prefix", "198.51.100.1/32")}},
+					},
+				},
+			},
+		}
+		if err := c.addAFTNotification(zeroTSDel); err != nil {
+			t.Fatal(err)
+		}
+		aft, err = ss.ToAFT(t, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if aft.Prefixes["198.51.100.1/32"] != 10 {
+			t.Fatalf("zero-timestamp delete erroneously removed timestamped prefix")
+		}
+	})
+
+	t.Run("ancestor_delete_and_conditional_nhg_replaces_regular", func(t *testing.T) {
+		c := newAFTCache("dut", "DEFAULT")
+		ss := &AFTStreamSession{Cache: c, start: time.Now()}
+		for _, n := range []*gnmipb.SubscribeResponse{
+			makeNHGNoti("DEFAULT", 10, map[uint64]uint64{1: 1}, 100, true),
+			makePrefixNoti("DEFAULT", "ipv4-unicast", "ipv4-entry", "198.51.100.1/32", 10, 100, true),
+		} {
+			if err := c.addAFTNotification(n); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Conditional NHG replacing regular NHG 10 must evict the old regular entry.
+		cnhgNoti := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 200,
+					Atomic:    true,
+					Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+						pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+						pElem("afts"), pElem("next-hop-groups"), pElem("next-hop-group", "id", "10"),
+					}},
+					Update: []*gnmipb.Update{
+						{Path: &gnmipb.Path{Elem: []*gnmipb.PathElem{pElem("conditional"), pElem("condition", "id", "1"), pElem("state"), pElem("next-hop-group")}}, Val: &gnmipb.TypedValue{Value: &gnmipb.TypedValue_UintVal{UintVal: 20}}},
+					},
+				},
+			},
+		}
+		if err := c.addAFTNotification(cnhgNoti); err != nil {
+			t.Fatalf("conditional NHG update failed: %v", err)
+		}
+		aft, err := ss.ToAFT(t, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := aft.NextHopGroups[10]; ok {
+			t.Fatalf("conditional NHG left stale regular NHG 10 in cache")
+		}
+
+		// Ancestor delete at network-instance[name=DEFAULT] clears remaining cached entries.
+		ancestorDel := &gnmipb.SubscribeResponse{
+			Response: &gnmipb.SubscribeResponse_Update{
+				Update: &gnmipb.Notification{
+					Timestamp: 300,
+					Delete: []*gnmipb.Path{
+						{Elem: []*gnmipb.PathElem{pElem("network-instances"), pElem("network-instance", "name", "DEFAULT")}},
+					},
+				},
+			},
+		}
+		if err := c.addAFTNotification(ancestorDel); err != nil {
+			t.Fatalf("ancestor delete failed: %v", err)
+		}
+		aft, err = ss.ToAFT(t, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(aft.Prefixes) != 0 {
+			t.Fatalf("ancestor delete left prefixes in cache: %+v", aft.Prefixes)
+		}
+	})
 }

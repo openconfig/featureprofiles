@@ -135,9 +135,10 @@ func (a *AFTData) FilterByPrefixes(wantPrefixes map[string]bool) *AFTData {
 }
 
 type prefixRecord struct {
-	nhgID  uint64
-	hasNHG bool
-	ts     int64
+	nhgID          uint64
+	ts             int64
+	hasNHG         bool
+	hasStatePrefix bool
 }
 
 type nhgRecord struct {
@@ -203,20 +204,25 @@ func (ss *AFTStreamSession) ToAFT(_ *testing.T, _ *ondatra.DUTDevice) (*AFTData,
 
 	prefixes := make(map[string]uint64, len(c.prefixesV4)+len(c.prefixesV6))
 	for pfx, rec := range c.prefixesV4 {
-		if rec.hasNHG {
-			prefixes[pfx] = rec.nhgID
+		if !rec.hasNHG || !rec.hasStatePrefix {
+			return nil, fmt.Errorf("missing required fields for IPv4 prefix %s (hasPrefix=%v, hasNHG=%v)", pfx, rec.hasStatePrefix, rec.hasNHG)
 		}
+		prefixes[pfx] = rec.nhgID
 	}
 	for pfx, rec := range c.prefixesV6 {
-		if rec.hasNHG {
-			prefixes[pfx] = rec.nhgID
+		if !rec.hasNHG || !rec.hasStatePrefix {
+			return nil, fmt.Errorf("missing required fields for IPv6 prefix %s (hasPrefix=%v, hasNHG=%v)", pfx, rec.hasStatePrefix, rec.hasNHG)
 		}
+		prefixes[pfx] = rec.nhgID
 	}
 
 	nhgs := make(map[uint64]*aftNextHopGroup, len(c.nextHopGroups))
 	for id, rec := range c.nextHopGroups {
 		if rec.data == nil {
 			continue
+		}
+		if len(rec.data.NHIDs) != len(rec.data.NHWeights) {
+			return nil, fmt.Errorf("missing weights for NHG %d: got %d NHIDs and %d weights", id, len(rec.data.NHIDs), len(rec.data.NHWeights))
 		}
 		nhgs[id] = &aftNextHopGroup{
 			NHIDs:        slices.Clone(rec.data.NHIDs),
@@ -228,6 +234,10 @@ func (ss *AFTStreamSession) ToAFT(_ *testing.T, _ *ondatra.DUTDevice) (*AFTData,
 	nhs := make(map[uint64]*aftNextHop, len(c.nextHops))
 	for id, rec := range c.nextHops {
 		if rec.data == nil {
+			continue
+		}
+		// Match prior parseNH ErrNotExist behavior: omit next hops with no IP, LSP, or interface.
+		if rec.data.IP == "" && rec.data.LSPName == "" && rec.data.IntfName == "" {
 			continue
 		}
 		cp := *rec.data
@@ -374,9 +384,11 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 		return errors.New("atomic deletes unsupported")
 	}
 
+	var updateErr error
 	if len(updates) > 0 {
-		if err := c.applyUpdates(pfxElems, updates, ts, atomic); err != nil {
-			return err
+		updateErr = c.applyUpdates(pfxElems, updates, ts, atomic)
+		if updateErr != nil && !errors.Is(updateErr, cache.ErrStale) {
+			return updateErr
 		}
 	}
 	if len(deletes) > 0 {
@@ -384,7 +396,7 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 			return err
 		}
 	}
-	return nil
+	return updateErr
 }
 
 func (c *aftCache) applyUpdates(pfxElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64, atomic bool) error {
@@ -469,11 +481,15 @@ func (c *aftCache) applyUpdates(pfxElems []*gnmipb.PathElem, updates []*gnmipb.U
 func (c *aftCache) upsertPrefix(isV6 bool, pfx string, pfxElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64, atomic bool) error {
 	var nhgID uint64
 	var gotNHG bool
+	var gotStatePrefix bool
 
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
 		total := len(pfxElems) + len(uElems)
-		if total == 0 {
+		if total < 2 {
+			continue
+		}
+		if elemAt(pfxElems, uElems, total-2).GetName() != "state" {
 			continue
 		}
 		last := elemAt(pfxElems, uElems, total-1).GetName()
@@ -482,11 +498,10 @@ func (c *aftCache) upsertPrefix(isV6 bool, pfx string, pfxElems []*gnmipb.PathEl
 			nhgID = u.GetVal().GetUintVal()
 			gotNHG = true
 		case "prefix":
-			if total >= 2 && elemAt(pfxElems, uElems, total-2).GetName() == "state" {
-				if val := u.GetVal().GetStringVal(); val != "" && val != pfx {
-					return fmt.Errorf("prefix mismatch: key=%q state=%q", pfx, val)
-				}
+			if val := u.GetVal().GetStringVal(); val != pfx {
+				return fmt.Errorf("prefix mismatch: key=%q state=%q", pfx, val)
 			}
+			gotStatePrefix = true
 		}
 	}
 
@@ -500,18 +515,23 @@ func (c *aftCache) upsertPrefix(isV6 bool, pfx string, pfxElems []*gnmipb.PathEl
 		if ts > 0 && ts < old.ts {
 			return cache.ErrStale
 		}
-		if !atomic && !gotNHG {
-			nhgID = old.nhgID
-			gotNHG = old.hasNHG
+		if !atomic {
+			if !gotNHG {
+				nhgID = old.nhgID
+				gotNHG = old.hasNHG
+			}
+			if !gotStatePrefix {
+				gotStatePrefix = old.hasStatePrefix
+			}
 		}
-		if ts > 0 && ts == old.ts && old.hasNHG == gotNHG && old.nhgID == nhgID {
+		if ts > 0 && ts == old.ts && old.hasNHG == gotNHG && old.nhgID == nhgID && old.hasStatePrefix == gotStatePrefix {
 			return cache.ErrStale
 		}
 	} else {
 		c.leafCount++
 		c.addCount++
 	}
-	m[pfx] = prefixRecord{nhgID: nhgID, hasNHG: gotNHG, ts: ts}
+	m[pfx] = prefixRecord{nhgID: nhgID, ts: ts, hasNHG: gotNHG, hasStatePrefix: gotStatePrefix}
 	c.updateCount += int64(len(updates))
 	return nil
 }
@@ -522,14 +542,19 @@ func (c *aftCache) upsertNHG(idStr string, pfxElems []*gnmipb.PathElem, updates 
 		return err
 	}
 
-	// Ignore conditional next-hop-groups matching prior parseNHG behavior (ErrUnsupported).
+	// Detect conditional next-hop-groups (unsupported per prior parseNHG behavior).
+	isConditional := false
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
 		total := len(pfxElems) + len(uElems)
 		for i := 0; i < total; i++ {
 			if elemAt(pfxElems, uElems, i).GetName() == "condition" {
-				return nil
+				isConditional = true
+				break
 			}
+		}
+		if isConditional {
+			break
 		}
 	}
 
@@ -539,6 +564,14 @@ func (c *aftCache) upsertNHG(idStr string, pfxElems []*gnmipb.PathElem, updates 
 	oldRec, exists := c.nextHopGroups[nhgID]
 	if exists && ts > 0 && ts < oldRec.ts {
 		return cache.ErrStale
+	}
+	if isConditional {
+		if exists {
+			delete(c.nextHopGroups, nhgID)
+			c.leafCount--
+			c.delCount++
+		}
+		return nil
 	}
 
 	var nhg *aftNextHopGroup
@@ -671,7 +704,29 @@ func (c *aftCache) upsertNH(idxStr string, pfxElems []*gnmipb.PathElem, updates 
 }
 
 func shouldDelete(existingTS, delTS int64) bool {
-	return delTS == 0 || existingTS < delTS
+	return existingTS <= delTS
+}
+
+func isAFTAncestorDelete(pfxElems, dElems []*gnmipb.PathElem, defaultNI string) bool {
+	total := len(pfxElems) + len(dElems)
+	if total == 0 {
+		return true
+	}
+	if elemAt(pfxElems, dElems, 0).GetName() != "network-instances" {
+		return false
+	}
+	if total == 1 {
+		return true
+	}
+	if total == 2 {
+		e := elemAt(pfxElems, dElems, 1)
+		if e.GetName() != "network-instance" {
+			return false
+		}
+		niName := e.GetKey()["name"]
+		return niName == "" || defaultNI == "" || niName == defaultNI
+	}
+	return false
 }
 
 func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.Path, ts int64) error {
@@ -684,7 +739,14 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 	for _, d := range deletes {
 		dElems := d.GetElem()
 		aftIdx, niName := findAFTInPath(pfxElems, dElems)
-		if aftIdx < 0 || !c.matchesNI(niName) {
+		if aftIdx < 0 {
+			if isAFTAncestorDelete(pfxElems, dElems, c.defaultNI) {
+				c.updateCount++
+				c.deleteAllMatchingLocked(ts)
+			}
+			continue
+		}
+		if !c.matchesNI(niName) {
 			continue
 		}
 		total := len(pfxElems) + len(dElems)
@@ -764,17 +826,38 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 				}
 				continue
 			}
-			// Handle deletion of an individual next-hop member inside an NHG.
-			if total >= aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "next-hops" && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "next-hop" {
-				memberStr := elemAt(pfxElems, dElems, aftIdx+4).GetKey()["index"]
-				memberID, err := strconv.ParseUint(memberStr, 10, 64)
-				if err != nil {
+			// Handle deletion of the next-hops container or individual members/leaves inside an NHG.
+			if total >= aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "next-hops" {
+				rec, ok := c.nextHopGroups[nhgID]
+				if !ok || rec.data == nil || !shouldDelete(rec.ts, ts) {
 					continue
 				}
-				if rec, ok := c.nextHopGroups[nhgID]; ok && rec.data != nil && shouldDelete(rec.ts, ts) {
-					rec.data.NHIDs = slices.DeleteFunc(rec.data.NHIDs, func(id uint64) bool { return id == memberID })
-					delete(rec.data.NHWeights, memberID)
+				if total == aftIdx+4 || (total == aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "next-hop" && elemAt(pfxElems, dElems, aftIdx+4).GetKey()["index"] == "") {
+					rec.data.NHIDs = []uint64{}
+					rec.data.NHWeights = make(map[uint64]uint64)
 					touchedNHGs = append(touchedNHGs, nhgID)
+					continue
+				}
+				if total >= aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "next-hop" {
+					memberStr := elemAt(pfxElems, dElems, aftIdx+4).GetKey()["index"]
+					memberID, err := strconv.ParseUint(memberStr, 10, 64)
+					if err != nil {
+						continue
+					}
+					if total == aftIdx+5 || (total == aftIdx+6 && elemAt(pfxElems, dElems, aftIdx+5).GetName() == "state") {
+						rec.data.NHIDs = slices.DeleteFunc(rec.data.NHIDs, func(id uint64) bool { return id == memberID })
+						delete(rec.data.NHWeights, memberID)
+						touchedNHGs = append(touchedNHGs, nhgID)
+						continue
+					}
+					switch elemAt(pfxElems, dElems, total-1).GetName() {
+					case "weight":
+						delete(rec.data.NHWeights, memberID)
+						touchedNHGs = append(touchedNHGs, nhgID)
+					case "index":
+						rec.data.NHIDs = slices.DeleteFunc(rec.data.NHIDs, func(id uint64) bool { return id == memberID })
+						touchedNHGs = append(touchedNHGs, nhgID)
+					}
 				}
 			}
 
@@ -798,24 +881,37 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 			if !ok || !shouldDelete(rec.ts, ts) {
 				continue
 			}
-			if total == aftIdx+3 || (total == aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "state") {
+			if total == aftIdx+3 {
 				delete(c.nextHops, nhID)
 				c.leafCount--
 				c.delCount++
 				continue
 			}
-			if rec.data != nil {
-				switch elemAt(pfxElems, dElems, total-1).GetName() {
-				case "ip-address":
-					rec.data.IP = ""
-					touchedNHs = append(touchedNHs, nhID)
-				case "lsp-name":
-					rec.data.LSPName = ""
-					touchedNHs = append(touchedNHs, nhID)
-				case "interface":
-					rec.data.IntfName = ""
-					touchedNHs = append(touchedNHs, nhID)
-				}
+			if rec.data == nil {
+				continue
+			}
+			if total == aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "state" {
+				rec.data.IP = ""
+				rec.data.LSPName = ""
+				touchedNHs = append(touchedNHs, nhID)
+				continue
+			}
+			if (total == aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "interface-ref") ||
+				(total == aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "interface-ref" && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "state") {
+				rec.data.IntfName = ""
+				touchedNHs = append(touchedNHs, nhID)
+				continue
+			}
+			switch elemAt(pfxElems, dElems, total-1).GetName() {
+			case "ip-address":
+				rec.data.IP = ""
+				touchedNHs = append(touchedNHs, nhID)
+			case "lsp-name":
+				rec.data.LSPName = ""
+				touchedNHs = append(touchedNHs, nhID)
+			case "interface":
+				rec.data.IntfName = ""
+				touchedNHs = append(touchedNHs, nhID)
 			}
 		}
 	}
