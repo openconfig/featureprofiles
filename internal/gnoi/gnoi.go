@@ -24,13 +24,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/system"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var (
@@ -91,6 +89,67 @@ const (
 	SigUnspecified = spb.KillProcessRequest_SIGNAL_UNSPECIFIED
 )
 
+const (
+	processRestartTimeout      = 3 * time.Minute
+	processRestartPollInterval = 5 * time.Second
+)
+
+// pollForProcessRestart polls until probe reports a non-zero PID that differs
+// from oldPID. Probe errors are treated as transient until ctx expires.
+func pollForProcessRestart(ctx context.Context, oldPID uint64, interval time.Duration, probe func() (uint64, error)) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	var (
+		lastErr error
+		lastPID uint64
+	)
+	for {
+		pid, err := probe()
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = nil
+			lastPID = pid
+			if pid != 0 && pid != oldPID {
+				return nil
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("management service did not recover, last probe error: %v: %w", lastErr, ctx.Err())
+			}
+			return fmt.Errorf("process did not restart with a new PID, old PID: %d, last PID: %d: %w", oldPID, lastPID, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForProcessRestart(t *testing.T, dut *ondatra.DUTDevice, daemonName string, oldPID uint64) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), processRestartTimeout)
+	defer cancel()
+
+	var attempts int
+	err := pollForProcessRestart(ctx, oldPID, processRestartPollInterval, func() (uint64, error) {
+		attempts++
+		var pid uint64
+		if fatalMsg := testt.CaptureFatal(t, func(tb testing.TB) {
+			pid = system.FindProcessIDByName(tb, dut, daemonName)
+		}); fatalMsg != nil {
+			t.Logf("Process restart probe %d failed while management recovers: %s", attempts, *fatalMsg)
+			return 0, fmt.Errorf("%s", *fatalMsg)
+		}
+		return pid, nil
+	})
+	if err != nil {
+		t.Fatalf("Timed out after %v waiting for process %s to restart and management service to recover: %v", processRestartTimeout, daemonName, err)
+	}
+	t.Logf("Process %s restarted with a new PID and management recovered after %d probe(s)", daemonName, attempts)
+}
+
 // KillProcess terminates the daemon on the DUT.
 func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb.KillProcessRequest_Signal, restart bool, waitForRestart bool) {
 	t.Helper()
@@ -129,22 +188,7 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	}
 
 	if waitForRestart {
-		_, ok := gnmi.WatchAll(
-			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
-			gnmi.OC().System().ProcessAny().State(),
-			time.Minute,
-			func(p *ygnmi.Value[*oc.System_Process]) bool {
-				val, ok := p.Val()
-				if !ok {
-					return false
-				}
-				return val.GetName() == daemonName && val.GetPid() != pid
-			},
-		).Await(t)
-		if !ok {
-			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
-		}
+		waitForProcessRestart(t, dut, daemonName, pid)
 	}
 }
 

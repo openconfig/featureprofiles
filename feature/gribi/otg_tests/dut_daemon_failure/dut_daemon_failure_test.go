@@ -16,6 +16,7 @@ package dut_daemon_failure_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -52,13 +54,42 @@ func TestMain(m *testing.M) {
 //   * Destination network: -> 203.0.113.0/24
 
 const (
-	ipv4PrefixLen    = 30
-	ateDstNetCIDR    = "203.0.113.0/24"
-	ateDstNetStartIp = "203.0.113.1"
-	nhIndex          = 1
-	nhgIndex         = 42
-	flowName         = "Flow"
+	ipv4PrefixLen      = 30
+	ateDstNetCIDR      = "203.0.113.0/24"
+	ateDstNetStartIp   = "203.0.113.1"
+	nhIndex            = 1
+	nhgIndex           = 42
+	flowName           = "Flow"
+	gribiRetryTimeout  = 3 * time.Minute
+	gribiRetryInterval = 5 * time.Second
 )
+
+func startGRIBIWithRetry(t *testing.T, client *gribi.Client) {
+	t.Helper()
+	deadline := time.Now().Add(gribiRetryTimeout)
+	for attempt := 1; ; attempt++ {
+		var startErr error
+		fatalMsg := testt.CaptureFatal(t, func(tb testing.TB) {
+			startErr = client.Start(tb)
+		})
+		if fatalMsg != nil {
+			startErr = fmt.Errorf("%s", *fatalMsg)
+		}
+		if startErr == nil {
+			t.Logf("Re-established gRIBI connection after %d attempt(s)", attempt)
+			return
+		}
+
+		client.Close(t)
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			t.Fatalf("gRIBI connection could not be re-established within %v, last error: %v", gribiRetryTimeout, startErr)
+		}
+		wait := min(gribiRetryInterval, remaining)
+		t.Logf("gRIBI connection attempt %d failed: %v; retrying in %v", attempt, startErr, wait)
+		time.Sleep(wait)
+	}
+}
 
 var (
 	dutPort1 = attrs.Attributes{
@@ -325,20 +356,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 		defer clientA.FlushAll(t)
 
 		t.Log("Re-establish gRIBI client connection")
-		retryDuration := 180 * time.Second
-		retryInterval := 5 * time.Second
-		startTime := time.Now()
-		for {
-			if err := clientA.Start(t); err != nil {
-				if time.Since(startTime) > retryDuration {
-					t.Fatalf("gRIBI Connection for clientA could not be re-established after multiple attempts")
-				}
-				t.Logf("Retrying gRIBI client connection in %v...", retryInterval)
-				time.Sleep(retryInterval)
-			} else {
-				break
-			}
-		}
+		startGRIBIWithRetry(t, clientA)
 		t.Run("VerifyGRIBIGet", func(t *testing.T) {
 			verifyGRIBIGet(ctx, t, clientA, dut)
 		})
