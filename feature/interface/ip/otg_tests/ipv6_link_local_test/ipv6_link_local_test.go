@@ -28,6 +28,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -93,8 +95,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 		configureOTGInterface(t, ate, top, false)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
-		// Wait for OTG IPv6 neighbor discovery using the standard WaitForARP helper.
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+		waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 		t.Run("Validate Link Local Config and State Paths", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
@@ -109,7 +110,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, ateDst.IPv6, linkLocalOTGToOTGFlowName)
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+			waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 			verifyLinkLocalTrafficNotForwarded(t, ate, top, linkLocalOTGToOTGFlowName)
 		})
@@ -118,7 +119,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, dutSrc.IPv6, linkLocalOTGToDUTFlowName)
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+			waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 			verifyLinkLocalTrafficReceivedByDUT(t, dut, ate, top, linkLocalOTGToDUTFlowName)
 		})
@@ -150,7 +151,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 		configureOTGFlow(t, top, ateSrc.Name+".IPv6-1", ateDst.Name+".IPv6-1", srcOTGGlobalIPv6, dstOTGGlobalIPv6, globalUnicastFlowName)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+		waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 		// Step 3.3: Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 receives the traffic.
 		t.Run("Global IPv6 Traffic Test", func(t *testing.T) {
@@ -174,7 +175,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, dutSrc.IPv6, linkLocalOTGToDUTFlowName)
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+			waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 			verifyLinkLocalTrafficReceivedByDUT(t, dut, ate, top, linkLocalOTGToDUTFlowName)
 		})
@@ -184,7 +185,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, ateDst.IPv6, linkLocalOTGToOTGFlowName)
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+			waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 			verifyLinkLocalTrafficNotForwarded(t, ate, top, linkLocalOTGToOTGFlowName)
 		})
@@ -221,7 +222,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			configureOTGFlow(t, top, ateSrc.Name+".IPv6", ateDst.Name+".IPv6", ateSrc.IPv6, dutSrc.IPv6, linkLocalOTGToDUTFlowName)
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+			waitForOTGIPv6Neighbors(t, ate.OTG(), top)
 
 			verifyLinkLocalTrafficReceivedByDUT(t, dut, ate, top, linkLocalOTGToDUTFlowName)
 		})
@@ -399,5 +400,28 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST,
 			30*time.Second,
 		)
+	}
+}
+
+// waitForOTGIPv6Neighbors waits for OTG IPv6 neighbor discovery and verifies
+// that each configured IPv6 gateway resolves a non-empty LinkLayerAddress.
+func waitForOTGIPv6Neighbors(t *testing.T, otg *otg.OTG, top gosnappi.Config) {
+	t.Helper()
+	otgutils.WaitForARP(t, otg, top, "IPv6")
+	for _, d := range top.Devices().Items() {
+		for _, eth := range d.Ethernets().Items() {
+			for _, ip := range eth.Ipv6Addresses().Items() {
+				gw := ip.Gateway()
+				if gw == "" {
+					continue
+				}
+				if got, ok := gnmi.Watch(t, otg, gnmi.OTG().Interface(eth.Name()).Ipv6Neighbor(gw).LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+					v, present := val.Val()
+					return present && v != ""
+				}).Await(t); !ok {
+					t.Fatalf("Did not receive OTG Neighbor entry for gateway %s on interface %s, last got: %v", gw, eth.Name(), got)
+				}
+			}
+		}
 	}
 }
