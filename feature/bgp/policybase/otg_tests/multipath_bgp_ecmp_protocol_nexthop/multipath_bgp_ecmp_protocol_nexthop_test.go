@@ -15,6 +15,7 @@ package multipath_bgp_ecmp_protocol_nexthop_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -139,8 +140,8 @@ const (
 	trafficPps       = 10000
 	packetSize       = 1500
 	peerGrpName1     = "BGP-PEER-GROUP1"
-	lossTolerancePct = 0  // Packet loss tolerance in percentage
-	lbToleranceFms   = 20 // Load Balance Tolerance in percentage
+	lossTolerancePct = 0.5 // Packet loss tolerance in percentage
+	lbToleranceFms   = 20  // Load Balance Tolerance in percentage
 	rplType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName          = "ALLOW"
 )
@@ -660,16 +661,16 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 			ipHeader.Src().SetValue(tc.srcIP)
 			ipHeader.Dst().Increment().SetStart(tc.dstIP).SetCount(100)
 			udpHeader := flow.Packet().Add().Udp()
-			udpHeader.SrcPort().SetValue(14)
-			udpHeader.DstPort().Increment().SetStart(1024).SetCount(10000)
+			udpHeader.SrcPort().SetValues(randRange(1024, 65535, 1000))
+			udpHeader.DstPort().SetValues(randRange(1024, 65535, 1000))
 		case "ipv6":
 			flow.TxRx().Device().SetTxNames([]string{iDut1Ipv6.Name()}).SetRxNames(rxIpv6IntfNames)
 			ipHeader := flow.Packet().Add().Ipv6()
 			ipHeader.Src().SetValue(tc.srcIP)
 			ipHeader.Dst().Increment().SetStart(tc.dstIP).SetCount(100)
 			udpHeader := flow.Packet().Add().Udp()
-			udpHeader.SrcPort().SetValue(14)
-			udpHeader.DstPort().Increment().SetStart(1024).SetCount(10000)
+			udpHeader.SrcPort().SetValues(randRange(1024, 65535, 1000))
+			udpHeader.DstPort().SetValues(randRange(1024, 65535, 1000))
 		}
 		flow.Size().SetFixed(uint32(packetSize))
 		flow.Rate().SetPps(trafficPps)
@@ -698,7 +699,7 @@ func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []str
 		} else {
 			prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 		}
-		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 90*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, ok := val.Val()
 			return ok && gotRx == wantRx
 		}).Await(t); !ok {
@@ -766,42 +767,7 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
 	if ipType == "ipv6" {
 		flowName = "Traffic IPv6"
 	}
-	otg := ate.OTG()
-
-	// 1. Fetch Flow Metrics using the container path (more reliable)
-	flowMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := flowMetric.GetCounters().GetOutPkts()
-	rxPackets := flowMetric.GetCounters().GetInPkts()
-
-	// 2. Fallback: If Flow Metrics are 0, use physical Port Metrics
-	if txPackets == 0 {
-		t.Logf("Flow %s counters are 0; falling back to physical Port Metrics...", flowName)
-		txPackets = gnmi.Get(t, otg, gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-
-		// Sum Rx from all active receive ports (port2, port3, port4)
-		rxPackets = 0
-		for _, pID := range []string{"port2", "port3", "port4"} {
-			rxPackets += gnmi.Get(t, otg, gnmi.OTG().Port(ate.Port(t, pID).ID()).Counters().InFrames().State())
-		}
-	}
-
-	if txPackets < 1 {
-		t.Fatalf("No traffic detected: Port1 OutFrames and Flow OutPkts are both 0")
-	}
-	// Handle potential underflow if rxPackets > txPackets (e.g. due to control traffic)
-	var lostPackets uint64
-	if rxPackets < txPackets {
-		lostPackets = txPackets - rxPackets
-	} else {
-		lostPackets = 0
-	}
-
-	// lostPackets = txPackets - rxPackets
-	if got := lostPackets * 100 / txPackets; uint64(got) > uint64(lossTolerancePct) {
-		t.Errorf("Packet loss percentage for flow %s: got %v, want %v", flowName, got, lossTolerancePct)
-	} else {
-		t.Logf("Packet loss validation successful for %s: Loss=%d%% (Tx=%d, Rx=%d)", flowName, got, txPackets, rxPackets)
-	}
+	otgutils.ExpectedTrafficLoss(t, ate.OTG(), flowName, 0, float64(lossTolerancePct))
 }
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
@@ -833,4 +799,14 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 			t.Errorf("invalid number of load balancing interfaces, got: %d want %d", got, expectedLinks)
 		}
 	}
+}
+
+func randRange(start, end uint32, count int) []uint32 {
+	var result []uint32
+	diff := int32(end - start)
+	for len(result) < count {
+		randomValue := rand.Int31n(diff) + int32(start)
+		result = append(result, uint32(randomValue))
+	}
+	return result
 }

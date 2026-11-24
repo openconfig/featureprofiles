@@ -188,6 +188,14 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp
 	pgTransMode := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpName).Transport().State())
 	t.Logf("Neighbor level passive mode is set to %v on DUT", nbrTransMode.GetPassiveMode())
 	t.Logf("Peer group level passive mode is set to %v on DUT", pgTransMode.GetPassiveMode())
+	if wantState == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+		if got := nbrTransMode.GetLocalAddress(); got != dutAttrs.IPv4 {
+			t.Errorf("Neighbor transport/state/local-address: got %v, want %v", got, dutAttrs.IPv4)
+		}
+	}
+	if got := pgTransMode.GetLocalAddress(); got != dutAttrs.IPv4 {
+		t.Errorf("Peer group transport/state/local-address: got %v, want %v", got, dutAttrs.IPv4)
+	}
 
 	// Check transport mode telemetry.
 	switch transMode {

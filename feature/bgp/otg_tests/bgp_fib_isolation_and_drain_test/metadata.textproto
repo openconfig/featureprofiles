@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7b8f9e1a-2c3d-4e5f-8a9b-1c2d3e4f5a6b"
+plan_id: "RT-1.107"
+description: "BGP FIB Isolation and Peer Soft Drain"
+testbed: TESTBED_DUT_ATE_4LINKS
