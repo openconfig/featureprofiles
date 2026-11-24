@@ -52,6 +52,39 @@ func newClient(t *testing.T, port uint) (cpb.CntrClient, func()) {
 	return cpb.NewCntrClient(conn), func() { conn.Close() }
 }
 
+func TestTransportCredentialsRequiresClientCertificateAndKeyTogether(t *testing.T) {
+	tests := []struct {
+		name  string
+		creds *cpb.TLSCredentials
+	}{
+		{
+			name: "certificate only",
+			creds: &cpb.TLSCredentials{
+				Certificate: []byte("certificate"),
+			},
+		},
+		{
+			name: "private key only",
+			creds: &cpb.TLSCredentials{
+				PrivateKey: []byte("private key"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := transportCredentials(&cpb.DialRequest{TlsCredentials: tt.creds})
+			if err == nil {
+				t.Fatal("transportCredentials succeeded with only one client credential")
+			}
+			const want = "both client certificate and private key must be provided"
+			if err.Error() != want {
+				t.Fatalf("transportCredentials error = %q, want %q", err, want)
+			}
+		})
+	}
+}
+
 type badMode int64
 
 const (

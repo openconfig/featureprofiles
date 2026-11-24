@@ -44,8 +44,11 @@ var (
 )
 
 const (
-	instanceName = "test-instance"
-	imageName    = "cntrsrv_image"
+	instanceName              = "test-instance"
+	imageName                 = "cntrsrv_image"
+	containerStartPollTimeout = 2 * time.Minute
+	containerRPCTimeout       = 30 * time.Second
+	logOperationTimeout       = 10 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -57,25 +60,33 @@ func TestMain(m *testing.M) {
 func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
+	return startContainerWithClient(ctx, t, containerztest.Client(t, dut))
+}
+
+// startContainerWithClient starts the default test container without
+// reapplying DUT configuration when the caller already has a fresh client.
+func startContainerWithClient(ctx context.Context, t *testing.T, cli *client.Client) (*client.Client, func()) {
+	t.Helper()
 	opts := containerztest.StartContainerOptions{
 		InstanceName:        instanceName,
 		TarPath:             containerTarPath(t),
 		RemoveExistingImage: false,
 		PollForRunningState: true,
-		PollTimeout:         30 * time.Second,
+		PollTimeout:         containerStartPollTimeout,
 		PollInterval:        5 * time.Second,
 	}
-	return containerztest.Setup(ctx, t, dut, opts)
+	return containerztest.SetupWithClient(ctx, t, cli, opts)
 }
 
 // TestDeployAndStartContainer implements CNTR-1.1 validating that it is
 // possible deploy and start a container via containerz.
 func TestDeployAndStartContainer(t *testing.T) {
 	ctx := context.Background()
+	dut := ondatra.DUT(t, "dut")
+	cli := containerztest.Client(t, dut)
 
 	// Positive test: Deploy and start a container successfully.
 	t.Run("SuccessfulDeployAndStart", func(t *testing.T) {
-		dut := ondatra.DUT(t, "dut")
 		opts := containerztest.StartContainerOptions{
 			InstanceName:        instanceName,
 			ImageName:           imageName,
@@ -85,11 +96,11 @@ func TestDeployAndStartContainer(t *testing.T) {
 			Ports:               []string{"60061:60061"},
 			RemoveExistingImage: true,
 			PollForRunningState: true,
-			PollTimeout:         30 * time.Second,
+			PollTimeout:         containerStartPollTimeout,
 			PollInterval:        5 * time.Second,
 		}
 
-		_, cleanup := containerztest.Setup(ctx, t, dut, opts)
+		_, cleanup := containerztest.SetupWithClient(ctx, t, cli, opts)
 		defer cleanup()
 		t.Logf("Container %s successfully started and running (verified by Setup).", opts.InstanceName)
 	})
@@ -98,14 +109,19 @@ func TestDeployAndStartContainer(t *testing.T) {
 	t.Run("StartWithNonExistentImage", func(t *testing.T) {
 		nonExistentImageName := "non-existent-image"
 		instanceName := "test-non-existent-img"
-		dut := ondatra.DUT(t, "dut")
-		cli := containerztest.Client(t, dut) // Get client for this subtest.
-		if _, err := cli.StartContainer(ctx, nonExistentImageName, "latest", "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
+		rpcCtx, cancel := context.WithTimeout(ctx, containerRPCTimeout)
+		_, err := cli.StartContainer(rpcCtx, nonExistentImageName, "latest", "./cmd", instanceName, client.WithPorts([]string{"60061:60061"}))
+		cancel()
+		if err == nil {
 			t.Errorf("Expected error when starting container with non-existent image %s, but got nil", nonExistentImageName)
 			// Attempt to clean up if it somehow started
-			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
+			cleanupCtx, cleanupCancel := context.WithTimeout(ctx, containerRPCTimeout)
+			defer cleanupCancel()
+			if removeErr := cli.RemoveContainer(cleanupCtx, instanceName, true); removeErr != nil {
 				t.Logf("Cleanup: Failed to remove container: %s after unexpected start: %v", instanceName, removeErr)
 			}
+		} else if status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Starting with non-existent image returned %s, want NotFound or Unknown: %v", status.Code(err), err)
 		} else {
 			t.Logf("Got expected error when starting with non-existent image: %v", err)
 		}
@@ -118,13 +134,18 @@ func TestDeployAndStartContainer(t *testing.T) {
 		// For simplicity, we assume 'imageName' ("cntrsrv") with 'latest' tag was pushed.
 		nonExistentTag := "non-existent-tag"
 		instanceName := "test-non-existent-tag"
-		dut := ondatra.DUT(t, "dut")
-		cli := containerztest.Client(t, dut)
-		if _, err := cli.StartContainer(ctx, imageName, nonExistentTag, "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
+		rpcCtx, cancel := context.WithTimeout(ctx, containerRPCTimeout)
+		_, err := cli.StartContainer(rpcCtx, imageName, nonExistentTag, "./cmd", instanceName, client.WithPorts([]string{"60061:60061"}))
+		cancel()
+		if err == nil {
 			t.Errorf("Expected error when starting container %s with non-existent tag %s, but got nil", imageName, nonExistentTag)
-			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
+			cleanupCtx, cleanupCancel := context.WithTimeout(ctx, containerRPCTimeout)
+			defer cleanupCancel()
+			if removeErr := cli.RemoveContainer(cleanupCtx, instanceName, true); removeErr != nil {
 				t.Logf("Cleanup: Failed to remove container: %s after unexpected start: %v", instanceName, removeErr)
 			}
+		} else if status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Starting with non-existent tag returned %s, want NotFound or Unknown: %v", status.Code(err), err)
 		} else {
 			t.Logf("Got expected error when starting with non-existent tag: %v", err)
 		}
@@ -143,30 +164,45 @@ func TestRetrieveLogs(t *testing.T) {
 
 	// Positive Test: Retrieve logs from a running container
 	t.Run("SuccessfulLogRetrieval", func(t *testing.T) {
-		localStartedCli, cleanup := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup() // Stops default 'instanceName'
 
 		var logs []string
-		for start := time.Now(); time.Since(start) < 20*time.Second; time.Sleep(2 * time.Second) {
-			logCh, err := localStartedCli.Logs(ctx, instanceName, false)
+		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
+			logCtx, cancel := context.WithTimeout(ctx, logOperationTimeout)
+			logCh, err := localStartedCli.Logs(logCtx, instanceName, false)
 			if err != nil {
+				cancel()
 				t.Logf("Logs() for running instance %s failed (will retry): %v", instanceName, err)
 				continue
 			}
 			if logCh == nil {
+				cancel()
 				continue
 			}
 
 			logs = nil
 			streamErr := false
-			for msg := range logCh {
-				if msg.Error != nil {
-					t.Logf("Logs() for running instance %s stream returned an error (will retry): %v", instanceName, msg.Error)
+		streamLoop:
+			for {
+				select {
+				case msg, ok := <-logCh:
+					if !ok {
+						break streamLoop
+					}
+					if msg.Error != nil {
+						t.Logf("Logs() for running instance %s stream returned an error (will retry): %v", instanceName, msg.Error)
+						streamErr = true
+						break streamLoop
+					}
+					logs = append(logs, msg.Msg)
+				case <-logCtx.Done():
+					t.Logf("Logs() for running instance %s did not complete within %v (will retry): %v", instanceName, logOperationTimeout, logCtx.Err())
 					streamErr = true
-					break
+					break streamLoop
 				}
-				logs = append(logs, msg.Msg)
 			}
+			cancel()
 			if !streamErr && len(logs) > 0 {
 				break
 			}
@@ -187,7 +223,9 @@ func TestRetrieveLogs(t *testing.T) {
 			t.Logf("Pre-check RemoveContainer for %s failed (continuing): %v", nonExistentInstanceName, err)
 		}
 
-		logCh, err := baseCli.Logs(ctx, nonExistentInstanceName, false)
+		logCtx, cancel := context.WithTimeout(ctx, logOperationTimeout)
+		defer cancel()
+		logCh, err := baseCli.Logs(logCtx, nonExistentInstanceName, false)
 		if err != nil {
 			// Case 1: Logs() itself returns an error
 			t.Logf("Got expected error when retrieving logs for non-existent instance %s: %v", nonExistentInstanceName, err)
@@ -208,11 +246,6 @@ func TestRetrieveLogs(t *testing.T) {
 
 		t.Logf("cli.Logs for non-existent instance %s returned nil error, expecting error via channel.", nonExistentInstanceName)
 
-		// Timeout for receiving from the channel.
-		const channelReadTimeout = 10 * time.Second
-		timer := time.NewTimer(channelReadTimeout)
-		defer timer.Stop()
-
 		select {
 		case msg, ok := <-logCh:
 			if !ok {
@@ -231,9 +264,8 @@ func TestRetrieveLogs(t *testing.T) {
 					t.Errorf("Received unexpected log message '%s' for non-existent instance %s when expecting an error.", msg.Msg, nonExistentInstanceName)
 				}
 			}
-		case <-timer.C:
-			// Timeout occurred.
-			t.Errorf("Timed out waiting for a message (expected error) on the log channel for non-existent instance %s after %v.", nonExistentInstanceName, channelReadTimeout)
+		case <-logCtx.Done():
+			t.Errorf("Timed out waiting for a message (expected error) on the log channel for non-existent instance %s after %v: %v.", nonExistentInstanceName, logOperationTimeout, logCtx.Err())
 		}
 	})
 
@@ -257,7 +289,7 @@ func TestRetrieveLogs(t *testing.T) {
 			Ports:               []string{"60062:60062"},
 			RemoveExistingImage: false,
 			PollForRunningState: true,
-			PollTimeout:         30 * time.Second,
+			PollTimeout:         containerStartPollTimeout,
 			PollInterval:        3 * time.Second,
 		}
 
@@ -280,7 +312,9 @@ func TestRetrieveLogs(t *testing.T) {
 		time.Sleep(3 * time.Second)
 
 		// 5. Attempt to retrieve logs.
-		logCh, err := baseCli.Logs(ctx, stoppedInstanceName, false)
+		logCtx, cancel := context.WithTimeout(ctx, logOperationTimeout)
+		defer cancel()
+		logCh, err := baseCli.Logs(logCtx, stoppedInstanceName, false)
 		if err != nil {
 			// Case 1: Logs() itself returns an error.
 			t.Logf("Got expected error when retrieving logs for stopped instance %s: %v", stoppedInstanceName, err)
@@ -305,20 +339,30 @@ func TestRetrieveLogs(t *testing.T) {
 		t.Logf("cli.Logs for stopped instance %s returned (channel, nil). Checking channel for error or successful completion.", stoppedInstanceName)
 		foundErrorOnChannel := false
 		var receivedLogs []string
-		for msg := range logCh {
-			if msg.Error != nil {
-				t.Logf("Got expected error from log channel for stopped instance %s: %v", stoppedInstanceName, msg.Error)
-				s, ok := status.FromError(msg.Error)
+	stoppedLogLoop:
+		for {
+			select {
+			case msg, ok := <-logCh:
 				if !ok {
-					t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
-				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown && s.Code() != codes.Internal {
-					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, Internal or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+					break stoppedLogLoop
 				}
-				foundErrorOnChannel = true
-				continue
+				if msg.Error != nil {
+					t.Logf("Got expected error from log channel for stopped instance %s: %v", stoppedInstanceName, msg.Error)
+					s, ok := status.FromError(msg.Error)
+					if !ok {
+						t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
+					} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown && s.Code() != codes.Internal {
+						t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, Internal or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+					}
+					foundErrorOnChannel = true
+					continue
+				}
+				// If no error, it might be an actual log message from before the container stopped.
+				receivedLogs = append(receivedLogs, msg.Msg)
+			case <-logCtx.Done():
+				t.Errorf("Timed out reading logs for stopped instance %s after %v: %v", stoppedInstanceName, logOperationTimeout, logCtx.Err())
+				break stoppedLogLoop
 			}
-			// If no error, it might be an actual log message from before the container stopped.
-			receivedLogs = append(receivedLogs, msg.Msg)
 		}
 
 		if !foundErrorOnChannel {
@@ -419,10 +463,13 @@ func TestStopContainer(t *testing.T) {
 	baseCli := containerztest.Client(t, dut)
 
 	t.Run("StopRunningContainer", func(t *testing.T) {
-		localStartedCli, cleanup := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 
-		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err := localStartedCli.StopContainer(stopCtx, instanceName, true)
+		stopCancel()
+		if err != nil {
 			t.Fatalf("StopContainer() for running instance %s failed: %v", instanceName, err)
 		}
 		t.Logf("StopContainer called for %s", instanceName)
@@ -430,8 +477,10 @@ func TestStopContainer(t *testing.T) {
 		// Poll until container is stopped (or no longer listed as running).
 		stopped := false
 		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
-			listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			listCtx, listCancel := context.WithTimeout(ctx, containerRPCTimeout)
+			listCh, err := localStartedCli.ListContainer(listCtx, true, 0, map[string][]string{"name": {instanceName}})
 			if err != nil {
+				listCancel()
 				continue
 			}
 			isStillRunning := false
@@ -445,6 +494,7 @@ func TestStopContainer(t *testing.T) {
 					isStillRunning = true
 				}
 			}
+			listCancel()
 			if !streamErr && !isStillRunning {
 				stopped = true
 				break
@@ -460,7 +510,10 @@ func TestStopContainer(t *testing.T) {
 	t.Run("StopNonExistentContainer", func(t *testing.T) {
 		nonExistentInstance := "test-instance-does-not-exist-for-stop"
 		// Ensure it's not running (best effort cleanup)
-		if err := baseCli.RemoveContainer(ctx, nonExistentInstance, true); err != nil {
+		cleanupCtx, cleanupCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err := baseCli.RemoveContainer(cleanupCtx, nonExistentInstance, true)
+		cleanupCancel()
+		if err != nil {
 			if status.Code(err) != codes.NotFound {
 				t.Logf("Pre-check RemoveContainer for %s failed (continuing): %v", nonExistentInstance, err)
 			}
@@ -468,7 +521,10 @@ func TestStopContainer(t *testing.T) {
 		// Allow time for removal to settle if it happened.
 		time.Sleep(2 * time.Second)
 
-		if err := baseCli.StopContainer(ctx, nonExistentInstance, true); err == nil {
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err = baseCli.StopContainer(stopCtx, nonExistentInstance, true)
+		stopCancel()
+		if err == nil {
 			t.Errorf("StopContainer() for non-existent instance %s succeeded, but expected an error (e.g., NotFound)", nonExistentInstance)
 		} else {
 			t.Logf("Got expected error when stopping non-existent instance %s: %v", nonExistentInstance, err)
@@ -480,19 +536,23 @@ func TestStopContainer(t *testing.T) {
 	})
 
 	t.Run("StopAlreadyStoppedContainer", func(t *testing.T) {
-		// Use startContainer to set up a container, then stop it.
-		localStartedCli, cleanup := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 
-		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err := localStartedCli.StopContainer(stopCtx, instanceName, true)
+		stopCancel()
+		if err != nil {
 			t.Fatalf("Initial StopContainer() for %s failed: %v", instanceName, err)
 		}
 		t.Logf("Container %s stopped once.", instanceName)
 		// Poll until the first stop has fully processed.
 		stopped := false
 		for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(2 * time.Second) {
-			listCh, err := localStartedCli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
+			listCtx, listCancel := context.WithTimeout(ctx, containerRPCTimeout)
+			listCh, err := localStartedCli.ListContainer(listCtx, true, 0, map[string][]string{"name": {instanceName}})
 			if err != nil {
+				listCancel()
 				continue
 			}
 			isStillRunning := false
@@ -506,6 +566,7 @@ func TestStopContainer(t *testing.T) {
 					isStillRunning = true
 				}
 			}
+			listCancel()
 			if !streamErr && !isStillRunning {
 				stopped = true
 				break
@@ -515,7 +576,10 @@ func TestStopContainer(t *testing.T) {
 			t.Fatalf("Container %s was not stopped before attempting second stop", instanceName)
 		}
 		// Attempt to stop it again.
-		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
+		secondStopCtx, secondStopCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		err = localStartedCli.StopContainer(secondStopCtx, instanceName, true)
+		secondStopCancel()
+		if err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() == codes.NotFound || s.Code() == codes.FailedPrecondition {
 				t.Logf("Second StopContainer() for %s returned gRPC status code NotFound or FailedPrecondition: %v", instanceName, err)
@@ -672,7 +736,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Positive Test: Successful upgrade
 	t.Run("SuccessfulUpgrade", func(t *testing.T) {
-		cli, cleanup := startContainer(ctx, t)
+		cli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
@@ -732,7 +796,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Negative Test: Upgrade to a non-existent image
 	t.Run("UpgradeToNonExistentImage", func(t *testing.T) {
-		cli, cleanup := startContainer(ctx, t) // Starts 'instanceName' with 'imageName:latest'
+		cli, cleanup := startContainerWithClient(ctx, t, baseCli) // Starts 'instanceName' with 'imageName:latest'
 		defer cleanup()
 
 		nonExistentImage := "non-existent-image-for-upgrade"
@@ -750,7 +814,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Negative Test: Upgrade to an existing image but non-existent tag.
 	t.Run("UpgradeToNonExistentTag", func(t *testing.T) {
-		cli, cleanup := startContainer(ctx, t)
+		cli, cleanup := startContainerWithClient(ctx, t, baseCli)
 		defer cleanup()
 
 		nonExistentTag := "non-existent-tag-for-upgrade"
@@ -1004,25 +1068,22 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	var postRebootClients gnoigo.Clients
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
-		var cli *client.Client
-		if deviations.ContainerzRequireExplicitConfigSave(dut) {
-			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
-		} else {
-			cli = containerztest.Client(t, dut)
-		}
-		if err := cli.RemoveContainer(ctx, instanceName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+		cleanupCli := containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := containerztest.RemoveContainerAndWait(cleanupCtx, t, cleanupCli, instanceName); err != nil {
 			t.Errorf("Cleanup: failed to remove container %q: %v", instanceName, err)
 		}
-		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+		if err := cleanupCli.RemoveImage(cleanupCtx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
-		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+		if err := cleanupCli.RemoveVolume(cleanupCtx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
 		}
 		t.Log("Cleanup finished.")
 	})
 
-	t.Run("Setup", func(t *testing.T) {
+	setupOK := t.Run("Setup", func(t *testing.T) {
 		t.Logf("Creating volume %s...", volName)
 		volOpts := map[string]string{
 			"type":       "none",
@@ -1038,12 +1099,12 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			ImageName:           imageName,
 			ImageTag:            tag,
 			TarPath:             containerTarPath(t),
-			Command:             "./cntrsrv -port=60064",
-			Ports:               []string{"60064:60064"},
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
 			Volumes:             []string{fmt.Sprintf("%s:%s", volName, "/data")},
 			RemoveExistingImage: true,
 			PollForRunningState: true,
-			PollTimeout:         30 * time.Second,
+			PollTimeout:         containerStartPollTimeout,
 			PollInterval:        5 * time.Second,
 		}
 
@@ -1055,6 +1116,9 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			containerztest.SaveConfig(t, dut)
 		}
 	})
+	if !setupOK {
+		t.Fatalf("Persistence setup failed; refusing to reboot or verify persistence")
+	}
 
 	t.Run("ColdReboot", func(t *testing.T) {
 		t.Log("Rebooting chassis (cold reboot)...")
@@ -1076,15 +1140,14 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		// back up before polling starts; treat first successful poll as recovery.
 		postRebootClients = containerztest.WaitForReboot(t, dut, true)
 
-		if deviations.ContainerzRequireExplicitConfigSave(dut) {
-			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
-		} else {
-			cli = containerztest.Client(t, dut)
+		cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		if err := containerztest.WaitForReady(ctx, t, cli, 5*time.Minute); err != nil {
+			t.Fatalf("Containerz did not recover after reboot: %v", err)
 		}
 
 		timeout := 5 * time.Minute
 		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, timeout); err != nil {
-			t.Errorf("Container persistence failed: %v", err)
+			t.Fatalf("Container persistence failed: %v", err)
 		}
 
 		volFound := false
@@ -1103,7 +1166,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			}
 		}
 		if !volFound {
-			t.Errorf("Volume persistence failed: volume %s not found", volName)
+			t.Fatalf("Volume persistence failed: volume %s not found", volName)
 		}
 	})
 }
@@ -1115,9 +1178,10 @@ func TestCapabilities(t *testing.T) {
 	ctx := t.Context()
 	dut := ondatra.DUT(t, "dut")
 	cli := containerztest.Client(t, dut)
+	runID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
 
 	t.Cleanup(func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		if err := cli.RemoveImage(cleanupCtx, imageName, "latest", true); err != nil && status.Code(err) != codes.NotFound {
 			t.Logf("Cleanup: RemoveImage(%q, \"latest\") failed: %v", imageName, err)
@@ -1143,80 +1207,52 @@ func TestCapabilities(t *testing.T) {
 
 	// Positive Test 1: Elevated Capabilities (CAP_SYS_ADMIN, CAP_NET_RAW).
 	t.Run("ElevatedCapabilities", func(t *testing.T) {
-		instName := "test-cap-elevated"
-		t.Cleanup(func() {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if err := cli.StopContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: StopContainer(%q) failed: %v", instName, err)
-			}
-			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
-			}
-		})
-
+		instName := "test-cap-elevated-" + runID
 		capAdd := []string{"CAP_SYS_ADMIN", "CAP_NET_RAW"}
-		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60061:60061"}),
-			client.WithCapabilities(capAdd, nil),
+		opts := containerztest.StartContainerOptions{
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			InstanceName:        instName,
+			Command:             "./cntrsrv",
+			DisableDefaultPorts: true,
+			CapabilitiesAdd:     capAdd,
+			SkipImagePush:       true,
+			PollForRunningState: true,
+			PollTimeout:         containerStartPollTimeout,
 		}
-
-		respInst, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
-		if err != nil {
-			t.Fatalf("StartContainer(%q, %q, %v) failed: %v", imageName, instName, capAdd, err)
-		}
-		if respInst != instName {
-			t.Errorf("StartContainer(%q, %q, ...) = %q, want %q", imageName, instName, respInst, instName)
-		}
-
-		if err := containerztest.WaitForRunning(ctx, t, cli, instName, 30*time.Second); err != nil {
-			t.Fatalf("WaitForRunning(ctx, t, cli, %q) failed: %v", instName, err)
-		}
+		_, cleanup := containerztest.SetupWithClient(ctx, t, cli, opts)
+		defer cleanup()
 		t.Logf("Container %q successfully started with elevated capabilities %v and confirmed RUNNING.", instName, capAdd)
 	})
 
 	// Positive Test 2: Default Capability Removal (CAP_NET_RAW).
 	t.Run("DroppedCapabilities", func(t *testing.T) {
-		instName := "test-cap-dropped"
-		t.Cleanup(func() {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if err := cli.StopContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: StopContainer(%q) failed: %v", instName, err)
-			}
-			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
-			}
-		})
-
+		instName := "test-cap-dropped-" + runID
 		capRemove := []string{"CAP_NET_RAW"}
-		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60062:60062"}),
-			client.WithCapabilities(nil, capRemove),
+		opts := containerztest.StartContainerOptions{
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			InstanceName:        instName,
+			Command:             "./cntrsrv",
+			DisableDefaultPorts: true,
+			CapabilitiesRemove:  capRemove,
+			SkipImagePush:       true,
+			PollForRunningState: true,
+			PollTimeout:         containerStartPollTimeout,
 		}
-
-		respInst, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
-		if err != nil {
-			t.Fatalf("StartContainer(%q, %q, removed: %v) failed: %v", imageName, instName, capRemove, err)
-		}
-		if respInst != instName {
-			t.Errorf("StartContainer(%q, %q, ...) = %q, want %q", imageName, instName, respInst, instName)
-		}
-
-		if err := containerztest.WaitForRunning(ctx, t, cli, instName, 30*time.Second); err != nil {
-			t.Fatalf("WaitForRunning(ctx, t, cli, %q) failed: %v", instName, err)
-		}
+		_, cleanup := containerztest.SetupWithClient(ctx, t, cli, opts)
+		defer cleanup()
 		t.Logf("Container %q successfully started with removed capabilities %v and confirmed RUNNING.", instName, capRemove)
 	})
 
 	// Negative Test: Invalid Capability Rejection.
 	t.Run("InvalidCapabilityRejection", func(t *testing.T) {
-		instName := "test-cap-invalid"
+		instName := "test-cap-invalid-" + runID
 		t.Cleanup(func() {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
-			if err := cli.RemoveContainer(cleanupCtx, instName, true); err != nil && status.Code(err) != codes.NotFound {
-				t.Logf("Cleanup: RemoveContainer(%q) failed: %v", instName, err)
+			if err := containerztest.RemoveContainerAndWait(cleanupCtx, t, cli, instName); err != nil {
+				t.Logf("Cleanup: could not confirm removal of %q: %v", instName, err)
 			}
 		})
 
@@ -1225,7 +1261,9 @@ func TestCapabilities(t *testing.T) {
 			client.WithCapabilities(invalidCaps, nil),
 		}
 
-		_, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		startCtx, startCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		_, err := cli.StartContainer(startCtx, imageName, "latest", "./cntrsrv", instName, startOpts...)
+		startCancel()
 		if err == nil {
 			t.Errorf("StartContainer(%q, %q, invalidCaps: %v) succeeded, want error", imageName, instName, invalidCaps)
 		} else {
@@ -1238,7 +1276,9 @@ func TestCapabilities(t *testing.T) {
 		}
 
 		// Confirm no orphaned container instance exists.
-		listCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instName}})
+		listCtx, listCancel := context.WithTimeout(ctx, containerRPCTimeout)
+		defer listCancel()
+		listCh, listErr := cli.ListContainer(listCtx, true, 0, map[string][]string{"name": {instName}})
 		if listErr != nil {
 			t.Fatalf("ListContainer(name=%q) failed: %v", instName, listErr)
 		}

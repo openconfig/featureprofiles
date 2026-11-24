@@ -17,6 +17,7 @@ package containerztest
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,8 +36,13 @@ import (
 )
 
 const (
-	maxRebootTime      = 30 * time.Minute
-	rebootPollInterval = 30 * time.Second
+	maxRebootTime                 = 30 * time.Minute
+	rebootPollInterval            = 30 * time.Second
+	containerCleanupTimeout       = 2 * time.Minute
+	containerCleanupRPCTimeout    = 20 * time.Second
+	containerCleanupRetryInterval = 2 * time.Second
+	containerListRPCTimeout       = 10 * time.Second
+	containerStartRPCTimeout      = 30 * time.Second
 )
 
 // Client returns a new containerz client.
@@ -197,8 +203,12 @@ type StartContainerOptions struct {
 	InstanceName        string
 	Command             string
 	Ports               []string
+	DisableDefaultPorts bool
 	Volumes             []string
+	CapabilitiesAdd     []string
+	CapabilitiesRemove  []string
 	RemoveExistingImage bool
+	SkipImagePush       bool
 	PollForRunningState bool
 	PollTimeout         time.Duration
 	PollInterval        time.Duration
@@ -224,7 +234,7 @@ func (o StartContainerOptions) withDefaults() StartContainerOptions {
 	if res.Command == "" {
 		res.Command = "./cntrsrv"
 	}
-	if len(res.Ports) == 0 {
+	if len(res.Ports) == 0 && !res.DisableDefaultPorts {
 		res.Ports = []string{"60061:60061"} // Default port
 	}
 	if res.PollTimeout == 0 {
@@ -245,14 +255,15 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	t.Helper()
 	opts = opts.withDefaults()
 
-	// 1. Remove existing container instance to ensure a clean start.
-	t.Logf("Attempting to remove existing container instance %s before start.", opts.InstanceName)
-	if err := cli.RemoveContainer(ctx, opts.InstanceName, true); err != nil {
-		if status.Code(err) != codes.NotFound {
-			t.Logf("Pre-start removal of container %s failed: %v", opts.InstanceName, err)
-		} else {
-			t.Logf("Container instance %s was not found or successfully removed.", opts.InstanceName)
-		}
+	// 1. Ensure a prior instance with the same fixed name cannot contaminate
+	// this start. In particular, do not continue after an unconfirmed removal:
+	// StartContainer can otherwise return success for a stale STOPPED instance.
+	t.Logf("Ensuring container instance %s is absent before start.", opts.InstanceName)
+	cleanupCtx, cleanupCancel := context.WithTimeout(ctx, containerCleanupTimeout)
+	err := removeContainerAndWait(cleanupCtx, t, cli, opts.InstanceName)
+	cleanupCancel()
+	if err != nil {
+		return fmt.Errorf("pre-start cleanup for container %s failed: %w", opts.InstanceName, err)
 	}
 
 	// 2. Optionally remove existing image before push.
@@ -268,20 +279,23 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 		}
 	}
 
-	// 3. Push the image.
-	t.Logf("Pushing image %s:%s from %s.", opts.ImageName, opts.ImageTag, opts.TarPath)
-	progCh, err := cli.PushImage(ctx, opts.ImageName, opts.ImageTag, opts.TarPath, false)
-	if err != nil {
-		return fmt.Errorf("initial call to PushImage for %s:%s failed: %w", opts.ImageName, opts.ImageTag, err)
-	}
-	for prog := range progCh {
-		if prog.Error != nil {
-			return fmt.Errorf("error during push of image %s:%s: %w", opts.ImageName, opts.ImageTag, prog.Error)
+	// 3. Push the image unless the caller already provisioned it once for a
+	// group of related cases.
+	if !opts.SkipImagePush {
+		t.Logf("Pushing image %s:%s from %s.", opts.ImageName, opts.ImageTag, opts.TarPath)
+		progCh, err := cli.PushImage(ctx, opts.ImageName, opts.ImageTag, opts.TarPath, false)
+		if err != nil {
+			return fmt.Errorf("initial call to PushImage for %s:%s failed: %w", opts.ImageName, opts.ImageTag, err)
 		}
-		if prog.Finished {
-			t.Logf("Successfully pushed image %s:%s.", prog.Image, prog.Tag)
-		} else {
-			t.Logf("Push progress for %s:%s: %d bytes received.", opts.ImageName, opts.ImageTag, prog.BytesReceived)
+		for prog := range progCh {
+			if prog.Error != nil {
+				return fmt.Errorf("error during push of image %s:%s: %w", opts.ImageName, opts.ImageTag, prog.Error)
+			}
+			if prog.Finished {
+				t.Logf("Successfully pushed image %s:%s.", prog.Image, prog.Tag)
+			} else {
+				t.Logf("Push progress for %s:%s: %d bytes received.", opts.ImageName, opts.ImageTag, prog.BytesReceived)
+			}
 		}
 	}
 
@@ -315,6 +329,9 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	if len(opts.Volumes) > 0 {
 		startOpts = append(startOpts, client.WithVolumes(opts.Volumes))
 	}
+	if len(opts.CapabilitiesAdd) > 0 || len(opts.CapabilitiesRemove) > 0 {
+		startOpts = append(startOpts, client.WithCapabilities(opts.CapabilitiesAdd, opts.CapabilitiesRemove))
+	}
 	if opts.Network != "" {
 		startOpts = append(startOpts, client.WithNetwork(opts.Network))
 	}
@@ -322,15 +339,27 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 		startOpts = append(startOpts, client.WithRestartPolicy(opts.RestartPolicyName))
 	}
 
-	startResp, err := cli.StartContainer(ctx, opts.ImageName, opts.ImageTag, opts.Command, opts.InstanceName, startOpts...)
+	startCtx, startCancel := context.WithTimeout(ctx, containerStartRPCTimeout)
+	startResp, err := cli.StartContainer(startCtx, opts.ImageName, opts.ImageTag, opts.Command, opts.InstanceName, startOpts...)
+	startCancel()
 	if err != nil {
-		return fmt.Errorf("unable to start container %s: %w", opts.InstanceName, err)
+		startErr := fmt.Errorf("unable to start container %s: %w", opts.InstanceName, err)
+		if cleanupErr := cleanupFailedStart(t, cli, opts.InstanceName); cleanupErr != nil {
+			return fmt.Errorf("%w; cleanup after failed start also failed: %v", startErr, cleanupErr)
+		}
+		return startErr
 	}
 	t.Logf("StartContainer called for %s, response: %s", opts.InstanceName, startResp)
 
 	// 6. Wait for container to be running or fixed sleep.
 	if opts.PollForRunningState {
-		return WaitForRunning(ctx, t, cli, opts.InstanceName, opts.PollTimeout)
+		if err := WaitForRunning(ctx, t, cli, opts.InstanceName, opts.PollTimeout); err != nil {
+			if cleanupErr := cleanupFailedStart(t, cli, opts.InstanceName); cleanupErr != nil {
+				return fmt.Errorf("%w; cleanup after incomplete start also failed: %v", err, cleanupErr)
+			}
+			return fmt.Errorf("%w; partial instance was removed", err)
+		}
+		return nil
 	}
 	// Original behavior: fixed sleep. Use PollInterval as the sleep duration for simplicity.
 	t.Logf("Waiting for %v for container %s to stabilize (fixed sleep, no polling).", opts.PollInterval, opts.InstanceName)
@@ -338,11 +367,32 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	return nil
 }
 
+// cleanupFailedStart removes an instance after StartContainer returned an
+// error or the instance failed to reach RUNNING. StartContainer may have been
+// accepted by the target even when the client observed an error, so cleanup
+// must not be left to a callback that is only returned after successful setup.
+func cleanupFailedStart(t *testing.T, cli *client.Client, instanceName string) error {
+	t.Helper()
+	t.Logf("Container %s did not start completely; cleaning up before returning.", instanceName)
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), containerCleanupTimeout)
+	defer cleanupCancel()
+	return removeContainerAndWait(cleanupCtx, t, cli, instanceName)
+}
+
 // Setup is a helper function that deploys and starts a container, and returns a client
 // and a cleanup function that stops and removes the container. It calls t.Fatalf on failure.
 func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts StartContainerOptions) (*client.Client, func()) {
 	t.Helper()
 	cli := Client(t, dut)
+	return SetupWithClient(ctx, t, cli, opts)
+}
+
+// SetupWithClient deploys and starts a container using an already initialized
+// client. Use this when a test needs multiple container operations without
+// reapplying the DUT configuration in Client.
+func SetupWithClient(ctx context.Context, t *testing.T, cli *client.Client, opts StartContainerOptions) (*client.Client, func()) {
+	t.Helper()
+	opts = opts.withDefaults()
 	if err := DeployAndStart(ctx, t, cli, opts); err != nil {
 		t.Fatalf("Failed to deploy and start container with options %+v: %v", opts, err)
 	}
@@ -351,21 +401,92 @@ func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts Start
 	return cli, func() {
 		// Use a fresh context so cleanup succeeds even if the test context was
 		// canceled (e.g. on timeout).
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), containerCleanupTimeout)
 		defer cleanupCancel()
-		Stop(cleanupCtx, t, cli, opts.InstanceName)
-		// Remove the container so it does not persist on the DUT in STOPPED
-		// state. Without removal, Docker may restart a previously-running
-		// container on its next daemon restart, contaminating subsequent tests.
-		if err := cli.RemoveContainer(cleanupCtx, opts.InstanceName, true); err != nil {
-			s, _ := status.FromError(err)
-			if s.Code() != codes.NotFound {
-				t.Logf("RemoveContainer %s encountered an issue: %v", opts.InstanceName, err)
-			}
-		} else {
-			t.Logf("Container %s removed successfully.", opts.InstanceName)
+		if err := removeContainerAndWait(cleanupCtx, t, cli, opts.InstanceName); err != nil {
+			t.Errorf("Cleanup could not confirm removal of container %s: %v", opts.InstanceName, err)
 		}
 	}
+}
+
+// removeContainerAndWait stops and removes instanceName, retrying transient RPC
+// failures, and returns only after ListContainer confirms that the name is free.
+func removeContainerAndWait(ctx context.Context, t *testing.T, cli *client.Client, instanceName string) error {
+	t.Helper()
+	var lastErr error
+	var lastObserved string
+
+	for attempt := 1; ; attempt++ {
+		// Always issue stop/remove before accepting an absent ListContainer
+		// result. A successful StartContainer can leave an instance reserved or
+		// still being created before it becomes visible to ListContainer.
+		stopCtx, stopCancel := context.WithTimeout(ctx, containerCleanupRPCTimeout)
+		stopErr := cli.StopContainer(stopCtx, instanceName, true)
+		stopCancel()
+		if stopErr != nil && status.Code(stopErr) != codes.NotFound {
+			lastErr = fmt.Errorf("stop container: %w", stopErr)
+			t.Logf("Container cleanup attempt %d: StopContainer(%s) failed: %v", attempt, instanceName, stopErr)
+		} else if stopErr == nil {
+			t.Logf("Container cleanup attempt %d: StopContainer(%s) succeeded.", attempt, instanceName)
+		}
+
+		removeCtx, removeCancel := context.WithTimeout(ctx, containerCleanupRPCTimeout)
+		removeErr := cli.RemoveContainer(removeCtx, instanceName, true)
+		removeCancel()
+		if removeErr != nil && status.Code(removeErr) != codes.NotFound {
+			lastErr = fmt.Errorf("remove container: %w", removeErr)
+			t.Logf("Container cleanup attempt %d: RemoveContainer(%s) failed: %v", attempt, instanceName, removeErr)
+		} else if removeErr == nil {
+			t.Logf("Container cleanup attempt %d: RemoveContainer(%s) succeeded; verifying absence.", attempt, instanceName)
+		}
+
+		present, observed, err := containerPresent(ctx, cli, instanceName)
+		switch {
+		case err != nil:
+			lastErr = fmt.Errorf("verify absence: %w", err)
+			t.Logf("Container cleanup attempt %d for %s could not verify absence: %v", attempt, instanceName, err)
+		case !present:
+			t.Logf("Confirmed container %s is absent after stop/remove.", instanceName)
+			return nil
+		default:
+			lastObserved = observed
+			t.Logf("Container cleanup attempt %d found instance %s still present: %s", attempt, instanceName, observed)
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("container still present or could not be verified absent after cleanup deadline (last observed: %s; last error: %v): %w", lastObserved, lastErr, ctx.Err())
+		case <-time.After(containerCleanupRetryInterval):
+		}
+	}
+}
+
+// RemoveContainerAndWait stops and removes instanceName and verifies that the
+// name is no longer reserved. It is suitable for pre-test and cleanup paths.
+func RemoveContainerAndWait(ctx context.Context, t *testing.T, cli *client.Client, instanceName string) error {
+	t.Helper()
+	return removeContainerAndWait(ctx, t, cli, instanceName)
+}
+
+// containerPresent reports whether instanceName is still listed, together
+// with its last observed image and state for cleanup diagnostics.
+func containerPresent(ctx context.Context, cli *client.Client, instanceName string) (bool, string, error) {
+	callCtx, callCancel := context.WithTimeout(ctx, containerCleanupRPCTimeout)
+	defer callCancel()
+
+	listCh, err := cli.ListContainer(callCtx, true, 0, map[string][]string{"name": {instanceName}})
+	if err != nil {
+		return false, "", err
+	}
+	for info := range listCh {
+		if info.Error != nil {
+			return false, "", info.Error
+		}
+		if strings.TrimPrefix(info.Name, "/") == instanceName {
+			return true, fmt.Sprintf("name=%s image=%s state=%s", info.Name, info.ImageName, info.State), nil
+		}
+	}
+	return false, "", nil
 }
 
 // Stop stops a container instance.
@@ -392,7 +513,7 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 
 	for {
 		// Use a per-call timeout so one slow RPC does not consume the entire budget.
-		callCtx, callCancel := context.WithTimeout(pollCtx, 30*time.Second)
+		callCtx, callCancel := context.WithTimeout(pollCtx, containerListRPCTimeout)
 		listContCh, err := cli.ListContainer(callCtx, true, 0, map[string][]string{"name": {instanceName}})
 		if err != nil {
 			callCancel()
@@ -400,7 +521,11 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 			if pollCtx.Err() != nil {
 				return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 			}
-			time.Sleep(5 * time.Second)
+			select {
+			case <-pollCtx.Done():
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
+			case <-time.After(5 * time.Second):
+			}
 			continue
 		}
 
@@ -431,7 +556,53 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 			}
 			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 		}
-		time.Sleep(5 * time.Second)
+		select {
+		case <-pollCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING (last error: %v)", instanceName, lastErr)
+			}
+			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
+		case <-time.After(5 * time.Second):
+		}
+	}
+}
+
+// WaitForReady waits until the Containerz service can complete a bounded
+// ListContainer stream. This is useful after a DUT reboot, when gNMI may be up
+// before AppMgr and Containerz are ready to serve requests.
+func WaitForReady(ctx context.Context, t *testing.T, cli *client.Client, timeout time.Duration) error {
+	t.Helper()
+	readyCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var lastErr error
+	for {
+		callCtx, callCancel := context.WithTimeout(readyCtx, containerListRPCTimeout)
+		listCh, err := cli.ListContainer(callCtx, true, 0, nil)
+		if err == nil {
+			for info := range listCh {
+				if info.Error != nil {
+					err = info.Error
+					break
+				}
+			}
+			if err == nil && callCtx.Err() != nil {
+				err = callCtx.Err()
+			}
+		}
+		callCancel()
+		if err == nil {
+			t.Log("Containerz service is ready.")
+			return nil
+		}
+		lastErr = err
+		t.Logf("Containerz readiness check failed (will retry): %v", err)
+
+		select {
+		case <-readyCtx.Done():
+			return fmt.Errorf("containerz service did not become ready within %v (last error: %v): %w", timeout, lastErr, readyCtx.Err())
+		case <-time.After(5 * time.Second):
+		}
 	}
 }
 
