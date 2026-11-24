@@ -96,6 +96,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!\nrouter static\n maximum path ipv4 140000\n!", queueSize, historyMemory)
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
 	// Get the current time from the router via gNMI to avoid clock skew issues.
