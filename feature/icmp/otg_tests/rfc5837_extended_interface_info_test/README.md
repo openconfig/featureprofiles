@@ -9,12 +9,14 @@ Information Object** (`Class-Num = 2`) and the
 [draft-mitchell-intarea-rfc5837bis-02](https://datatracker.ietf.org/doc/draft-mitchell-intarea-rfc5837bis/02/)
 **Extended Interface Information Object** (`Class-Num = 7`) for traceroute and
 diagnostic probes from explicitly allowed IPv4/IPv6 source hosts and subnets,
-supports configurable outer encapsulation decapsulation (initially outer IPv4
-IP-in-IP for inner IPv4 and IPv6 datagrams via `IPV4`, extensible via
-`openconfig-aft-types:encapsulation-header-type` to `IPV6`, `GRE`, and `MPLS`),
-validates source-prefix eligibility against the target IP of the generated ICMP
-response (inner source IP when decapsulated, outer source IP otherwise), and
-enforces a configurable RFC 4884 original datagram size cap.
+supports configurable transit outer encapsulation decapsulation (initially
+outer IPv4 IP-in-IP for inner IPv4 and IPv6 datagrams via `IPV4_ENCAP`,
+extensible via `openconfig-system-icmp:ICMP_DECAPSULATION_HEADER_TYPE` to
+`IPV6_ENCAP` and `GRE_ENCAP`), validates destination-prefix eligibility via
+`/defined-sets` prefix sets against the target IP of the generated ICMP
+response (inner source IP when decapsulated, outer source IP otherwise),
+enforces a configurable RFC 4884 original datagram size cap, and exports
+operational counters for extended, suppressed, and decapsulated ICMP errors.
 
 ### IANA Object Class Allocation (`Class-Num = 7`)
 
@@ -158,7 +160,8 @@ then `Name`, then `MTU`) with at most one instance of each sub-object per role:
 ### 5. Default Role and Sub-Object Population Matrix
 
 When `enabled = true`, the target IP of the generated ICMP response matches
-`allowed-source-prefixes`, and all roles and sub-objects are included, the DUT
+`allowed-ipv4-prefix-set` or `allowed-ipv6-prefix-set`, and all roles and
+sub-objects are included, the DUT
 MUST populate the following objects and sub-objects for each packet scenario:
 
 <!-- disableFinding(LINE_OVER_80) -->
@@ -177,21 +180,24 @@ MUST populate the following objects and sub-objects for each packet scenario:
 
 <!-- enableFinding(LINE_OVER_80) -->
 
-### 6. Outer Encapsulation Decapsulation Examples (`IPV4` IP-in-IP and Future Protocol Knob)
+### 6. Outer Encapsulation Decapsulation Examples (`IPV4_ENCAP` IP-in-IP and Future Protocol Knob)
 
 In networks using tunnel encapsulation (such as IP-in-IP transit engineering),
 traceroute probes from endpoints are encapsulated inside an outer IPv4 tunnel
 header. When the **outer** IPv4 header expires in transit (`Outer TTL == 1`,
 `Inner TTL / Hop Limit > 1`) on a transit router with outer-header decapsulation
-enabled for `IPV4`:
+enabled for `IPV4_ENCAP` (an explicit opt-in departure from RFC 2003 Section 4
+for transit tunnel diagnostics):
 
 1.  The DUT makes its forwarding decision (outgoing L3 interface, outgoing LAG
-    member hash, and FIB next-hop) on the arriving packet, then strips the
-    20-octet outer IPv4 header (`Protocol = 4` `IPPROTO_IPIP` for inner IPv4, or
-    `Protocol = 41` `IPPROTO_IPV6` for inner IPv6).
+    member hash, and FIB next-hop) on the arriving **outer** packet, then strips
+    only the single outermost 20-octet IPv4 tunnel header (`Protocol = 4`
+    `IPPROTO_IPIP` for inner IPv4, or `Protocol = 41` `IPPROTO_IPV6` for inner
+    IPv6).
 2.  The DUT constructs an `ICMPv4` (if inner packet is IPv4) or `ICMPv6` (if
     inner packet is IPv6) Time Exceeded (`Code = 0`) message addressed directly
-    to the **inner** packet's Source IP.
+    to the **inner** packet's Source IP, routed in the network instance in which
+    the received packet was forwarded.
 3.  The RFC 4884 **Original Datagram** field quotes the **inner** packet
     (starting at the inner IPv4 or IPv6 header, NOT the stripped outer IPv4
     header), padded and capped per `max-original-datagram-size`.
@@ -199,20 +205,21 @@ enabled for `IPV4`:
 *   **Future Decapsulation Protocol Extensibility**: Outer header decapsulation
     MUST be controlled by an explicit configuration knob (modeled as a
     `decapsulate-headers` `leaf-list` of
-    `openconfig-aft-types:encapsulation-header-type`, initially supporting
-    `IPV4` to match outer IPv4 tunnel headers with `Protocol = 4` `IPPROTO_IPIP`
-    or `Protocol = 41` `IPPROTO_IPV6`) so operators can enable or disable
-    decapsulation and extend the exact same behavior to additional
-    encapsulations including outer IPv6 IP-in-IP (`IPV6`, `Next Header = 4` or
-    `41`), **IPoGRE** (`GRE`, `Protocol = 47`), and **IPoMPLS** (`MPLS`). Note
-    that `IPV4` and `IPV6` apply strictly to outer IP-in-IP tunnel headers and
-    MUST NOT strip native non-tunneled IPv4 or IPv6 packets. When the knob is
-    disabled (empty) or a packet arrives with an encapsulation not enabled in
-    the knob (e.g., `GRE` when only `IPV4` is enabled), the DUT MUST NOT strip
-    the outer header and MUST generate an `ICMPv4` Time Exceeded response to the
-    **outer** IPv4 Source IP quoting the **outer** IPv4 packet.
+    `openconfig-system-icmp:ICMP_DECAPSULATION_HEADER_TYPE`, initially
+    supporting `IPV4_ENCAP` to match outer IPv4 tunnel headers with
+    `Protocol = 4` `IPPROTO_IPIP` or `Protocol = 41` `IPPROTO_IPV6`) so
+    operators can enable or disable decapsulation and extend the exact same
+    behavior to additional encapsulations including outer IPv6 IP-in-IP
+    (`IPV6_ENCAP`, `Next Header = 4` or `41`) and **IPoGRE** (`GRE_ENCAP`,
+    delivery IP + GRE header, `Protocol = 47`). Note that `IPV4_ENCAP` and
+    `IPV6_ENCAP` apply strictly to outer IP-in-IP tunnel headers and MUST NOT
+    strip native non-tunneled IPv4 or IPv6 packets. When the knob is disabled
+    (empty) or a packet arrives with an encapsulation not enabled in the knob
+    (e.g., `GRE_ENCAP` when only `IPV4_ENCAP` is enabled), the DUT MUST NOT
+    strip the outer header and MUST generate an `ICMPv4` Time Exceeded response
+    to the **outer** IPv4 Source IP quoting the **outer** IPv4 packet.
 
-#### Example A: IPv4-in-IPv4 (`4in4`, `Protocol = 4`) Transit Probe with `IPV4` Decap Enabled
+#### Example A: IPv4-in-IPv4 (`4in4`, `Protocol = 4`) Transit Probe with `IPV4_ENCAP` Decap Enabled
 
 <!-- disableFinding(LINE_OVER_80) -->
 
@@ -237,7 +244,7 @@ Generated ICMPv4 Time Exceeded Response from DUT:
 
 <!-- enableFinding(LINE_OVER_80) -->
 
-#### Example B: IPv6-in-IPv4 (`6in4`, `Protocol = 41`) Transit Probe with `IPV4` Decap Enabled
+#### Example B: IPv6-in-IPv4 (`6in4`, `Protocol = 41`) Transit Probe with `IPV4_ENCAP` Decap Enabled
 
 <!-- disableFinding(LINE_OVER_80) -->
 
@@ -264,39 +271,45 @@ Generated ICMPv6 Time Exceeded Response from DUT:
 
 <!-- enableFinding(LINE_OVER_80) -->
 
-### 7. Allowed Source Host and Subnet Gating (`allowed-source-prefixes`)
+### 7. Allowed Destination Prefix-Set Gating (`allowed-ipv4-prefix-set` / `allowed-ipv6-prefix-set`)
 
 Per RFC 5837 Section 7 and `draft-mitchell-intarea-rfc5837bis` Section 9
 (Security Considerations), routers MUST restrict ICMP Interface Information
-extensions to authorized diagnostic sources so internal interface topology
+extensions to authorized diagnostic targets so internal interface topology
 (`ifIndex`, `ifName`, physical LAG member ports, internal next-hops, and MTUs)
 is not leaked to untrusted hosts:
 
-*   **Prefix Allowlist (`allowed-source-prefixes`)**: Modeled as an inline
-    `leaf-list` of `openconfig-inet-types:ip-prefix` (`union` of `ipv4-prefix`
-    and `ipv6-prefix`), accepting individual IPv4/IPv6 hosts (`/32` and `/128`)
-    as well as arbitrary CIDR subnets (or `0.0.0.0/0` and `::/0` when explicitly
-    authorizing all sources).
-*   **Fail-Closed Empty List**: When `allowed-source-prefixes` is empty (`[]`)
-    or unconfigured, **no** source is eligible to receive extended ICMP
-    responses, even when `enabled = true`.
+*   **Prefix-Set Allowlists (`allowed-ipv4-prefix-set`,
+    `allowed-ipv6-prefix-set`)**: Modeled as `leafref`s to
+    `/defined-sets/ipv4-prefix-sets/ipv4-prefix-set/name` and
+    `/defined-sets/ipv6-prefix-sets/ipv6-prefix-set/name`
+    (`openconfig-defined-sets`), accepting individual IPv4/IPv6 hosts (`/32` and
+    `/128`) as well as arbitrary CIDR subnets (or `0.0.0.0/0` and `::/0` when
+    explicitly authorizing all destinations).
+*   **Fail-Closed Unset / Empty Prefix Set**: When `allowed-ipv4-prefix-set` (or
+    `allowed-ipv6-prefix-set`) is unset or references a prefix set matching no
+    addresses (`prefix = []`), **no** destination of that address family is
+    eligible to receive `Class-Num = 2` or `Class-Num = 7` objects, even when
+    `enabled = true`.
 *   **Evaluation on Post-Decapsulation Response Target IP**: Eligibility MUST be
     evaluated against the **destination IP address to which the DUT generates
     the ICMP response**:
     *   When outer encapsulation is decapsulated (`decapsulate-headers` match),
         validation is performed on the **inner** packet's Source IP (regardless
-        of whether the stripped outer Source IP was in
-        `allowed-source-prefixes`).
+        of whether the stripped outer Source IP matched the prefix set).
     *   When no decapsulation occurs (native packet, `decapsulate-headers = []`,
         or unmatched tunnel protocol), validation is performed on the **outer**
         packet's Source IP (regardless of any inner payload Source IP).
-*   **Plain ICMP Response for Unreferenced Sources**: When the ICMP response
-    destination IP does **not** match any entry in `allowed-source-prefixes`,
-    the DUT still performs configured outer decapsulation (if applicable) and
-    transmits a **standard plain ICMPv4 or ICMPv6 error message** (RFC 792 /
-    RFC 4443) with `Length = 0` (`0x00000000` in ICMP header octets `4..7`), no
-    RFC 4884 Extension Header (`Ver = 2`), and zero `Class-Num = 2` or
-    `Class-Num = 7` objects.
+*   **Omission of Interface Information Objects for Unreferenced Destinations**:
+    When the ICMP response destination IP does **not** match the configured
+    prefix set, the DUT still performs configured outer decapsulation (if
+    applicable) and transmits an ICMPv4 or ICMPv6 error message **without**
+    `Class-Num = 2` or `Class-Num = 7` objects (leaving unrelated RFC 4884
+    extension objects, such as RFC 4950 MPLS Label Stack, unaffected). For the
+    native/IP-in-IP probes in this testbed where no other RFC 4884 extension
+    objects apply, the response is a standard plain ICMPv4 or ICMPv6 error
+    message (RFC 792 / RFC 4443) with `Length = 0` (`0x00000000` in ICMP header
+    octets `4..7`) and no RFC 4884 Extension Header (`Ver = 2`).
 
 --------------------------------------------------------------------------------
 
@@ -336,56 +349,57 @@ is not leaked to untrusted hosts:
     `name`, `mtu`, and configured IPv4/IPv6 addresses) for `agg1`, `agg2`,
     `port1`, `port2`, `port3`, and `port4` to validate against received ICMP
     extension sub-objects.
+*   Configure `/defined-sets` prefix sets `ICMP_ALLOWED_IPV4`
+    (`["198.18.0.0/24"]`) and `ICMP_ALLOWED_IPV6` (`["2001:db8:18::/64"]`).
 *   Configure ICMP RFC 5837 / `draft-mitchell-intarea-rfc5837bis` extensions on
-    DUT with `enabled = true`, `allowed-source-prefixes` set to
-    `["198.18.0.0/24", "2001:db8:18::/64"]`, all roles in `include-roles`, all
-    sub-objects in `include-sub-objects`, `decapsulate-headers` set to
-    `["IPV4"]`, and `max-original-datagram-size` set to `128`.
+    DUT with `enabled = true`, `allowed-ipv4-prefix-set = "ICMP_ALLOWED_IPV4"`,
+    `allowed-ipv6-prefix-set = "ICMP_ALLOWED_IPV6"`, all roles in
+    `include-roles`, all sub-objects in `include-sub-objects`,
+    `decapsulate-headers = ["IPV4_ENCAP"]`, and
+    `max-original-datagram-size = 128`.
 
-#### TODO: Proposed OpenConfig for ICMP Extensions and Traceroute Responder
+#### TODO: https://github.com/openconfig/public/pull/1613 - Add `openconfig-system-icmp` for ICMP error generation controls
 
 Public OpenConfig models (`openconfig/public`) do not yet define configuration
 and operational state leaves for RFC 5837 / `draft-mitchell-intarea-rfc5837bis`
-extensions, source-prefix eligibility filtering, outer-header decapsulation
-before ICMP error generation, or the RFC 4884 original datagram truncation cap.
-Until standardized in `openconfig-system` (e.g., under `/system/icmp/`), the
-following schema is proposed (reusing
-`openconfig-aft-types:encapsulation-header-type` for `decapsulate-headers`,
-`openconfig-inet-types:ip-prefix` for fail-closed `allowed-source-prefixes`, and
-`include-roles` / `include-sub-objects` `leaf-list`s where `Class-Num = 7` is
-emitted iff at least one Class `7` role such as `OUTGOING_SUB_IP_COMPONENT` is
-listed in `include-roles`; may be applied via `cfgplugins` / vendor deviation in
-initial test implementations):
+extensions, prefix-set eligibility filtering, outer-header decapsulation before
+ICMP error generation, or the RFC 4884 original datagram truncation cap.
+[openconfig/public#1613](https://github.com/openconfig/public/pull/1613)
+proposes `openconfig-system-icmp` augmenting `/system` with `/system/icmp/`
+(using module-local `ICMP_DECAPSULATION_HEADER_TYPE` for `decapsulate-headers`,
+`/defined-sets` leafrefs `allowed-ipv4-prefix-set` and `allowed-ipv6-prefix-set`
+for fail-closed filtering, `include-roles` / `include-sub-objects` `leaf-list`s
+where `Class-Num = 7` is emitted iff at least one Class `7` role such as
+`OUTGOING_SUB_IP_COMPONENT` is listed in `include-roles`, and `state/counters`;
+may be applied via `cfgplugins` / vendor deviation until merged):
 
 ```json
 {
   "openconfig-system:system": {
-    "icmp": {
+    "openconfig-system-icmp:icmp": {
       "config": {
         "max-original-datagram-size": 128,
         "decapsulate-headers": [
-          "IPV4"
+          "openconfig-system-icmp:IPV4_ENCAP"
         ]
       },
       "interface-info-extension": {
         "config": {
           "enabled": true,
-          "allowed-source-prefixes": [
-            "198.18.0.0/24",
-            "2001:db8:18::/64"
-          ],
+          "allowed-ipv4-prefix-set": "ICMP_ALLOWED_IPV4",
+          "allowed-ipv6-prefix-set": "ICMP_ALLOWED_IPV6",
           "include-roles": [
-            "INCOMING_IP_INTERFACE",
-            "INCOMING_SUB_IP_COMPONENT",
-            "OUTGOING_IP_INTERFACE",
-            "IP_NEXT_HOP",
-            "OUTGOING_SUB_IP_COMPONENT"
+            "openconfig-system-icmp:INCOMING_IP_INTERFACE",
+            "openconfig-system-icmp:INCOMING_SUB_IP_COMPONENT",
+            "openconfig-system-icmp:OUTGOING_IP_INTERFACE",
+            "openconfig-system-icmp:IP_NEXT_HOP",
+            "openconfig-system-icmp:OUTGOING_SUB_IP_COMPONENT"
           ],
           "include-sub-objects": [
-            "IFINDEX",
-            "IP_ADDRESS",
-            "NAME",
-            "MTU"
+            "openconfig-system-icmp:SUB_OBJECT_IFINDEX",
+            "openconfig-system-icmp:SUB_OBJECT_IP_ADDRESS",
+            "openconfig-system-icmp:SUB_OBJECT_NAME",
+            "openconfig-system-icmp:SUB_OBJECT_MTU"
           ]
         }
       }
@@ -446,6 +460,10 @@ initial test implementations):
     *   Re-enable DUT `port3` (`enabled = true`) and wait via `gNMI.Subscribe`
         for `oper-status == UP` and LAG member viability restoration before
         proceeding.
+*   Verify via `gNMI.Get` that
+    `/system/icmp/interface-info-extension/state/counters/errors-sent`
+    incremented by at least the number of extended ICMP error responses
+    captured.
 
 ### RT-9.1.2: Destination Unreachable (Port Unreachable) to DUT Interface / Loopback
 
@@ -470,13 +488,14 @@ initial test implementations):
     (`draft-mitchell` Sections 8.1 and 9, over the active `agg1` / `agg2` LAG
     topology):
     *   Configure suppression of `ifIndex` and `MTU`
-        (`include-sub-objects = ["IP_ADDRESS", "NAME"]`). Send IPv4/IPv6
-        `TTL / Hop Limit = 1` probes and verify `Bit 4` (`ifIndex`) and `Bit 7`
-        (`MTU`) are `0` across all emitted objects
+        (`include-sub-objects = ["SUB_OBJECT_IP_ADDRESS", "SUB_OBJECT_NAME"]`).
+        Send IPv4/IPv6 `TTL / Hop Limit = 1` probes and verify `Bit 4`
+        (`ifIndex`) and `Bit 7` (`MTU`) are `0` across all emitted objects
         (`Class 2 Role 0 C-Type = 0x06`, `Role 1 C-Type = 0x42`,
         `Role 2 C-Type = 0x86`, `Class 7 Role 0 C-Type = 0x02`) and only
         `IPAddr` / `Name` sub-objects appear on the wire.
-    *   Restore `include-sub-objects = ["IFINDEX", "IP_ADDRESS", "NAME", "MTU"]`
+    *   Restore
+        `include-sub-objects = ["SUB_OBJECT_IFINDEX", "SUB_OBJECT_IP_ADDRESS", "SUB_OBJECT_NAME", "SUB_OBJECT_MTU"]`
         and configure suppression of the `Extended Interface Information Object`
         by omitting `"OUTGOING_SUB_IP_COMPONENT"` from `include-roles`
         (`include-roles = ["INCOMING_IP_INTERFACE", "INCOMING_SUB_IP_COMPONENT",
@@ -487,7 +506,7 @@ initial test implementations):
 
 ### RT-9.1.4: Outer IPv4-in-IPv4 and IPv6-in-IPv4 Decapsulation Before Traceroute Response
 
-*   **`IPV4` Decapsulation Enabled (`decapsulate-headers = ["IPV4"]`)**:
+*   **`IPV4_ENCAP` Decapsulation Enabled (`decapsulate-headers = ["IPV4_ENCAP"]`)**:
     *   **Subcase A — IPv4-in-IPv4 (`4in4`, `Protocol = 4`)**:
         *   Send IPv4-in-IPv4 packets on ATE `agg1` (`port1`) with outer IPv4
             `Src = 198.18.0.1`, `Dst = 198.51.100.2`, `Protocol = 4`, `TTL = 1`,
@@ -532,14 +551,19 @@ initial test implementations):
         objects, since `198.18.0.1` matches `198.18.0.0/24`) to outer
         `Dst = 198.18.0.1` whose Original Datagram starts with the **outer**
         IPv4 header (`Src = 198.18.0.1, Dst = 198.51.100.2, TTL = 1`).
-    *   Re-enable `decapsulate-headers = ["IPV4"]` and send **IPoGRE** (`Outer
-        IPv4 Src = 198.18.0.1, Dst = 198.51.100.2, Protocol = 47, TTL = 1`
-        carrying inner IPv4/IPv6) probes. Verify that because `GRE` is not
-        enabled in `decapsulate-headers`, DUT responds to the **outer** IPv4
-        Source IP (`198.18.0.1`) quoting the outer IPv4 header. (Once future
-        `IPV6`, `GRE`, and `MPLS` values are implemented on the knob, separate
-        subtests or extensions will enable them to validate outer IPv6/GRE/MPLS
+    *   Re-enable `decapsulate-headers = ["IPV4_ENCAP"]` and send **IPoGRE**
+        (`Outer IPv4 Src = 198.18.0.1, Dst = 198.51.100.2, Protocol = 47,
+        TTL = 1` carrying inner IPv4/IPv6) probes. Verify that because
+        `GRE_ENCAP` is not enabled in `decapsulate-headers`, DUT responds to the
+        **outer** IPv4 Source IP (`198.18.0.1`) quoting the outer IPv4 header.
+        (Once `IPV6_ENCAP` and `GRE_ENCAP` are implemented on the knob, separate
+        subtests or extensions will enable them to validate outer IPv6/GRE
         stripping.)
+*   Verify via `gNMI.Get` that
+    `/system/icmp/state/counters/decapsulated-errors-sent` incremented by at
+    least the number of decapsulated `4in4` and `6in4` ICMP error responses
+    captured in Subcases A and B, and did **not** increment when
+    `decapsulate-headers = []` or for unmatched `GRE` probes.
 
 ### RT-9.1.5: Configurable Original Datagram Size Cap (RFC 4884)
 
@@ -549,7 +573,7 @@ initial test implementations):
         1.  **Short probe (`68` octets IP packet)** — under `128` octets.
         2.  **Large native probe (`512` octets IP packet)** — over `128` octets.
         3.  **Large `4in4` and `6in4` probes (`20`-octet outer IPv4 +
-            `300`-octet inner IPv4/IPv6 packet)** with `IPV4` decap enabled.
+            `300`-octet inner IPv4/IPv6 packet)** with `IPV4_ENCAP` decap enabled.
     *   Verify in all three cases that:
         *   The padded/truncated Original Datagram field is **exactly `128`
             octets** (`ICMPv4` `Length = 32`; `ICMPv6` `Length = 16`).
@@ -579,13 +603,16 @@ initial test implementations):
             IPv6 (RFC 4443).
     *   Restore `max-original-datagram-size` to `128` before proceeding.
 
-### RT-9.1.6: Allowed Source Host and Subnet Filtering (Native and Decapsulated)
+### RT-9.1.6: Allowed Destination Host and Subnet Filtering (Native and Decapsulated)
 
 *   **Subcase A — IPv4 and IPv6 Subnet Match vs. Non-Match**:
-    *   With `allowed-source-prefixes = ["198.18.0.0/24", "2001:db8:18::/64"]`,
-        send native IPv4 and IPv6 UDP `TTL / Hop Limit = 1` transit probes
-        toward `203.0.113.10` / `2001:db8:203::10` and `TTL / Hop Limit = 64`
-        Port Unreachable probes toward DUT `Loopback0` from:
+    *   With `allowed-ipv4-prefix-set = "ICMP_ALLOWED_IPV4"`
+        (`["198.18.0.0/24"]`) and
+        `allowed-ipv6-prefix-set = "ICMP_ALLOWED_IPV6"`
+        (`["2001:db8:18::/64"]`), send native IPv4 and IPv6 UDP
+        `TTL / Hop Limit = 1` transit probes toward `203.0.113.10` /
+        `2001:db8:203::10` and `TTL / Hop Limit = 64` Port Unreachable probes
+        toward DUT `Loopback0` from:
         1.  **Allowed subnet sources (`198.18.0.10` and `2001:db8:18::10`)**:
             Verify captured ICMPv4/ICMPv6 Time Exceeded and Port Unreachable
             responses carry the RFC 4884 Extension Header (`Ver = 2`) and
@@ -594,57 +621,66 @@ initial test implementations):
             `2001:db8:19::10`)**: Verify DUT still sends standard plain
             ICMPv4/ICMPv6 Time Exceeded and Port Unreachable responses to
             `198.19.0.10` / `2001:db8:19::10`, with `Length = 0` (`0x00000000`
-            in ICMP header octets `4..7`) and **zero** RFC 4884 Extension
-            Header, `Class-Num = 2`, or `Class-Num = 7` bytes.
+            in ICMP header octets `4..7`) and **zero** `Class-Num = 2` or
+            `Class-Num = 7` objects (no RFC 4884 Extension Header for these
+            non-MPLS probes), and that
+            `/system/icmp/interface-info-extension/state/counters/prefix-filter-suppressed`
+            increments accordingly.
 *   **Subcase B — Host-Prefix Filtering (`/32` IPv4 and `/128` IPv6)**:
-    *   Update `allowed-source-prefixes` to
-        `["198.18.0.10/32", "2001:db8:18::10/128"]`.
+    *   Update `ICMP_ALLOWED_IPV4` to `["198.18.0.10/32"]` and
+        `ICMP_ALLOWED_IPV6` to `["2001:db8:18::10/128"]`.
     *   Send native IPv4 and IPv6 UDP `TTL / Hop Limit = 1` transit probes from:
         1.  **Exact host match (`198.18.0.10` and `2001:db8:18::10`)**: Verify
             captured responses carry full `Class-Num = 2` and `Class-Num = 7`
             extension objects.
         2.  **Adjacent host in same `/24` or `/64` (`198.18.0.11` and
             `2001:db8:18::11`)**: Verify captured responses are plain
-            ICMPv4/ICMPv6 Time Exceeded messages (`Length = 0`, no extension
-            objects).
-*   **Subcase C — Empty Allowlist Fail-Closed and `enabled = false`
+            ICMPv4/ICMPv6 Time Exceeded messages (`Length = 0`, no
+            `Class-Num = 2` or `Class-Num = 7` objects) and
+            `prefix-filter-suppressed` increments.
+*   **Subcase C — Empty / Unset Prefix Set Fail-Closed and `enabled = false`
     Verification**:
-    *   Set `allowed-source-prefixes = []` while keeping `enabled = true`. Send
+    *   Empty both prefix sets (`prefix = []` on `ICMP_ALLOWED_IPV4` and
+        `ICMP_ALLOWED_IPV6`), and also verify with `allowed-ipv4-prefix-set` and
+        `allowed-ipv6-prefix-set` unset, while keeping `enabled = true`. Send
         native IPv4 and IPv6 UDP `TTL / Hop Limit = 1` probes from `198.18.0.10`
         and `2001:db8:18::10` and verify captured responses are plain
-        ICMPv4/ICMPv6 Time Exceeded messages (`Length = 0`, no extension
-        objects).
-    *   Set `enabled = false` with non-empty
-        `allowed-source-prefixes = ["198.18.0.0/24", "2001:db8:18::/64"]`,
-        verify `/system/icmp/interface-info-extension/state/enabled = false`,
-        re-send native IPv4 and IPv6 UDP `TTL / Hop Limit = 1` probes from
-        `198.18.0.10` and `2001:db8:18::10`, and verify captured responses
-        remain plain ICMPv4/ICMPv6 Time Exceeded messages (`Length = 0`, no
-        extension objects).
+        ICMPv4/ICMPv6 Time Exceeded messages (`Length = 0`, no `Class-Num = 2`
+        or `Class-Num = 7` objects) and `prefix-filter-suppressed` increments.
+    *   Restore `ICMP_ALLOWED_IPV4` (`["198.18.0.0/24"]`) and
+        `ICMP_ALLOWED_IPV6` (`["2001:db8:18::/64"]`) with their leafrefs set,
+        set `enabled = false`, verify
+        `/system/icmp/interface-info-extension/state/enabled = false`, re-send
+        native IPv4 and IPv6 UDP `TTL / Hop Limit = 1` probes from `198.18.0.10`
+        and `2001:db8:18::10`, and verify captured responses remain plain
+        ICMPv4/ICMPv6 Time Exceeded messages (`Length = 0`, no `Class-Num = 2`
+        or `Class-Num = 7` objects).
     *   Restore `enabled = true` and verify
         `/system/icmp/interface-info-extension/state/enabled = true` before
         proceeding.
 *   **Subcase D — Encapsulated Outer vs. Inner Response Target IP Matrix**:
-    *   With `enabled = true` and
-        `allowed-source-prefixes = ["198.18.0.0/24", "2001:db8:18::/64"]`, send
-        `4in4` (`Protocol = 4`) and `6in4` (`Protocol = 41`) probes on ATE
-        `agg1` (`Outer Dst = 198.51.100.2, Outer TTL = 1`,
-        `Inner Dst = 203.0.113.10` /
+    *   With `enabled = true`, `allowed-ipv4-prefix-set = "ICMP_ALLOWED_IPV4"`
+        (`["198.18.0.0/24"]`), and
+        `allowed-ipv6-prefix-set = "ICMP_ALLOWED_IPV6"`
+        (`["2001:db8:18::/64"]`), send `4in4` (`Protocol = 4`) and `6in4`
+        (`Protocol = 41`) probes on ATE `agg1`
+        (`Outer Dst = 198.51.100.2, Outer TTL = 1`, `Inner Dst = 203.0.113.10` /
         `2001:db8:203::10, Inner TTL / Hop Limit = 64`) across all four
         combinations:
-        1.  **`decapsulate-headers = ["IPV4"]`, Unreferenced Outer
+        1.  **`decapsulate-headers = ["IPV4_ENCAP"]`, Unreferenced Outer
             (`198.19.0.1`) + Allowed Inner (`198.18.0.10` /
             `2001:db8:18::10`)**: Verify DUT strips the outer header, targets
             the **inner** Source IP (matched), and sends **extended** `ICMPv4` /
             `ICMPv6` Time Exceeded responses with `Class-Num = 2` and
             `Class-Num = 7` objects.
-        2.  **`decapsulate-headers = ["IPV4"]`, Allowed Outer (`198.18.0.1`) +
-            Unreferenced Inner (`198.19.0.10` / `2001:db8:19::10`)**: Verify DUT
-            strips the outer header, targets the **inner** Source IP
-            (unreferenced, despite the outer IP matching `198.18.0.0/24`), and
-            sends **plain** `ICMPv4` / `ICMPv6` Time Exceeded responses to
-            `198.19.0.10` / `2001:db8:19::10` quoting the inner packet with
-            `Length = 0` and **no** extension objects.
+        2.  **`decapsulate-headers = ["IPV4_ENCAP"]`, Allowed Outer
+            (`198.18.0.1`) + Unreferenced Inner (`198.19.0.10` /
+            `2001:db8:19::10`)**: Verify DUT strips the outer header, targets
+            the **inner** Source IP (unreferenced, despite the outer IP matching
+            `198.18.0.0/24`), and sends **plain** `ICMPv4` / `ICMPv6` Time
+            Exceeded responses to `198.19.0.10` / `2001:db8:19::10` quoting the
+            inner packet with `Length = 0` and **no** `Class-Num = 2` or
+            `Class-Num = 7` objects.
         3.  **`decapsulate-headers = []`, Allowed Outer (`198.18.0.1`) +
             Unreferenced Inner (`198.19.0.10` / `2001:db8:19::10`)**: Verify no
             decapsulation occurs, DUT targets the **outer** Source IP
@@ -657,8 +693,9 @@ initial test implementations):
             decapsulation occurs, DUT targets the **outer** Source IP
             `198.19.0.1` (unreferenced), and sends **plain** `ICMPv4` Time
             Exceeded responses to `198.19.0.1` quoting the outer IPv4 header
-            with `Length = 0` and **no** extension objects.
-    *   Restore `decapsulate-headers = ["IPV4"]` before proceeding to
+            with `Length = 0` and **no** `Class-Num = 2` or `Class-Num = 7`
+            objects.
+    *   Restore `decapsulate-headers = ["IPV4_ENCAP"]` before proceeding to
         `RT-9.1.7`.
 
 ### RT-9.1.7: Singleton L3 Interfaces (Sub-IP Component Omission)
@@ -688,6 +725,34 @@ initial test implementations):
 
 ```json
 {
+  "openconfig-defined-sets:defined-sets": {
+    "ipv4-prefix-sets": {
+      "ipv4-prefix-set": [
+        {
+          "name": "ICMP_ALLOWED_IPV4",
+          "config": {
+            "name": "ICMP_ALLOWED_IPV4",
+            "prefix": [
+              "198.18.0.0/24"
+            ]
+          }
+        }
+      ]
+    },
+    "ipv6-prefix-sets": {
+      "ipv6-prefix-set": [
+        {
+          "name": "ICMP_ALLOWED_IPV6",
+          "config": {
+            "name": "ICMP_ALLOWED_IPV6",
+            "prefix": [
+              "2001:db8:18::/64"
+            ]
+          }
+        }
+      ]
+    }
+  },
   "openconfig-interfaces:interfaces": {
     "interface": [
       {
@@ -1061,20 +1126,35 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
 
+  ## Defined-Sets Prefix-Set Paths ##
+  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/name:
+  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/prefix:
+  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/name:
+  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/prefix:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/name:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/prefix:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/name:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/prefix:
+
   ## TODO: Proposed OpenConfig ICMP Extension, Decapsulation, and Size Cap Paths ##
-  # See https://github.com/openconfig/public for future YANG model standardization:
+  # See https://github.com/openconfig/public/pull/1613:
   # /system/icmp/config/max-original-datagram-size:
   # /system/icmp/config/decapsulate-headers:
   # /system/icmp/state/max-original-datagram-size:
   # /system/icmp/state/decapsulate-headers:
+  # /system/icmp/state/counters/decapsulated-errors-sent:
   # /system/icmp/interface-info-extension/config/enabled:
-  # /system/icmp/interface-info-extension/config/allowed-source-prefixes:
+  # /system/icmp/interface-info-extension/config/allowed-ipv4-prefix-set:
+  # /system/icmp/interface-info-extension/config/allowed-ipv6-prefix-set:
   # /system/icmp/interface-info-extension/config/include-roles:
   # /system/icmp/interface-info-extension/config/include-sub-objects:
   # /system/icmp/interface-info-extension/state/enabled:
-  # /system/icmp/interface-info-extension/state/allowed-source-prefixes:
+  # /system/icmp/interface-info-extension/state/allowed-ipv4-prefix-set:
+  # /system/icmp/interface-info-extension/state/allowed-ipv6-prefix-set:
   # /system/icmp/interface-info-extension/state/include-roles:
   # /system/icmp/interface-info-extension/state/include-sub-objects:
+  # /system/icmp/interface-info-extension/state/counters/errors-sent:
+  # /system/icmp/interface-info-extension/state/counters/prefix-filter-suppressed:
 
 rpcs:
   gnmi:
