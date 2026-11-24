@@ -333,8 +333,11 @@ func applyImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
-	removeImportAndExportPolicy(t, dut)
-	if deviations.ExplicitlyApplyAllowAllImportPolicy(dut) {
+	if deviations.BgpDefaultImportPolicyAcceptRoute(dut) {
+		removeImportAndExportPolicy(t, dut)
+	} else {
+		// The default import policy rejects routes. Accept the source routes
+		// explicitly before testing the export policy on the other neighbor.
 		applyImportPolicyDut(t, dut, "allow-all")
 	}
 

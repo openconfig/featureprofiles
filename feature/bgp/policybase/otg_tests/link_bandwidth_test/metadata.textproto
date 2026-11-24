@@ -17,6 +17,7 @@ platform_exceptions:  {
     bgp_extended_community_index_unsupported:  true
     use_bgp_set_community_option_type_replace: true
     bgp_rib_streaming_config_required: true
+    bgp_default_import_policy_accept_route: true
   }
 }
 platform_exceptions:  {
@@ -33,7 +34,6 @@ platform_exceptions:  {
     bgp_extended_community_index_unsupported: true
     bgp_conditions_match_community_set_unsupported: true
     bgp_explicit_extended_community_enable: true
-    explicitly_apply_allow_all_import_policy: true
   }
 }
 platform_exceptions: {
@@ -42,6 +42,7 @@ platform_exceptions: {
   }
   deviations: {
     bgp_rib_oc_path_unsupported: true
+    bgp_default_import_policy_accept_route: true
   }
 }
 platform_exceptions: {
@@ -51,6 +52,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     explicit_interface_in_default_vrf: true
+    bgp_default_import_policy_accept_route: true
     bgp_extended_community_index_unsupported: true
     skip_bgp_send_community_type: true
   }
