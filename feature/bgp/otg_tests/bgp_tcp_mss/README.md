@@ -252,11 +252,17 @@ paths:
   ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/tcp-mss:
+  /interfaces/interface/config/mtu:
 
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/tcp-mss:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
+  /interfaces/interface/state/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu:
 
 rpcs:
   gnmi:
