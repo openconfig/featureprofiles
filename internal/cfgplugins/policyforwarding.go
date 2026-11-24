@@ -294,14 +294,6 @@ mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypas
 mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
 `
 
-	decapGroupGREAristaMPLSTemplate = `
-ip decap-group %s
-  tunnel type gre
-  tunnel decap-ip %s
-  tunnel decap-interface %s
-  tunnel overlay mpls qos map mpls-traffic-class to traffic-class
-!`
-
 	interfaceTrafficPolicyAristaTemplate = `
 interface %s
 traffic-policy input %s
