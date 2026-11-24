@@ -229,10 +229,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	t.Logf("Setting MTU for Lag: %s", lag1Name)
 	mtuBatch := &gnmi.SetBatch{}
 	for _, lagName := range []string{lag1Name, lag2Name} {
-		for _, sub := range subs[lagName] {
-			subifIndex := uint32(sub.vlanID)
-			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().Config(), mtu)
-			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().Config(), mtu)
+		if deviations.OmitL2MTU(dut) {
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().Config(), mtu)
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().Config(), mtu)
+		} else {
+			for _, sub := range subs[lagName] {
+				subifIndex := uint32(sub.vlanID)
+				gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().Config(), mtu)
+				gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().Config(), mtu)
+			}
 		}
 	}
 	mtuBatch.Set(t, dut)
@@ -449,19 +454,34 @@ func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string, 
 				t.Logf("%s aggregate MTU: %d (OK)", lagName, lagMTU)
 			}
 		}
-		for _, sub := range subs[lagName] {
-			subifIndex := uint32(sub.vlanID)
-			ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().State())
+		if deviations.RequireRoutedSubinterface0(dut) {
+			ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().State())
 			if ipv4MTU != wantPrimary && ipv4MTU != wantAdjusted {
-				t.Errorf("%s subinterface %d IPv4 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv4MTU, wantPrimary, wantAdjusted)
+				t.Errorf("%s subinterface 0 IPv4 MTU: got %d, want %d or %d", lagName, ipv4MTU, wantPrimary, wantAdjusted)
 			} else {
-				t.Logf("%s subinterface %d IPv4 MTU: %d (OK)", lagName, sub.vlanID, ipv4MTU)
+				t.Logf("%s subinterface 0 IPv4 MTU: %d (OK)", lagName, ipv4MTU)
 			}
-			ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().State())
+			ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().State())
 			if ipv6MTU != wantIPv6Primary && ipv6MTU != wantIPv6Adjusted {
-				t.Errorf("%s subinterface %d IPv6 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv6MTU, wantIPv6Primary, wantIPv6Adjusted)
+				t.Errorf("%s subinterface 0 IPv6 MTU: got %d, want %d or %d", lagName, ipv6MTU, wantIPv6Primary, wantIPv6Adjusted)
 			} else {
-				t.Logf("%s subinterface %d IPv6 MTU: %d (OK)", lagName, sub.vlanID, ipv6MTU)
+				t.Logf("%s subinterface 0 IPv6 MTU: %d (OK)", lagName, ipv6MTU)
+			}
+		} else {
+			for _, sub := range subs[lagName] {
+				subifIndex := uint32(sub.vlanID)
+				ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv4().Mtu().State())
+				if ipv4MTU != wantPrimary && ipv4MTU != wantAdjusted {
+					t.Errorf("%s subinterface %d IPv4 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv4MTU, wantPrimary, wantAdjusted)
+				} else {
+					t.Logf("%s subinterface %d IPv4 MTU: %d (OK)", lagName, sub.vlanID, ipv4MTU)
+				}
+				ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(subifIndex).Ipv6().Mtu().State())
+				if ipv6MTU != wantIPv6Primary && ipv6MTU != wantIPv6Adjusted {
+					t.Errorf("%s subinterface %d IPv6 MTU: got %d, want %d or %d", lagName, sub.vlanID, ipv6MTU, wantIPv6Primary, wantIPv6Adjusted)
+				} else {
+					t.Logf("%s subinterface %d IPv6 MTU: %d (OK)", lagName, sub.vlanID, ipv6MTU)
+				}
 			}
 		}
 	}
@@ -493,7 +513,7 @@ func setLagMemberAdminState(t *testing.T, dut *ondatra.DUTDevice, portID string,
 	ocIntf := &oc.Interface{
 		Name:    ygot.String(portName),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-		Enabled: ygot.Bool(true),
+		Enabled: ygot.Bool(enabled),
 	}
 	gnmi.Update(t, dut, gnmi.OC().Interface(portName).Config(), ocIntf)
 }

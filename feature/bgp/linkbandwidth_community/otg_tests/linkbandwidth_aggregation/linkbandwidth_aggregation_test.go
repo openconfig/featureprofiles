@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package linkbandwidthaggregation implements RT-7.6.
-package linkbandwidthaggregation
+// Package linkbandwidthaggregation_test implements RT-7.6.
+package linkbandwidthaggregation_test
 
 import (
 	"bytes"
@@ -279,6 +279,9 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 			validate:            validateCumulativeLBwCommunityAdvertisedByDUT,
 		},
 	}
+	t.Cleanup(func() {
+		disableEnableBgpWithNbr(t, dut, true)
+	})
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.applyConfig != nil {

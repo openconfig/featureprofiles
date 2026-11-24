@@ -152,6 +152,10 @@ Validate that a scaled VRF Selection Policy is programmed to hardware successful
 *   **Step 2 - Push configuration:** Push to DUT using `gnmi.Set` with `REPLACE` (or `DELETE` the specific path).
 *   **Step 3 - Validation:** Verify that all previously matching Positive Streams are no longer steered to their specific VRFs and correctly revert to using the `DEFAULT` VRF routing table (egressing DUT Port-2's default sub-interface).
 
+### Cleanup
+
+*   Remove all test configurations (policy-forwarding policies, test network-instances, static routes, and sub-interfaces) and restore the DUT interfaces, default static routes, and linecard power-admin-state to their baseline operational state.
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

@@ -55,6 +55,15 @@ linecard recovers.
   * Verify that the cumulative traffic statistics (counters) reported via telemetry do not show unexpected drops, decrements, or reset to zero (for the bundle interface).
   * Note: Individual port counters on the rebooted linecard may reset to zero upon reboot, but they should resume incrementing from zero without causing the aggregate bundle counters to decrement.
 
+### Cleanup
+
+* Stop traffic and protocols on the ATE.
+* Ensure the rebooted linecard is back online (oper-status ACTIVE).
+* Restore the DUT member ports and the routed port to their original
+  configuration, and delete the aggregate interface, its LACP configuration
+  and any network instance assignment created by the test, so the DUT is
+  returned to its baseline operational state.
+
 ## Canonical OC
 
 ```json
