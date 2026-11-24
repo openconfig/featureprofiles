@@ -516,3 +516,40 @@ func RemoveStaticRoutesInVRF(t *testing.T, dut *ondatra.DUTDevice, routes []*Sta
 		gnmi.Delete(t, dut, sp.Static(r.Prefix).Config())
 	}
 }
+
+// ConfigureStaticRouteWithMultipleNextHops configures a single IPv4 prefix and a single IPv6 prefix
+// with multiple next-hops on the DUT in one gNMI SetRequest. It does not wait for the routes to
+// appear in state, because the time that takes varies by platform: callers verify convergence with
+// a timeout suited to the platform and test.
+func ConfigureStaticRouteWithMultipleNextHops(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v6Prefix string, v4Nh, v6Nh []string) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	// IPv4 route
+	v4Map := make(map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union)
+	for i, nh := range v4Nh {
+		v4Map[fmt.Sprintf("%d", i)] = oc.UnionString(nh)
+	}
+	sV4 := &StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          v4Prefix,
+		NextHops:        v4Map,
+	}
+	if _, err := NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+
+	// IPv6 route
+	v6Map := make(map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union)
+	for i, nh := range v6Nh {
+		v6Map[fmt.Sprintf("%d", i)] = oc.UnionString(nh)
+	}
+	sV6 := &StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          v6Prefix,
+		NextHops:        v6Map,
+	}
+	if _, err := NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+}
