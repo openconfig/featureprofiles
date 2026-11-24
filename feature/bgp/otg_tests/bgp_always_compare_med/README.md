@@ -4,8 +4,8 @@
 
 Verify BGP `always-compare-med` route selection across different neighboring
 autonomous systems and validate BGP routing-policy MED operations (`SET`,
-`ADD`, `SUBTRACT`, underflow saturation at `0`, and MED reset) for both IPv4
-and IPv6 unicast traffic.
+`ADD`, `SUBTRACT`, underflow saturation at `0`, and MED policy removal) for
+both IPv4 and IPv6 unicast traffic.
 
 ## Testbed type
 
@@ -513,37 +513,24 @@ when the subtracted value exceeds the incoming MED.
 }
 ```
 
-### RT-1.12.5: MED Reset (`SET 0` and MED policy removal)
+### RT-1.12.5: MED policy removal
 
-Validate both ways of resetting MED on received routes: explicitly resetting
-MED to `0` via policy (`set-med: 0`, `set-med-action: SET`), and removing MED
-modification policies so incoming routes revert to their unmodified MED and
-normal tie-breaking.
+Validate that removing MED modification policies reverts received routes to
+their unmodified incoming MED and normal BGP tie-breaking.
 
 1.  Keep `ATE:port-2` and `ATE:port-3` advertising all 254 IPv4 and 254 IPv6
     prefixes with incoming `MED = 100`, and keep global `always-compare-med`
     enabled (`true`).
-2.  **Part A (explicit MED reset to `0`):**
-    *   Configure import policy `RESET-MED-0` (`set-med: 0`,
-        `set-med-action: SET`, `policy-result: ACCEPT_ROUTE`).
-    *   Attach `ALLOW` to `BGP-PEER-GROUP2` (`ATE:port-2`, retains incoming
-        `MED = 100`) and `RESET-MED-0` to `BGP-PEER-GROUP3` (`ATE:port-3`,
-        resets MED to `0`) for both IPv4 and IPv6.
-    *   Verify control plane on `ATE:port-1`: all 254 IPv4 and 254 IPv6 learned
-        prefixes carry `MED == 0`.
-    *   Send IPv4 and IPv6 traffic and validate 0% loss on `ATE:port-3` and 100%
-        loss on `ATE:port-2`.
-3.  **Part B (MED policy removal):**
-    *   Replace import policies on both `BGP-PEER-GROUP2` and `BGP-PEER-GROUP3`
-        with `ALLOW` (no MED modification).
-    *   Bounce eBGP neighbors (`ATE:port-2` disabled/re-enabled before
-        `ATE:port-3`) to force a clean route refresh and deterministic
-        tie-breaking.
-    *   Verify control plane on `ATE:port-1`: all 254 IPv4 and 254 IPv6 learned
-        prefixes carry the unmodified incoming `MED == 100`.
-    *   Send IPv4 and IPv6 traffic and validate that forwarding flips back to
-        `ATE:port-2` (0% loss on `flowPort1toPort2` / `flowPort1toPort2V6`, 100%
-        loss on `flowPort1toPort3` / `flowPort1toPort3V6`).
+2.  Replace import policies on both `BGP-PEER-GROUP2` and `BGP-PEER-GROUP3`
+    with `ALLOW` (no MED modification) for both IPv4 and IPv6.
+3.  Bounce eBGP neighbors (`ATE:port-2` disabled/re-enabled before
+    `ATE:port-3`) to force a clean route refresh and deterministic
+    tie-breaking.
+4.  Verify control plane on `ATE:port-1`: all 254 IPv4 and 254 IPv6 learned
+    prefixes carry the unmodified incoming `MED == 100`.
+5.  Send IPv4 and IPv6 traffic and validate that forwarding flips back to
+    `ATE:port-2` (0% loss on `flowPort1toPort2` / `flowPort1toPort2V6`, 100%
+    loss on `flowPort1toPort3` / `flowPort1toPort3V6`).
 
 ### Cleanup
 
