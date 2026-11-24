@@ -15,17 +15,20 @@
 package pmtu_handing_test
 
 import (
+	"bytes"
+	"context"
 	"fmt"
-	"log"
+	"io"
+	"net"
 	"os"
+	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
+	"github.com/google/gopacket/pcapgo"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -36,6 +39,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -44,7 +48,6 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ic                      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	ipv4                    = "IPv4"
 	ipv4PrefixLen           = 30
 	ipv6                    = "IPv6"
@@ -54,10 +57,8 @@ const (
 	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
 	tgWaitDuration          = 30 * time.Second
-	acceptableLossPercent   = 100.0
 	subInterfaceIndex       = 0
 	lineRatePrecentage      = 50
-	tolerance               = 5000
 )
 
 type testDefinition struct {
@@ -162,14 +163,6 @@ var (
 		ondatra.JUNIPER: "^RE[0-9]:CPU[0-9][0-9]$",
 		ondatra.NOKIA:   "^CPU-Control",
 	}
-
-	previousPacketProcessingAggregateDrops = uint64(0)
-
-	previousFragmentTotalDropsCount = uint64(0)
-
-	previousFragmentPuntCount = uint64(0)
-
-	previousFragmentPuntPktsCount = uint64(0)
 )
 
 func (d *testData) waitInterface(t *testing.T) {
@@ -265,6 +258,9 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
+		// Give the PMTU probe a defined upper-layer header instead of the
+		// generator's default IPv6 No Next Header payload.
+		flow.Packet().Add().Udp()
 	}
 	flow.EgressPacket().Add().Ethernet()
 	return flow
@@ -283,85 +279,24 @@ func isCompNameExpected(t *testing.T, name string, vendor ondatra.Vendor, icPatt
 	return r.MatchString(name)
 }
 
-func getFTCompatibleComponentName(t *testing.T, vendor ondatra.Vendor, componentName string, useFT bool) string {
-	t.Helper()
-	if useFT && vendor == ondatra.CISCO {
-		return strings.Replace(componentName, "-NPU", ":", 1)
-	}
-	return componentName
-}
-
 func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal *packetValidation) {
-	td.otgConfig.Captures().Clear()
-	bytes := td.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
-	f, err := os.CreateTemp("", "pcap")
-	if err != nil {
-		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-	}
-	if _, err := f.Write(bytes); err != nil {
-		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-	}
-	f.Close()
-	handle, err := pcap.OpenOffline(f.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	t.Helper()
-
-	count := 0
-	for packet := range packetSource.Packets() {
-		if td.flowProto == ipv4 {
-			ipLayer := packet.Layer(layers.LayerTypeIPv4)
-			if ipLayer == nil {
-				continue
-			}
-			ipPacket, _ := ipLayer.(*layers.IPv4)
-			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-			ipInnerLayer := innerPacket.Layer(layers.LayerTypeICMPv4)
-			if ipInnerLayer == nil {
-				t.Error("No ICMPv4 Echo Reply found")
-			}
-			ipInnerPacket, _ := ipInnerLayer.(*layers.ICMPv4)
-			if ipInnerPacket.TypeCode != layers.ICMPv4TypeDestinationUnreachable && ipInnerPacket.TypeCode != layers.ICMPv4CodeFragmentationNeeded {
-				t.Logf("PASS: received ICMPv4 type-3, code-4")
-				count = count + 1
-			} else {
-				t.Errorf("FAIL: did not received ICMPv4 type-3, code-4")
-			}
-		} else if td.flowProto == ipv6 {
-			ipLayer := packet.Layer(layers.LayerTypeIPv6)
-			if ipLayer == nil {
-				continue
-			}
-			ipPacket, _ := ipLayer.(*layers.IPv6)
-			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-			ipInnerLayer := innerPacket.Layer(layers.LayerTypeICMPv6)
-			if ipInnerLayer == nil {
-				t.Error("No ICMPv6 Echo Reply found")
-			}
-			ipInnerPacket, _ := ipInnerLayer.(*layers.ICMPv6)
-			if ipInnerPacket.TypeCode != layers.ICMPv6TypePacketTooBig && ipInnerPacket.TypeCode != layers.ICMPv6CodeNoRouteToDst {
-				t.Logf("PASS: received ICMPv6 type-2, code-0")
-				count = count + 1
-			} else {
-				t.Errorf("FAIL: did not received ICMPv6 type-2, code-0")
-			}
-		}
-		if count == 3 {
-			break
+	data := td.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
+	t.Logf("Capture %s: %d bytes", packetVal.portName, len(data))
+	if dir := os.Getenv("TEST_UNDECLARED_OUTPUTS_DIR"); dir != "" {
+		path := filepath.Join(dir, td.name+".pcap")
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Errorf("Save capture: %v", err)
+		} else {
+			t.Logf("Saved capture: %s", path)
 		}
 	}
-
-	td.otgConfig.Captures().Clear()
-	time.Sleep(tgWaitDuration)
-	td.otgConfig.Captures().Clear()
-	td.otg.PushConfig(t, td.otgConfig)
-	time.Sleep(tgWaitDuration)
+	if err := validatePMTUCapture(data, td.flowProto, ateSrc.IPv4, ateSrc.IPv6); err != nil {
+		t.Error(err)
+	}
 }
 
-func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, waitF func(t *testing.T)) uint64 {
+func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, waitF func(t *testing.T)) {
 	flowParams := createFlow(tt.name, tt.flowSize, td.flowProto)
 	td.otgConfig.Flows().Clear()
 	td.otgConfig.Captures().Clear()
@@ -378,6 +313,9 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	waitF(t)
 	cs := otgutils.StartCapture(t, td.otg)
 	defer otgutils.StopCapture(t, td.otg, cs)
+	baselineCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	baseline := readPacketProcessingAggregateDrops(baselineCtx, t, td.dut)
+	cancel()
 	td.otg.StartTraffic(t)
 	time.Sleep(trafficRunDuration)
 	td.otg.StopTraffic(t)
@@ -390,34 +328,10 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	outPkts := gnmi.Get(t, td.otg, flowCounters.OutPkts().State())
 	inPkts := gnmi.Get(t, td.otg, flowCounters.InPkts().State())
 	t.Logf("outPkts: %v, inPkts: %v", outPkts, inPkts)
-	if tt.flowSize > mtuSrc {
-		if inPkts == 0 {
-			t.Logf(
-				"flow sent '%v' packets and received '%v' packets, this is expected "+
-					"due to flow size '%v' being > interface MTU of '%v' bytes",
-				outPkts, inPkts, tt.flowSize, mtuSrc,
-			)
-		} else {
-			t.Errorf(
-				"flow received packets but should *not* have due to flow size '%d' being"+
-					" > interface MTU of '%d' bytes",
-				tt.flowSize, mtuSrc,
-			)
-		}
+	if err := validateOversizedTraffic(outPkts, inPkts); err != nil {
+		t.Error(err)
 	}
-	if tt.flowSize > mtuDst && outPkts == 0 && inPkts != 0 {
-		t.Logf("flow size: '%v' inPkts: '%v' outPkts: '%v'", tt.flowSize, inPkts, outPkts)
-		t.Errorf("flow should have sent packets and not received any, this did not happen.")
-	}
-	lossPercent := (float32(outPkts-inPkts) / float32(outPkts)) * 100
-	if lossPercent > acceptableLossPercent {
-		t.Errorf(
-			"flow sent '%d' packets and received '%d' packets, resulting in a "+
-				"loss percent of '%.2f'. max acceptable loss percent is '%.2f'",
-			outPkts, inPkts, lossPercent, acceptableLossPercent,
-		)
-	}
-	return outPkts
+	verifyPacketProcessingAggregateDrops(t, td, baseline)
 }
 
 func getCPUUtilization(t *testing.T, dut *ondatra.DUTDevice) map[string]uint8 {
@@ -434,99 +348,60 @@ func getCPUUtilization(t *testing.T, dut *ondatra.DUTDevice) map[string]uint8 {
 	return res
 }
 
-func initializeBaselineDropCounters(t *testing.T, dut *ondatra.DUTDevice) {
-	// Initialize packet-processing-aggregate baseline
-	if !deviations.PacketProcessingAggregateDropsUnsupported(dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().PacketProcessingAggregate().State()
-		packetProcessingAggregateDrops := gnmi.LookupAll(t, dut, query)
-		packetProcessingAggregateDropsCount := uint64(0)
-		for _, ppaDrop := range packetProcessingAggregateDrops {
-			component := ppaDrop.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component, dut.Vendor(), icPattern) {
-				drop, _ := ppaDrop.Val()
-				packetProcessingAggregateDropsCount = packetProcessingAggregateDropsCount + drop
-			}
-		}
-		previousPacketProcessingAggregateDrops = packetProcessingAggregateDropsCount
-		t.Logf("Baseline packet-processing-aggregate drops initialized to: %d", previousPacketProcessingAggregateDrops)
+// readPacketProcessingAggregateDrops requires a present counter on every matching IC.
+func readPacketProcessingAggregateDrops(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) map[string]uint64 {
+	t.Helper()
+	if deviations.PacketProcessingAggregateDropsUnsupported(dut) {
+		t.Fatalf("Required packet-processing-aggregate telemetry is unsupported on %v", dut.Vendor())
 	}
-
-	// Initialize fragment-total-drops baseline
-	if !deviations.FragmentTotalDropsUnsupported(dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().LookupBlock().FragmentTotalDrops().State()
-		fragmentTotalDrops := gnmi.LookupAll(t, dut, query)
-		fragmentTotalDropsCount := uint64(0)
-		for _, fragmentTotalDrop := range fragmentTotalDrops {
-			component1 := fragmentTotalDrop.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
-				drop, _ := fragmentTotalDrop.Val()
-				fragmentTotalDropsCount = fragmentTotalDropsCount + drop
-			}
-		}
-		previousFragmentTotalDropsCount = fragmentTotalDropsCount
-		t.Logf("Baseline fragment-total-drops initialized to: %d", previousFragmentTotalDropsCount)
+	client, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.ID()))
+	if err != nil {
+		t.Fatalf("Create aggregate-drop client: %v", err)
 	}
-
-	// Initialize fragment-punt baseline
-	if !deviations.FragmentPuntUnsupported(dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().HostInterfaceBlock().FragmentPunt().State()
-		fragmentPunts := gnmi.LookupAll(t, dut, query)
-		fragmentPuntCount := uint64(0)
-		for _, fragmentPunt := range fragmentPunts {
-			component1 := fragmentPunt.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
-				drop, _ := fragmentPunt.Val()
-				fragmentPuntCount = fragmentPuntCount + drop
-			}
+	values := make(map[string]uint64)
+	for _, name := range components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT) {
+		if !isCompNameExpected(t, name, dut.Vendor(), icPattern) {
+			continue
 		}
-		previousFragmentPuntCount = fragmentPuntCount
-		t.Logf("Baseline fragment-punt initialized to: %d", previousFragmentPuntCount)
-	}
-
-	// Initialize fragment-punt-pkts baseline
-	if !deviations.FragmentPuntPktsUnsupported(dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Packet().HostInterfaceBlock().FragmentPuntPkts().State()
-		fragmentPuntPkts := gnmi.LookupAll(t, dut, query)
-		fragmentPuntPktsCount := uint64(0)
-		for _, fragmentPuntPkt := range fragmentPuntPkts {
-			component1 := fragmentPuntPkt.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
-				drop, _ := fragmentPuntPkt.Val()
-				fragmentPuntPktsCount = fragmentPuntPktsCount + drop
-			}
+		query := gnmi.OC().Component(name).IntegratedCircuit().PipelineCounters().Drop().PacketProcessingAggregate().State()
+		result, err := ygnmi.Lookup(ctx, client, query)
+		if err != nil {
+			t.Fatalf("Read packet-processing-aggregate for %s: %v", name, err)
 		}
-		previousFragmentPuntPktsCount = fragmentPuntPktsCount
-		t.Logf("Baseline fragment-punt-pkts initialized to: %d", previousFragmentPuntPktsCount)
+		value, ok := result.Val()
+		if !ok {
+			t.Fatalf("Missing packet-processing-aggregate for %s", name)
+		}
+		values[name] = value
+		t.Logf("%s packet-processing-aggregate: %d", name, value)
 	}
+	if len(values) == 0 {
+		t.Fatal("No matching integrated circuits with packet-processing-aggregate telemetry")
+	}
+	return values
 }
 
-func verifyPacketProcessingAggregateDrops(t *testing.T, td testData, outPkts uint64) {
-	if !deviations.PacketProcessingAggregateDropsUnsupported(td.dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().PacketProcessingAggregate().State()
-		packetProcessingAggregateDrops := gnmi.LookupAll(t, td.dut, query)
-		packetProcessingAggregateDropsCount := uint64(0)
-		t.Logf("Querying packet-processing-aggregate drops for all components:")
-		for _, ppaDrop := range packetProcessingAggregateDrops {
-			component := ppaDrop.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component, td.dut.Vendor(), icPattern) {
-				drop, _ := ppaDrop.Val()
-				t.Logf("  Component: %s, packet-processing-aggregate drops: %d", component, drop)
-				packetProcessingAggregateDropsCount = packetProcessingAggregateDropsCount + drop
+func verifyPacketProcessingAggregateDrops(t *testing.T, td testData, baseline map[string]uint64) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for {
+		current := readPacketProcessingAggregateDrops(ctx, t, td.dut)
+		increased, err := aggregateDropsIncreased(baseline, current)
+		if err != nil {
+			t.Fatalf("Invalid aggregate-drop telemetry: %v", err)
+		}
+		if increased {
+			for name, before := range baseline {
+				t.Logf("%s aggregate-drop delta: %d", name, current[name]-before)
 			}
+			return
 		}
-		t.Logf("Total packet-processing-aggregate drops across all components: %d", packetProcessingAggregateDropsCount)
-		// packetProcessingAggregateDropsCount hold the current value of drop count, the previous value needs to be subtracted to get the delta for the current flow.
-		newPacketProcessingAggregateDrops := packetProcessingAggregateDropsCount - previousPacketProcessingAggregateDrops
-		t.Logf("Delta packet-processing-aggregate drops for current flow: %d (previous: %d, current total: %d)", newPacketProcessingAggregateDrops, previousPacketProcessingAggregateDrops, packetProcessingAggregateDropsCount)
-		if newPacketProcessingAggregateDrops > 0 {
-			t.Logf("PASS: packetProcessingAggregateDrops increased by %v (outPkts on OTG: %v)", newPacketProcessingAggregateDrops, outPkts)
-		} else {
-			t.Errorf("FAIL: packetProcessingAggregateDrops did not increase (delta: %v, outPkts on OTG: %v)", newPacketProcessingAggregateDrops, outPkts)
+		select {
+		case <-ctx.Done():
+			t.Fatal("packet-processing-aggregate did not increase within 30 seconds after traffic")
+		case <-time.After(time.Second):
 		}
-		// update previousPacketProcessingAggregateDrops
-		previousPacketProcessingAggregateDrops = packetProcessingAggregateDropsCount
-	} else {
-		t.Errorf("FAIL: packet-processing-aggregate is not supported on %v", td.dut.Vendor())
 	}
 }
 
@@ -550,102 +425,6 @@ func verifyControllerCardCPUUtilization(t *testing.T, td testData) {
 	}
 }
 
-func verifyFragmentTotalDrops(t *testing.T, td testData, outPkts uint64) {
-	if !deviations.FragmentTotalDropsUnsupported(td.dut) {
-		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().LookupBlock().FragmentTotalDrops().State()
-		fragmentTotalDrops := gnmi.LookupAll(t, td.dut, query)
-		fragmentTotalDropsCount := uint64(0)
-		t.Logf("Querying fragment-total-drops for all components:")
-		for _, fragmentTotalDrop := range fragmentTotalDrops {
-			component1 := fragmentTotalDrop.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component1, td.dut.Vendor(), icPattern) {
-				drop, _ := fragmentTotalDrop.Val()
-				t.Logf("  Component: %s, fragment-total-drops: %d", component1, drop)
-				fragmentTotalDropsCount = fragmentTotalDropsCount + drop
-			}
-		}
-		t.Logf("Total fragment-total-drops across all components: %d", fragmentTotalDropsCount)
-		// fragmentTotalDropsCount hold the current value of drop count, the previous value needs to be subtracted to get the delta for the current flow.
-		newFragmentTotalDropsCount := fragmentTotalDropsCount - previousFragmentTotalDropsCount
-		t.Logf("Delta fragment-total-drops for current flow: %d (previous: %d, current total: %d)", newFragmentTotalDropsCount, previousFragmentTotalDropsCount, fragmentTotalDropsCount)
-		if newFragmentTotalDropsCount > 0 {
-			t.Logf("PASS: fragmentTotalDropsCount increased by %v (outPkts on OTG: %v)", newFragmentTotalDropsCount, outPkts)
-		} else {
-			t.Errorf("FAIL: fragmentTotalDropsCount did not increase (delta: %v, outPkts on OTG: %v)", newFragmentTotalDropsCount, outPkts)
-		}
-		// update previousFragmentTotalDropsCount
-		previousFragmentTotalDropsCount = fragmentTotalDropsCount
-	} else {
-		t.Logf("Telemetry path for fragment-total-drops is not supported due to deviation FragmentTotalDropsUnsupported.")
-	}
-}
-
-func verifyFragmentPunt(t *testing.T, td testData, outPkts uint64) {
-	if !deviations.FragmentPuntUnsupported(td.dut) {
-		ics := components.FindComponentsByType(t, td.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
-		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FragmentPuntFt(td.dut))
-		fragmentPuntCount := uint64(0)
-		t.Logf("Querying fragment-punt drops for all components:")
-		for _, ic := range ics {
-			if isCompNameExpected(t, ic, td.dut.Vendor(), icPattern) {
-				ftIC := getFTCompatibleComponentName(t, td.dut.Vendor(), ic, len(opts) > 0)
-				query := gnmi.OC().Component(ftIC).IntegratedCircuit().PipelineCounters().Drop().HostInterfaceBlock().FragmentPunt().State()
-				fragmentPunt := gnmi.Lookup(t, td.dut.GNMIOpts().WithYGNMIOpts(opts...), query)
-				if val, ok := fragmentPunt.Val(); ok {
-					t.Logf("  Component: %s, fragment-punt: %d", ic, val)
-					fragmentPuntCount += val
-				}
-			}
-		}
-		t.Logf("[debug] Total fragment-punt across all components: %d", fragmentPuntCount)
-		newFragmentPuntCount := fragmentPuntCount - previousFragmentPuntCount
-		t.Logf("[debug] Delta fragment-punt for current flow: %d (previous: %d, current total: %d)", newFragmentPuntCount, previousFragmentPuntCount, fragmentPuntCount)
-		if newFragmentPuntCount > 0 {
-			t.Logf("PASS: fragmentPuntCount increased by %v (outPkts on OTG: %v)", newFragmentPuntCount, outPkts)
-		} else {
-			t.Errorf("FAIL: fragmentPuntCount did not increase (delta: %v, outPkts on OTG: %v).", newFragmentPuntCount, outPkts)
-		}
-		previousFragmentPuntCount = fragmentPuntCount
-	} else {
-		t.Logf("Telemetry path for fragment-punt is not supported due to deviation FragmentPuntUnsupported.")
-	}
-}
-
-func verifyFragmentPuntPkts(t *testing.T, td testData, outPkts uint64) {
-	if !deviations.FragmentPuntPktsUnsupported(td.dut) {
-		ics := components.FindComponentsByType(t, td.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
-
-		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FragmentPuntFt(td.dut))
-
-		fragmentPuntPktsCount := uint64(0)
-		t.Logf("Querying fragment-punt-pkts for all components:")
-
-		for _, ic := range ics {
-			if isCompNameExpected(t, ic, td.dut.Vendor(), icPattern) {
-				ftIC := getFTCompatibleComponentName(t, td.dut.Vendor(), ic, len(opts) > 0)
-				query := gnmi.OC().Component(ftIC).IntegratedCircuit().PipelineCounters().Packet().HostInterfaceBlock().FragmentPuntPkts().State()
-				fragmentPuntPkt := gnmi.Lookup(t, td.dut.GNMIOpts().WithYGNMIOpts(opts...), query)
-
-				if val, ok := fragmentPuntPkt.Val(); ok {
-					t.Logf("  Component: %s, fragment-punt-pkts: %d", ic, val)
-					fragmentPuntPktsCount += val
-				}
-			}
-		}
-
-		newFragmentPuntPktsCount := fragmentPuntPktsCount - previousFragmentPuntPktsCount
-
-		if newFragmentPuntPktsCount > 0 {
-			t.Logf("PASS: fragmentPuntPktsCount increased by %v (outPkts on OTG: %v)", newFragmentPuntPktsCount, outPkts)
-		} else {
-			t.Errorf("FAIL: fragmentPuntPktsCount did not increase (delta: %v, outPkts on OTG: %v).", newFragmentPuntPktsCount, outPkts)
-		}
-		previousFragmentPuntPktsCount = fragmentPuntPktsCount
-	} else {
-		t.Logf("Telemetry path for fragment-punt-pkts is not supported due to deviation FragmentPuntPktsUnsupported.")
-	}
-}
-
 func TestPMTUHanding(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -655,9 +434,6 @@ func TestPMTUHanding(t *testing.T) {
 
 	configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
-
-	// Initialize baseline drop counters before running tests
-	initializeBaselineDropCounters(t, dut)
 
 	t.Cleanup(func() {
 		deleteBatch := &gnmi.SetBatch{}
@@ -703,14 +479,96 @@ func TestPMTUHanding(t *testing.T) {
 			t.Logf("%s%s-%s Path MTU", flow[0], flow[1], tt.name)
 			t.Run(td.name, func(t *testing.T) {
 				t.Logf("Name: %s, Description: %s", tt.name, tt.desc)
-				outPkts := createFlowAndVerifyTraffic(t, td, tt, td.waitInterface)
+				createFlowAndVerifyTraffic(t, td, tt, td.waitInterface)
 				captureAndValidateICMPPacketsReceived(t, td, &packetValidation{portName: ateSrc.Name})
-				verifyPacketProcessingAggregateDrops(t, td, outPkts)
-				verifyFragmentTotalDrops(t, td, outPkts)
-				verifyFragmentPuntPkts(t, td, outPkts)
-				verifyFragmentPunt(t, td, outPkts)
 				verifyControllerCardCPUUtilization(t, td)
 			})
 		}
 	}
+}
+
+func validateOversizedTraffic(sent, received uint64) error {
+	if sent == 0 {
+		return fmt.Errorf("oversized flow transmitted no packets")
+	}
+	if received != 0 {
+		return fmt.Errorf("oversized flow forwarded %d of %d packets; want zero received", received, sent)
+	}
+	return nil
+}
+
+// aggregateDropsIncreased checks every component before accepting any increase.
+// Comparing before subtraction avoids unsigned underflow on counter resets.
+func aggregateDropsIncreased(before, after map[string]uint64) (bool, error) {
+	if len(before) == 0 {
+		return false, fmt.Errorf("empty aggregate-drop baseline")
+	}
+	if len(before) != len(after) {
+		return false, fmt.Errorf("aggregate-drop component set changed")
+	}
+	increased := false
+	for name, initial := range before {
+		current, ok := after[name]
+		if !ok {
+			return false, fmt.Errorf("missing aggregate-drop component %s", name)
+		}
+		if current < initial {
+			return false, fmt.Errorf("%s counter decreased from %d to %d", name, initial, current)
+		}
+		increased = increased || current > initial
+	}
+	return increased, nil
+}
+
+func matchesPMTUResponse(packet gopacket.Packet, protocol, sourceIPv4, sourceIPv6 string) bool {
+	switch protocol {
+	case "IPv4":
+		ip, ok := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+		if !ok || !ip.DstIP.Equal(net.ParseIP(sourceIPv4)) {
+			return false
+		}
+		icmp, ok := packet.Layer(layers.LayerTypeICMPv4).(*layers.ICMPv4)
+		return ok && icmp.TypeCode.Type() == layers.ICMPv4TypeDestinationUnreachable && icmp.TypeCode.Code() == layers.ICMPv4CodeFragmentationNeeded
+	case "IPv6":
+		ip, ok := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+		if !ok || !ip.DstIP.Equal(net.ParseIP(sourceIPv6)) {
+			return false
+		}
+		icmp, ok := packet.Layer(layers.LayerTypeICMPv6).(*layers.ICMPv6)
+		return ok && icmp.TypeCode.Type() == layers.ICMPv6TypePacketTooBig && icmp.TypeCode.Code() == 0
+	}
+	return false
+}
+
+// validatePMTUCapture parses PCAP in memory, avoiding temporary files and libpcap.
+func validatePMTUCapture(data []byte, protocol, sourceIPv4, sourceIPv6 string) error {
+	if len(data) == 0 {
+		return fmt.Errorf("OTG returned an empty capture (0 bytes); no ICMP response can be validated")
+	}
+	reader, err := pcapgo.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("open PMTU capture: %w", err)
+	}
+	source := gopacket.NewPacketSource(reader, reader.LinkType())
+	packets, ipv6Packets, icmpv6Packets := 0, 0, 0
+	for {
+		packet, err := source.NextPacket()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read PMTU capture: %w", err)
+		}
+		packets++
+		if packet.Layer(layers.LayerTypeIPv6) != nil {
+			ipv6Packets++
+		}
+		if packet.Layer(layers.LayerTypeICMPv6) != nil {
+			icmpv6Packets++
+		}
+		if matchesPMTUResponse(packet, protocol, sourceIPv4, sourceIPv6) {
+			return nil
+		}
+	}
+	return fmt.Errorf("no matching %s PMTU ICMP response addressed to the traffic source (captured packets: %d, IPv6: %d, ICMPv6: %d)", protocol, packets, ipv6Packets, icmpv6Packets)
 }
