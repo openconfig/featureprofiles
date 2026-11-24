@@ -678,6 +678,9 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	var touchedNHGs []uint64
+	var touchedNHs []uint64
+
 	for _, d := range deletes {
 		dElems := d.GetElem()
 		aftIdx, niName := findAFTInPath(pfxElems, dElems)
@@ -771,6 +774,7 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 				if rec, ok := c.nextHopGroups[nhgID]; ok && rec.data != nil && shouldDelete(rec.ts, ts) {
 					rec.data.NHIDs = slices.DeleteFunc(rec.data.NHIDs, func(id uint64) bool { return id == memberID })
 					delete(rec.data.NHWeights, memberID)
+					touchedNHGs = append(touchedNHGs, nhgID)
 				}
 			}
 
@@ -804,12 +808,31 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 				switch elemAt(pfxElems, dElems, total-1).GetName() {
 				case "ip-address":
 					rec.data.IP = ""
+					touchedNHs = append(touchedNHs, nhID)
 				case "lsp-name":
 					rec.data.LSPName = ""
+					touchedNHs = append(touchedNHs, nhID)
 				case "interface":
 					rec.data.IntfName = ""
+					touchedNHs = append(touchedNHs, nhID)
 				}
 			}
+		}
+	}
+
+	// Advance record timestamps after processing all deletes in the notification
+	// so multi-member/multi-field deletes sharing the same timestamp all apply
+	// while subsequent out-of-order updates older than ts are rejected as stale.
+	for _, nhgID := range touchedNHGs {
+		if rec, ok := c.nextHopGroups[nhgID]; ok && ts > rec.ts {
+			rec.ts = ts
+			c.nextHopGroups[nhgID] = rec
+		}
+	}
+	for _, nhID := range touchedNHs {
+		if rec, ok := c.nextHops[nhID]; ok && ts > rec.ts {
+			rec.ts = ts
+			c.nextHops[nhID] = rec
 		}
 	}
 	return nil

@@ -353,8 +353,46 @@ func TestAFTCacheEdgeCases(t *testing.T) {
 	if got := aft.NextHopGroups[10].NHIDs; len(got) != 1 || got[0] != 3 {
 		t.Fatalf("multi-member NHG delete got NHIDs=%v, want [3]", got)
 	}
+	// Stale NHG update with timestamp older than the partial delete (275 < 300) must be rejected.
+	if err := c.addAFTNotification(makeNHGNoti("DEFAULT", 10, map[uint64]uint64{1: 1, 2: 1}, 275, true)); !errors.Is(err, cache.ErrStale) {
+		t.Fatalf("expected ErrStale after partial NHG delete, got: %v", err)
+	}
 
-	// 4. Atomic delete is rejected.
+	// 4. Multi-field NH delete inside the same notification clears all listed fields and advances timestamp.
+	if err := c.addAFTNotification(makeNHNoti("DEFAULT", 7, "192.0.2.7", "Ethernet7/1", 100, true)); err != nil {
+		t.Fatal(err)
+	}
+	multiNHFieldDel := &gnmipb.SubscribeResponse{
+		Response: &gnmipb.SubscribeResponse_Update{
+			Update: &gnmipb.Notification{
+				Timestamp: 300,
+				Prefix: &gnmipb.Path{Elem: []*gnmipb.PathElem{
+					pElem("network-instances"), pElem("network-instance", "name", "DEFAULT"),
+					pElem("afts"), pElem("next-hops"), pElem("next-hop", "index", "7"),
+				}},
+				Delete: []*gnmipb.Path{
+					{Elem: []*gnmipb.PathElem{pElem("state"), pElem("ip-address")}},
+					{Elem: []*gnmipb.PathElem{pElem("interface-ref"), pElem("state"), pElem("interface")}},
+				},
+			},
+		},
+	}
+	if err := c.addAFTNotification(multiNHFieldDel); err != nil {
+		t.Fatalf("multi-field NH delete failed: %v", err)
+	}
+	aft, err = ss.ToAFT(t, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nh := aft.NextHops[7]; nh == nil || nh.IP != "" || nh.IntfName != "" {
+		t.Fatalf("multi-field NH delete got %+v, want empty IP and IntfName", nh)
+	}
+	// Stale NH update with timestamp older than the partial field delete (200 < 300) must be rejected.
+	if err := c.addAFTNotification(makeNHNoti("DEFAULT", 7, "192.0.2.7", "Ethernet7/1", 200, true)); !errors.Is(err, cache.ErrStale) {
+		t.Fatalf("expected ErrStale after partial NH field delete, got: %v", err)
+	}
+
+	// 5. Atomic delete is rejected.
 	atomicDel := &gnmipb.SubscribeResponse{
 		Response: &gnmipb.SubscribeResponse_Update{
 			Update: &gnmipb.Notification{
