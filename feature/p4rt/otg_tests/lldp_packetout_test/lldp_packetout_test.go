@@ -364,6 +364,9 @@ func TestPacketOut(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	t.Logf("Disable LLDP config")
+	t.Cleanup(func() {
+		gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), true)
+	})
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})

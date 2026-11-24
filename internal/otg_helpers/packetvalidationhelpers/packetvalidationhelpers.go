@@ -11,6 +11,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 )
 
@@ -182,22 +183,18 @@ type BGPLayer struct {
 	ErrorSubCode uint8
 }
 
-// StartCapture starts the capture on the port.
+// StartCapture starts the capture on the port and registers a t.Cleanup
+// handler to ensure capture is stopped if the test exits early.
 func StartCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
 	t.Helper()
-
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	ate.OTG().SetControlState(t, cs)
-
-	return cs
+	return otgutils.StartCapture(t, ate.OTG())
 }
 
-// StopCapture stops the capture on the port.
+// StopCapture stops the capture on the port. It is a no-op if cs is nil or
+// already in the STOP state.
 func StopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
 	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	ate.OTG().SetControlState(t, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 // CaptureAndValidatePackets captures the packets and validates the traffic.
