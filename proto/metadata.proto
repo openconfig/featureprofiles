@@ -1623,6 +1623,9 @@ message Metadata {
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
 
+    // Device rejects IPv6 tunnel-source configuration for MPLS encapsulation.
+    bool mpls_ipv6_tunnel_source_unsupported = 490;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }

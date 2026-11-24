@@ -4,4 +4,22 @@
 uuid:  "73f52817-2667-44c8-837e-cb1a2769b599"
 plan_id:  "PF-1.17"
 description:  "MPLSoGRE and MPLSoGUE MACsec"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    mpls_unsupported: true
+    macsec_oc_unsupported: true
+    mpls_label_classification_unsupported: true
+    gue_gre_decap_unsupported: true
+    policy_forwarding_unsupported: true
+    static_mpls_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
+    mpls_ipv6_tunnel_source_unsupported: true
+  }
+}

@@ -3,6 +3,7 @@ package packetvalidationhelpers
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"testing"
@@ -61,6 +62,7 @@ const (
 	IPv6            = "IPv6"
 	TCP             = 6  // TCP protocol number as seen on the wire.
 	UDP             = 17 // UDP protocol number as seen on the wire.
+	GRE             = 47
 	MacsecEtherType = 0x88E5
 )
 
@@ -92,20 +94,21 @@ const (
 
 // PacketValidation is a struct to hold the packet validation parameters.
 type PacketValidation struct {
-	PortName         string
-	CaptureName      string
-	CaptureCount     int
-	VlanLayer        *VlanLayer
-	IPv4Layer        *IPv4Layer
-	IPv6Layer        *IPv6Layer
-	GreLayer         *GreLayer
-	MPLSLayer        *MPLSLayer
-	MacsecLayer      *MacsecLayer
-	TCPLayer         *TCPLayer
-	UDPLayer         *UDPLayer
-	InnerIPLayerIPv4 *IPv4Layer
-	InnerIPLayerIPv6 *IPv6Layer
-	BGPLayer         *BGPLayer
+	MatchEncapsulation bool
+	PortName           string
+	CaptureName        string
+	CaptureCount       int
+	VlanLayer          *VlanLayer
+	IPv4Layer          *IPv4Layer
+	IPv6Layer          *IPv6Layer
+	GreLayer           *GreLayer
+	MPLSLayer          *MPLSLayer
+	MacsecLayer        *MacsecLayer
+	TCPLayer           *TCPLayer
+	UDPLayer           *UDPLayer
+	InnerIPLayerIPv4   *IPv4Layer
+	InnerIPLayerIPv6   *IPv6Layer
+	BGPLayer           *BGPLayer
 	// Flags enables optional field-level validations that are otherwise skipped.
 	Flags *ValidationFlags
 	// Validations is a list of validations to perform on the captured packets.
@@ -219,6 +222,9 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	defer handle.Close()
 
 	packetVal.packetSourceObj = gopacket.NewPacketSource(handle, handle.LinkType())
+	if packetVal.MatchEncapsulation {
+		return validateEncapsulation(packetVal.packetSourceObj, packetVal)
+	}
 
 	// Iterate over the validations specified in packetVal.Validations.
 	for _, validation := range packetVal.Validations {
@@ -268,6 +274,69 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 		}
 	}
 	return nil
+}
+
+func validateEncapsulation(packets *gopacket.PacketSource, validation *PacketValidation) error {
+	if validation.IPv4Layer == nil || validation.MPLSLayer == nil {
+		return fmt.Errorf("IPv4 and MPLS validation parameters are required")
+	}
+	var mismatch error
+	for {
+		packet, err := packets.NextPacket()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read encapsulated packet: %w", err)
+		}
+		ipv4, ok := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+		if !ok || (validation.IPv4Layer.DstIP != "" && ipv4.DstIP.String() != validation.IPv4Layer.DstIP) {
+			continue
+		}
+		if uint32(ipv4.Protocol) != validation.IPv4Layer.Protocol {
+			mismatch = fmt.Errorf("IPv4 protocol=%d, want %d", ipv4.Protocol, validation.IPv4Layer.Protocol)
+			continue
+		}
+		mplsLayer := packet.Layer(layers.LayerTypeMPLS)
+		if validation.UDPLayer != nil {
+			udp, ok := packet.Layer(layers.LayerTypeUDP).(*layers.UDP)
+			if !ok {
+				mismatch = fmt.Errorf("no UDP header found")
+				continue
+			}
+			if uint32(udp.DstPort) != validation.UDPLayer.DstPort {
+				mismatch = fmt.Errorf("UDP destination port=%d, want %d", udp.DstPort, validation.UDPLayer.DstPort)
+				continue
+			}
+			if validation.UDPLayer.SrcPort != 0 && uint32(udp.SrcPort) != validation.UDPLayer.SrcPort {
+				mismatch = fmt.Errorf("UDP source port=%d, want %d", udp.SrcPort, validation.UDPLayer.SrcPort)
+				continue
+			}
+			mplsLayer = gopacket.NewPacket(udp.Payload, layers.LayerTypeMPLS, gopacket.Default).Layer(layers.LayerTypeMPLS)
+		}
+		mpls, ok := mplsLayer.(*layers.MPLS)
+		if !ok {
+			mismatch = fmt.Errorf("no MPLS header found")
+			continue
+		}
+		if mpls.Label != validation.MPLSLayer.Label {
+			mismatch = fmt.Errorf("MPLS label=%d, want %d", mpls.Label, validation.MPLSLayer.Label)
+			continue
+		}
+		if ipv4.TTL != validation.IPv4Layer.TTL {
+			mismatch = fmt.Errorf("IPv4 TTL=%d, want %d", ipv4.TTL, validation.IPv4Layer.TTL)
+			continue
+		}
+		if mpls.TrafficClass != validation.MPLSLayer.Tc {
+			mismatch = fmt.Errorf("MPLS traffic class=%d, want %d", mpls.TrafficClass, validation.MPLSLayer.Tc)
+			continue
+		}
+		return nil
+	}
+	if mismatch != nil {
+		return mismatch
+	}
+	return fmt.Errorf("no matching encapsulated IPv4/MPLS packet found")
 }
 
 // ClearCapture clears the capture on the port.

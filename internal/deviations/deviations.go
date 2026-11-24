@@ -2584,3 +2584,8 @@ func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
+
+// MplsIPv6TunnelSourceUnsupported reports whether the device rejects IPv6 MPLS tunnel sources.
+func MplsIPv6TunnelSourceUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsIpv6TunnelSourceUnsupported()
+}
