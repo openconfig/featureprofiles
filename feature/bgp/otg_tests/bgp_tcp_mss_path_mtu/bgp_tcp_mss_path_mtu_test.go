@@ -52,6 +52,7 @@ const (
 	plenIPv4        = 30
 	plenIPv6        = 126
 	mtu5040B        = uint16(5040)
+	mtu5026B        = uint16(5026)
 	mtu4096B        = uint16(4096)
 	mtu512B         = uint16(512)
 	mtu1500B        = uint16(1500)
@@ -412,16 +413,14 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
-func configureIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, mtu uint16) {
-	switch {
-	case deviations.OmitL2MTU(dut):
-		b := &gnmi.SetBatch{}
-		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().Config(), mtu)
-		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Mtu().Config(), uint32(mtu))
-		b.Set(t, dut)
-	default:
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Mtu().Config(), mtu)
+func configureIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, l2Mtu uint16, subMtu uint16) {
+	b := &gnmi.SetBatch{}
+	if !deviations.OmitL2MTU(dut) {
+		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Mtu().Config(), l2Mtu)
 	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().Config(), subMtu)
+	gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Mtu().Config(), uint32(subMtu))
+	b.Set(t, dut)
 }
 
 func deleteIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) {
@@ -443,6 +442,23 @@ func intfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) uint16 {
 	default:
 		return gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Mtu().State())
 	}
+}
+
+func waitForBGPTcpMss(t *testing.T, dut *ondatra.DUTDevice, nbr string, want uint16, timeout time.Duration) {
+	t.Helper()
+	mssPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbr).Transport().TcpMss().State()
+	t.Logf("Waiting for BGP neighbor %s TCP MSS to be %v...", nbr, want)
+	val, ok := gnmi.Watch(t, dut, mssPath, timeout, func(v *ygnmi.Value[uint16]) bool {
+		mss, present := v.Val()
+		return present && mss == want
+	}).Await(t)
+	if !ok {
+		got := gnmi.Get(t, dut, mssPath)
+		t.Errorf("BGP neighbor %s TCP MSS did not reach %v within %v, got %v", nbr, want, timeout, got)
+		return
+	}
+	mss, _ := val.Val()
+	t.Logf("BGP neighbor %s TCP MSS: %v", nbr, mss)
 }
 
 type bgpNeighbor struct {
@@ -510,7 +526,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 	}
 	t.Run("Change the Interface MTU to the DUT1 port as 5040.", func(t *testing.T) {
 		t.Logf("Configure DUT1 interface MTU to %v", mtu5040B)
-		configureIntfMTU(t, dut1, dut1.Port(t, "port1"), mtu5040B)
+		configureIntfMTU(t, dut1, dut1.Port(t, "port1"), mtu5040B, mtu5026B)
 
 		t.Logf("Configure DUT1 BGP TCP-MSS value to %v", mtu4096B)
 		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().Config(), mtu4096B)
@@ -532,12 +548,8 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify BGP TCP MSS value", func(t *testing.T) {
 		t.Logf("Verify DUT1 BGP TCP-MSS value is to %v for both BGP v4 and v6 sessions.", mtu4096B)
-		if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want %v", gotTCPMss, mtu4096B)
-		}
-		if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want %v", gotTCP6Mss, mtu4096B)
-		}
+		waitForBGPTcpMss(t, dut1, atePort1.IPv4, mtu4096B, 10*time.Second)
+		waitForBGPTcpMss(t, dut1, atePort1.IPv6, mtu4096B, 10*time.Second)
 	})
 
 	t.Run("Remove configured BGP TCP MSS for v4 and v6 neighbors on DUT1", func(t *testing.T) {
@@ -599,7 +611,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 		// OTG Port1 MTU is set to 5040B in configOTG.
 
 		// DUT2:port1 MTU is set at 5040B.
-		configureIntfMTU(t, dut2, dut2.Port(t, "port1"), mtu5040B)
+		configureIntfMTU(t, dut2, dut2.Port(t, "port1"), mtu5040B, mtu5026B)
 		// Enable PMTU discovery on DUT2.
 		gnmi.Replace(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().MtuDiscovery().Config(), true)
 	})

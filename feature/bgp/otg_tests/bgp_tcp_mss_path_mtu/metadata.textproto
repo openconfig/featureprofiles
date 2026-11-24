@@ -38,7 +38,6 @@ platform_exceptions: {
     interface_enabled: true
     static_protocol_name:  "static"
     isis_interface_afi_unsupported: true
-    omit_l2_mtu: true
   }
 }
 tags: TAGS_AGGREGATION
