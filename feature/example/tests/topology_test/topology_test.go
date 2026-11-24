@@ -166,6 +166,10 @@ func TestTopology(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	configureATE(t, ate)
+	legacyTopo := ate.Topology().New()
+	legacyTopo.AddInterface("port1").WithPort(ate.Port(t, "port1"))
+	legacyFlow := ate.Traffic().NewFlow("f1").WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header())
+	_ = legacyFlow
 
 	// Query Telemetry
 	t.Run("Telemetry", func(t *testing.T) {
