@@ -2584,3 +2584,8 @@ func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
+
+// DefaultPeerAsFilterOcUnsupported returns true if devices do not support default peer AS filter OC configuration.
+func DefaultPeerAsFilterOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPeerAsFilterOcUnsupported()
+}
