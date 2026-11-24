@@ -9,6 +9,17 @@ Generic Health Check
 *   Capture the generic health check of the DUT, used modularly in pre/post and during various different tests:
     *   No system/kernel/process/component coredumps
     *   No high CPU spike or usage on control or forwarding plane
+        *   For every controller card and linecard CPU (or, on fixed form
+            factor devices without controller cards, every CPU parented by the
+            chassis), stream `/components/component/cpu/utilization/state/avg`
+            and `/components/component/cpu/utilization/state/instant` for 30
+            seconds.
+        *   Verify both leaves are streamed during the window.
+        *   No `avg` sample may exceed the CPU utilization threshold (default
+            80%, configurable with the `cpu_utilization_threshold` flag).
+        *   `instant` may exceed the threshold for a single sample (a short
+            spike), but fails if it exceeds the threshold for 2 or more
+            consecutive samples (sustained high CPU).
     *   No high memory utilization or usage on control or forwarding plane
     *   No processes/daemons high CPU/Memory utilization
     *   Validate system process state telemetry (process names, PIDs, and start-times)
@@ -21,10 +32,22 @@ Generic Health Check
     *   No flow control frames tx/rx
     *   No CRC or Layer 1 errors on interfaces
     *   No config commit errors
-    *   No system level alarms
+    *   No system level alarms (/system/alarms/alarm/state/severity)
     *   In spec hardware should be in proper state
         *   No hardware errors
         *   Major Alarms
+        *   Fans are spinning
+            *   For every installed (non-empty) FAN component, read
+                `/components/component/fan/state/speed` and then stream it for
+                30 seconds (the initial read is included, since some devices
+                only stream fan speed when it changes).
+            *   Verify the leaf is streamed for every fan and that no sample
+                reports 0 rpm.
+            *   If the device has no FAN components (for example, it reports
+                fan speed on sensor components under each FAN_TRAY), validate
+                every component that streams `fan/state/speed` instead, and
+                verify that every installed FAN_TRAY has at least one child
+                component streaming fan speed.
     *   No HW component or SW processes crash
 *   TODO:
     *   DDOS/COPP violations
@@ -53,14 +76,31 @@ N/A
 rpcs:
   gnmi:
     gNMI.Get:
+    gNMI.Subscribe:
 
 paths:
-  ## Config Parameter coverage
+  ## Telemetry Parameter coverage
 
     /system/alarms/alarm/state/severity:
     /components/component/cpu/utilization/state/avg:
        platform_type: ["CPU"]
+    /components/component/cpu/utilization/state/instant:
+       platform_type: ["CPU"]
+    /components/component/fan/state/speed:
+       platform_type: ["FAN"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/fabric-aggregate:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/in-high-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/in-low-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-high-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/out-low-priority:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/host-aggregate:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/acl-drops:
        platform_type: ["INTEGRATED_CIRCUIT"]
@@ -69,6 +109,12 @@ paths:
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/invalid-packet:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-nexthop:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/oversubscription:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/state/congestion-aggregate:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/pipeline-counters/drop/state/no-route:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/state/memory/available:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU"]
