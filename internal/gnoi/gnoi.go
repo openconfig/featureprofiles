@@ -133,26 +133,46 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	}
 
 	if waitForRestart {
-		if daemon == OCAGENT {
-			// Allow the restarted OpenConfig agent time to re-initialize and bind its gRPC/telemetry port
-			// before polling via gNMI.
-			time.Sleep(15 * time.Second)
-		}
-		_, ok := gnmi.WatchAll(
-			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Second)),
-			gnmi.OC().System().ProcessAny().State(),
-			2*time.Minute,
-			func(p *ygnmi.Value[*oc.System_Process]) bool {
-				val, ok := p.Val()
-				if !ok {
-					return false
+		// Retry gNMI WatchAll on transient stream/connection errors while
+		// OCAGENT is restarting and rebinding its gRPC port (mirrors
+		// AwaitSwitchoverReady).
+		const retryBackoff = 5 * time.Second
+		deadline := time.Now().Add(2 * time.Minute)
+		for {
+			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
+			}
+			var restarted bool
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				_, restarted = gnmi.WatchAll(
+					t,
+					dut.GNMIOpts().WithYGNMIOpts(
+						ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+						ygnmi.WithSampleInterval(10*time.Second),
+					),
+					gnmi.OC().System().ProcessAny().State(),
+					remaining,
+					func(p *ygnmi.Value[*oc.System_Process]) bool {
+						val, ok := p.Val()
+						if !ok {
+							return false
+						}
+						return val.GetName() == daemonName && val.GetPid() != pid
+					},
+				).Await(t)
+			})
+			if errMsg == nil {
+				if restarted {
+					break
 				}
-				return val.GetName() == daemonName && val.GetPid() != pid
-			},
-		).Await(t)
-		if !ok {
-			t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
+				t.Fatalf("Timed out waiting for process %s to restart with a new PID", daemonName)
+			}
+			if daemon != OCAGENT || time.Until(deadline) <= retryBackoff {
+				t.Fatalf("Error waiting for process %s to restart with a new PID: %s", daemonName, *errMsg)
+			}
+			t.Logf("Waiting for process %s to restart interrupted, retrying: %s", daemonName, *errMsg)
+			time.Sleep(retryBackoff)
 		}
 	}
 }
