@@ -114,26 +114,35 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
 		t.Logf("Error: %v in executing the kill process %v", err.Error(), daemonName)
-		if signal == SigTerm {
-			t.Logf("Retrying with SIGNAL_KILL (cold restart)...")
-			currentPid := system.FindProcessIDByName(t, dut, daemonName)
-			if currentPid != 0 {
-				killProcessRequest.Pid = uint32(currentPid)
+		if daemon == OCAGENT && waitForRestart {
+			t.Logf("Tolerating expected disconnect/error during %s self-restart; waiting for agent to restart", daemonName)
+		} else {
+			if signal == SigTerm {
+				t.Logf("Retrying with SIGNAL_KILL (cold restart)...")
+				currentPid := system.FindProcessIDByName(t, dut, daemonName)
+				if currentPid != 0 {
+					killProcessRequest.Pid = uint32(currentPid)
+				}
+				killProcessRequest.Signal = SigKill
+				_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 			}
-			killProcessRequest.Signal = SigKill
-			_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
-		}
-		if err != nil {
-			t.Fatalf("Failed to kill process %v: %v", daemonName, err)
+			if err != nil {
+				t.Fatalf("Failed to kill process %v: %v", daemonName, err)
+			}
 		}
 	}
 
 	if waitForRestart {
+		if daemon == OCAGENT {
+			// Allow the restarted OpenConfig agent time to re-initialize and bind its gRPC/telemetry port
+			// before polling via gNMI.
+			time.Sleep(15 * time.Second)
+		}
 		_, ok := gnmi.WatchAll(
 			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)),
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Second)),
 			gnmi.OC().System().ProcessAny().State(),
-			time.Minute,
+			2*time.Minute,
 			func(p *ygnmi.Value[*oc.System_Process]) bool {
 				val, ok := p.Val()
 				if !ok {
