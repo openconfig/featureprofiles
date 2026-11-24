@@ -540,8 +540,7 @@ normal tie-breaking.
         `ATE:port-3`) to force a clean route refresh and deterministic
         tie-breaking.
     *   Verify control plane on `ATE:port-1`: all 254 IPv4 and 254 IPv6 learned
-        prefixes revert to unmodified incoming `MED == 100` (or `MED == 0` when
-        ATE advertises no MED).
+        prefixes carry the unmodified incoming `MED == 100`.
     *   Send IPv4 and IPv6 traffic and validate that forwarding flips back to
         `ATE:port-2` (0% loss on `flowPort1toPort2` / `flowPort1toPort2V6`, 100%
         loss on `flowPort1toPort3` / `flowPort1toPort3V6`).
