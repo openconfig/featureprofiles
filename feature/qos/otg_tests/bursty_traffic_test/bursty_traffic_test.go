@@ -130,19 +130,21 @@ func stopTrafficOnFlows(t *testing.T, flowNames []string, ate *ondatra.ATEDevice
 	// Wait for in-flight packets to finish draining into receiver.
 	for _, trafficID := range flowNames {
 		var lastRx uint64
+		var hasLastRx bool
 		var unchangedCount int
 		_, _ = gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State(), 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
 			rx, present := val.Val()
 			if !present {
 				return false
 			}
-			if rx > 0 && rx == lastRx {
+			if hasLastRx && rx == lastRx {
 				unchangedCount++
 				if unchangedCount >= 2 {
 					return true
 				}
 			} else {
 				lastRx = rx
+				hasLastRx = true
 				unchangedCount = 0
 			}
 			return false
