@@ -1,0 +1,23 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# 1 DUT, 2 ports, 1 back-to-back 100G link
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+    speed: S_100GB
+    pmd_regex: "PMD_100G_LR4|PMD_100G_FR"
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB
+    pmd_regex: "PMD_100G_LR4|PMD_100G_FR"
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "dut:port2"
+}
