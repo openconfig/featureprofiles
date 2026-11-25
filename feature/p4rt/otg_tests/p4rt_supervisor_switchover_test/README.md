@@ -90,10 +90,11 @@ started with.
       uses the source MAC `02:00:aa:00:00:01`. Only PacketIn messages whose
       payload carries this source MAC are counted, so unrelated punted
       packets cannot cause false results.
-* Assign a P4RT interface ID to each DUT interface using
+* Assign a P4RT interface ID to each DUT port using
   `/interfaces/interface/config/id`: DUT port-1 = `1`, DUT port-2 = `2`, DUT
-  port-3 = `3`, DUT port-4 = `4` and `lag1` = `10`. Verify that
-  `/interfaces/interface/state/id` reports the same values.
+  port-3 = `3` and DUT port-4 = `4`. Verify that
+  `/interfaces/interface/state/id` reports the same values. No P4RT interface
+  ID is assigned to `lag1`.
 * Configure P4RT node IDs on every integrated circuit that hosts a bound port:
     * For each of DUT port-1 to DUT port-4, read
       `/interfaces/interface/state/hardware-port` and follow
@@ -354,8 +355,7 @@ and gRIBI `Get` work on the new primary.
     * Verify with `P4Runtime.Read` that exactly the 4 punt entries are
       installed.
     * Run the link and LAG check, and verify that
-      `/interfaces/interface/state/id` still reports `1`, `2`, `3`, `4` and
-      `10`.
+      `/interfaces/interface/state/id` still reports `1`, `2`, `3` and `4`.
     * Run the PacketIn and PacketOut validation procedure on DUT port-1 and
       `lag1` (DUT port-2 and DUT port-3), and verify that it passes.
 
@@ -635,7 +635,6 @@ Run the mandatory cleanup registered in the test environment setup.
         "config": {
           "description": "LAG to ATE port-2 and ATE port-3",
           "enabled": true,
-          "id": 10,
           "name": "lag1",
           "type": "ieee8023adLag"
         },
