@@ -84,12 +84,14 @@ const (
 
 	vrf1 = "VRF-1"
 
-	// P4RT interface IDs (README test environment setup).
+	// P4RT interface IDs of the DUT ports (README test environment setup). lag1
+	// has no P4RT interface ID: PacketIn messages for packets received on lag1
+	// carry the member port ID, and some DUTs only accept P4RT interface IDs on
+	// physical interfaces.
 	port1ID = uint32(1)
 	port2ID = uint32(2)
 	port3ID = uint32(3)
 	port4ID = uint32(4)
-	lag1ID  = uint32(10)
 
 	// gRIBI next hops and next-hop-groups.
 	nhIndexV4 = uint64(1)
@@ -327,9 +329,13 @@ func retryUntil(t *testing.T, timeout time.Duration, desc string, fn func(t test
 // Test environment setup: DUT configuration.
 // ---------------------------------------------------------------------------
 
-// dutInterface builds a routed interface with IPv4/IPv6 addresses and a P4RT ID.
+// dutInterface builds a routed interface with IPv4/IPv6 addresses. A non-zero id
+// is configured as the P4RT interface ID; 0 configures no P4RT interface ID.
 func dutInterface(dut *ondatra.DUTDevice, name string, id uint32, a *attrs.Attributes, ifType oc.E_IETFInterfaces_InterfaceType) *oc.Interface {
-	i := &oc.Interface{Name: ygot.String(name), Id: ygot.Uint32(id), Description: ygot.String(a.Desc), Type: ifType}
+	i := &oc.Interface{Name: ygot.String(name), Description: ygot.String(a.Desc), Type: ifType}
+	if id != 0 {
+		i.Id = ygot.Uint32(id)
+	}
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -360,7 +366,7 @@ func configureDUT(t *testing.T, s *testState) {
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutInterface(dut, p1.Name(), port1ID, &dutPort1, oc.IETFInterfaces_InterfaceType_ethernetCsmacd))
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutInterface(dut, p4.Name(), port4ID, &dutPort4, oc.IETFInterfaces_InterfaceType_ethernetCsmacd))
 
-	// lag1: LACP ACTIVE / FAST, IPv4/IPv6 addresses and P4RT interface ID 10.
+	// lag1: LACP ACTIVE / FAST and IPv4/IPv6 addresses, without a P4RT interface ID.
 	lacp := &oc.Lacp_Interface{Name: ygot.String(s.aggID), LacpMode: oc.Lacp_LacpActivityType_ACTIVE, Interval: oc.Lacp_LacpPeriodType_FAST}
 	if deviations.AggregateAtomicUpdate(dut) {
 		// The DUT requires the aggregate interface to exist before the LACP
@@ -369,7 +375,7 @@ func configureDUT(t *testing.T, s *testState) {
 		setupAggregateAtomically(t, s, lacp)
 	}
 	gnmi.Replace(t, dut, d.Lacp().Interface(s.aggID).Config(), lacp)
-	agg := dutInterface(dut, s.aggID, lag1ID, &dutLAG, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+	agg := dutInterface(dut, s.aggID, 0, &dutLAG, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 	gnmi.Replace(t, dut, d.Interface(s.aggID).Config(), agg)
 	if deviations.LacpConfigAfterAggregateReplace(dut) {
@@ -472,10 +478,10 @@ func configureNodeIDs(t *testing.T, s *testState) {
 	t.Logf("Bound DUT ports are hosted on %d integrated circuit(s): %v (multi-IC coverage is best effort and depends on testbed cabling)", len(s.nodes), names)
 }
 
-// verifyInterfaceIDs verifies /interfaces/interface/state/id for all interfaces.
+// verifyInterfaceIDs verifies /interfaces/interface/state/id for the DUT ports.
 func verifyInterfaceIDs(t *testing.T, s *testState) {
 	t.Helper()
-	want := map[string]uint32{s.aggID: lag1ID}
+	want := map[string]uint32{}
 	for pid, id := range portIDs {
 		want[s.dut.Port(t, pid).Name()] = id
 	}
