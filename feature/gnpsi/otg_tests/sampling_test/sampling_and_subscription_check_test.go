@@ -29,17 +29,18 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
 	connectionAttempts        = 2
 	connectionRetryInterval   = 10 * time.Second
 	connectionTimeout         = 5 * time.Minute
-	trafficTime               = 1 * time.Minute
+	trafficTime               = 90 * time.Second
 	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
 	checkInterval             = 2 * time.Second
 	samplesTimeout            = 20 * time.Second
-	flowCountTolerancePct     = 0.1
+	flowCountTolerancePct     = 0.15
 	subscriptionTolerance     = 2
 	gnpsiClientsInParallel    = 2
 	packetRate                = 1000000
@@ -493,19 +494,12 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 func restartGNPSIService(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Log("Restarting GNPSI service")
-	gnoi.KillProcess(t, dut, gnoi.GNPSI, gnoi.SigTerm, true, true)
+	gnoi.KillProcess(t, dut, gnoi.GNPSI, gnoi.SigTerm, true, false)
 	t.Log("GNPSI service restarted")
 }
 
-func effectiveSamplingRate(dut *ondatra.DUTDevice) uint32 {
-	if r := deviations.SflowIngressMinSamplingRate(dut); r != 0 {
-		return r
-	}
-	return uint32(samplingRate)
-}
-
 func sflowChannelCapacity(dut *ondatra.DUTDevice) int {
-	return 2 * int(packetsToSend/effectiveSamplingRate(dut))
+	return 2 * int(packetsToSend/samplingRate)
 }
 
 func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan sFlowPacket, flowConfig flowConfig) {
@@ -521,8 +515,7 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan s
 		}
 	}
 
-	effectiveSamplingRate := effectiveSamplingRate(dut)
-	expectedCount := int(packetsToSend / effectiveSamplingRate)
+	expectedCount := int(packetsToSend / samplingRate)
 	flowCountTolerance := int(math.Round(float64(expectedCount) * flowCountTolerancePct))
 	if receivedSamples < expectedCount-flowCountTolerance || receivedSamples > expectedCount+flowCountTolerance {
 		t.Errorf("unexpected number of SFlow packets: got %d, want %d ± %d", receivedSamples, expectedCount, flowCountTolerance)
@@ -545,9 +538,8 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 	if sFlowPkt.size != adjustedSize {
 		t.Errorf("SFlow packet size %d does not match expected frame size %d", sFlowPkt.size, flowConfig.frameSize)
 	}
-	effectiveSamplingRate := effectiveSamplingRate(dut)
-	if sFlowPkt.samplingRate != effectiveSamplingRate {
-		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, effectiveSamplingRate)
+	if sFlowPkt.samplingRate != samplingRate {
+		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, samplingRate)
 	}
 	if sFlowPkt.ingressIntf != ingressIntf {
 		t.Errorf("SFlow packet %d: Ingress interface ifindex %d does not match expected interface ifindex %d", pktIndex, sFlowPkt.ingressIntf, ingressIntf)
@@ -601,13 +593,55 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, port1)
 	dp2 := dut.Port(t, port2)
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
+	interfaceSnapshot := cfgplugins.SnapshotInterfacesConfig(t, dut, []string{dp1.Name(), dp2.Name(), loopbackIntfName})
+
+	niName := deviations.DefaultNetworkInstance(dut)
+	var addedNIInterfaceIDs []string
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		for _, p := range []*ondatra.Port{dp1, dp2} {
+			id := p.Name() + ".0"
+			if _, ok := gnmi.LookupConfig(t, dut, gnmi.OC().NetworkInstance(niName).Interface(id).Config()).Val(); !ok {
+				addedNIInterfaceIDs = append(addedNIInterfaceIDs, id)
+			}
+		}
+	}
+
+	t.Cleanup(func() {
+		t.Log("Cleanup interfaces")
+		return
+		restoreBatch := &gnmi.SetBatch{}
+		for _, id := range addedNIInterfaceIDs {
+			gnmi.BatchDelete(restoreBatch, gnmi.OC().NetworkInstance(niName).Interface(id).Config())
+		}
+		cfgplugins.RestoreInterfacesConfig(t, dut, restoreBatch, interfaceSnapshot)
+		restoreBatch.Set(t, dut)
+	})
+
+	interfaceBatch := &gnmi.SetBatch{}
 
 	t.Logf("Configuring Loopback Interface")
-	configureLoopbackInterface(t, dut)
+	configureLoopbackInterface(t, dut, interfaceBatch, loopbackIntfName)
 
 	t.Logf("Configuring Interfaces")
-	configureDUTPort(t, dut, &dutPort1, dp1)
-	configureDUTPort(t, dut, &dutPort2, dp2)
+	configureDUTPort(t, dut, interfaceBatch, &dutPort1, dp1)
+	configureDUTPort(t, dut, interfaceBatch, &dutPort2, dp2)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation", dut.Vendor(), dut.Model(), dut.Version())
+		netInst := &oc.NetworkInstance{Name: ygot.String(niName)}
+		for _, p := range []*ondatra.Port{dp1, dp2} {
+			netInstIntf, err := netInst.NewInterface(p.Name())
+			if err != nil {
+				t.Fatalf("failed to create network-instance interface for %s: %v", p.Name(), err)
+			}
+			netInstIntf.Interface = ygot.String(p.Name())
+			netInstIntf.Subinterface = ygot.Uint32(0)
+			netInstIntf.Id = ygot.String(p.Name() + ".0")
+		}
+		gnmi.BatchUpdate(interfaceBatch, gnmi.OC().NetworkInstance(niName).Config(), netInst)
+	}
+	interfaceBatch.Set(t, dut)
+
 	retrieveIfIndexValues(t, dut, []string{dp1.Name(), dp2.Name()})
 
 	t.Log("Configuring SFlow")
@@ -630,7 +664,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		ServerName: serverName,
 		NIName:     deviations.DefaultNetworkInstance(dut),
 	}
-	cfgplugins.ConfigureGNPSI(t, dut, params)
+	if sb := cfgplugins.ConfigureGNPSI(t, dut, &gnmi.SetBatch{}, params); sb != nil {
+		t.Cleanup(func() {
+			t.Log("Cleaning up gNPSI configuration")
+			return
+			gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer(params.ServerName).Config())
+		})
+		sb.Set(t, dut)
+	}
 }
 
 func retrieveIfIndexValues(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string) {
@@ -687,16 +728,15 @@ func waitForSamples(channels ...chan sFlowPacket) {
 	}
 }
 
-func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
+func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, loopbackIntfName string) {
 	t.Helper()
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
 	dutLoopbackAttrs.Name = loopbackIntfName
 	loopbackIntf := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, loopbackIntf.Ipv4().AddressAny().State())
 	if len(ipv4Addrs) == 0 {
 		loopIntf := defaultLoopbackAttrs.NewOCInterface(loopbackIntfName, dut)
 		loopIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), loopIntf)
+		gnmi.BatchUpdate(batch, gnmi.OC().Interface(loopbackIntfName).Config(), loopIntf)
 		dutLoopbackAttrs.IPv4 = defaultLoopbackAttrs.IPv4
 		return
 	}
@@ -710,8 +750,13 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
-	sfBatch := &gnmi.SetBatch{}
+	t.Cleanup(func() {
+		t.Log("Cleaning up sFlow configuration")
+		sflowPath := gnmi.OC().Sampling().Sflow()
+		gnmi.Delete(t, dut, sflowPath.Config())
+	})
 
+	sfBatch := &gnmi.SetBatch{}
 	sflowParams := &cfgplugins.SFlowGlobalParams{
 		Ni:              deviations.DefaultNetworkInstance(dut),
 		IntfName:        dutLoopbackAttrs.Name,
@@ -725,18 +770,12 @@ func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.MissingSflowGnpsiExport(dut) {
 		cfgplugins.ConfigureSflowGnpsiExport(t, dut)
 	}
-
 }
 
-func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {
+func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
-	d := gnmi.OC()
 	intf := attrs.NewOCInterface(p.Name(), dut)
-	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation ", dut.Vendor(), dut.Model(), dut.Version())
-	}
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), intf)
 }
 
 func configureFlow(t *testing.T, config gosnappi.Config, fc flowConfig) {

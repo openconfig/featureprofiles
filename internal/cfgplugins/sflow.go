@@ -168,6 +168,11 @@ func ConfigureSflowGnpsiExport(t *testing.T, dut *ondatra.DUTDevice) {
 		exporterName := fmt.Sprintf("OC-FEM-%s-%d", addrUnderscored, defaultCollectorPort)
 		cli := fmt.Sprintf("flow exporter-map %s\n export protocol gnpsi\n!", exporterName)
 		helpers.GnmiCLIConfig(t, dut, cli)
+		t.Cleanup(func() {
+			return
+			negateCli := fmt.Sprintf("no flow exporter-map %s\n!", exporterName)
+			helpers.GnmiCLIConfig(t, dut, negateCli)
+		})
 	default:
 		t.Logf("ConfigureSflowGnpsiExport: no CLI needed for vendor %s", dut.Vendor())
 	}

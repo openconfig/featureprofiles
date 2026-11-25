@@ -33,16 +33,17 @@ type GNPSIParams struct {
 	NIName     string
 }
 
-func ConfigureGNPSI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
+// ConfigureGNPSI appends the OC config to sb for the caller to Set, or returns nil when applied via CLI.
+func ConfigureGNPSI(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params *GNPSIParams) *gnmi.SetBatch {
 	t.Logf("Using gNPSI port: %d", params.Port)
 	if deviations.GnpsiOcUnsupported(dut) {
 		configureGNPSIFromCLI(t, dut, params)
-	} else {
-		configureGNPSIFromOC(t, dut, params)
+		return nil
 	}
+	return configureGNPSIFromOC(t, sb, params)
 }
 
-func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
+func configureGNPSIFromOC(t *testing.T, sb *gnmi.SetBatch, params *GNPSIParams) *gnmi.SetBatch {
 	t.Log("Configuring gNPSI from OC")
 	gnmiServerPath := gnmi.OC().System().GrpcServer(params.ServerName)
 	gnmiServer := &oc.System_GrpcServer{
@@ -52,7 +53,8 @@ func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIPar
 		NetworkInstance: ygot.String(params.NIName),
 	}
 	gnmiServer.Services = []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNPSI}
-	gnmi.Replace(t, dut, gnmiServerPath.Config(), gnmiServer)
+	gnmi.BatchReplace(sb, gnmiServerPath.Config(), gnmiServer)
+	return sb
 }
 
 func configureGNPSIFromCLI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
@@ -68,6 +70,10 @@ func configureGNPSIFromCLI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIPa
         no disabled
         `, params.SSLProfile, params.Port)
 		helpers.GnmiCLIConfig(t, dut, cli)
+		t.Cleanup(func() {
+			cli := fmt.Sprintf("no management api gnpsi\n")
+			helpers.GnmiCLIConfig(t, dut, cli)
+		})
 	default:
 		t.Errorf("gNPSI configuration not implemented for vendor %s", dut.Vendor())
 	}
