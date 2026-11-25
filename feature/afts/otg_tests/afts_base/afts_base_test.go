@@ -726,6 +726,12 @@ func TestBGP(t *testing.T) {
 		}
 	}()
 
+	if dut.Vendor() == ondatra.CISCO {
+		if err := helpers.ConfigureAFTCollectorPolicy(t, dut); err != nil {
+			t.Fatalf("failed to configure temporary AFT collector policy: %v", err)
+		}
+	}
+
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 

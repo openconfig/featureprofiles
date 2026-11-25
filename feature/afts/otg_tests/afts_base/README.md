@@ -8,6 +8,10 @@ IPv4/IPv6 unicast routes next hop group and next hop.
 
 * atedut_2.testbed
 
+> Cisco runs temporarily use `collector minimum-dequeue-rate 1 1000` under
+> `telemetry model-driven` (1 MiB/s or 1,000 items/s). Cleanup restores the
+> previous setting.
+
 ## Test Setup
 
 ### Generate DUT and ATE Configuration
