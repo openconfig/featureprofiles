@@ -568,7 +568,9 @@ func configureATE(t *testing.T, s *testState) {
 	// physical member ports of that LAG at the same time (the LLDP and GDP flows
 	// are sent from each member port), so the LAG traceroute packets are sent as
 	// raw flows from each member port with the ATE LAG addresses, half of the
-	// packets on each member, towards the MAC address of DUT lag1.
+	// packets on each member, towards the MAC address of DUT lag1. If DUT lag1
+	// does not report its MAC address, the LAG traceroute flows are added after
+	// the ATE has resolved the DUT lag1 address with ARP (see below).
 	dutLAGMAC := dutLAGMACAddress(t, s)
 	for i := 0; i < maxValidations; i++ {
 		set := validationFlowSet(i)
@@ -580,9 +582,8 @@ func configureATE(t *testing.T, s *testState) {
 		// Traceroute flows from ATE port-1 and from the ATE LAG members.
 		addTracerouteFlow(top, "port1", atePort1.Name, false, controlPktCount, set)
 		addTracerouteFlow(top, "port1", atePort1.Name, true, controlPktCount, set)
-		for _, p := range []*ondatra.Port{p2, p3} {
-			addLAGTracerouteFlow(top, p.ID(), dutLAGMAC, false, set)
-			addLAGTracerouteFlow(top, p.ID(), dutLAGMAC, true, set)
+		if dutLAGMAC != "" {
+			addLAGTracerouteFlows(top, []*ondatra.Port{p2, p3}, dutLAGMAC, set)
 		}
 	}
 
@@ -620,6 +621,45 @@ func configureATE(t *testing.T, s *testState) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+	if dutLAGMAC == "" {
+		// Use the DUT lag1 MAC address resolved by the ATE LAG through ARP, add
+		// the LAG traceroute flows and push the ATE configuration again.
+		dutLAGMAC = ateResolvedDUTLAGMAC(t, s)
+		for i := 0; i < maxValidations; i++ {
+			addLAGTracerouteFlows(top, []*ondatra.Port{p2, p3}, dutLAGMAC, validationFlowSet(i))
+		}
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+	}
+}
+
+// addLAGTracerouteFlows adds the IPv4 and IPv6 LAG traceroute flows of a flow
+// set from each ATE LAG member port towards the DUT lag1 MAC address.
+func addLAGTracerouteFlows(top gosnappi.Config, members []*ondatra.Port, dutLAGMAC, set string) {
+	for _, p := range members {
+		addLAGTracerouteFlow(top, p.ID(), dutLAGMAC, false, set)
+		addLAGTracerouteFlow(top, p.ID(), dutLAGMAC, true, set)
+	}
+}
+
+// ateResolvedDUTLAGMAC returns the MAC address the ATE LAG resolved with ARP for
+// the DUT lag1 IPv4 address, which is the MAC address DUT lag1 routes on.
+func ateResolvedDUTLAGMAC(t *testing.T, s *testState) string {
+	t.Helper()
+	path := gnmi.OTG().Interface(ateLAG.Name + ".Eth").Ipv4Neighbor(dutLAG.IPv4).LinkLayerAddress().State()
+	v, ok := gnmi.Watch(t, s.ate.OTG(), path, 2*time.Minute, func(v *ygnmi.Value[string]) bool {
+		mac, present := v.Val()
+		return present && mac != ""
+	}).Await(t)
+	if !ok {
+		t.Fatalf("ATE LAG did not resolve the MAC address of DUT %s (%s) with ARP", s.aggID, dutLAG.IPv4)
+	}
+	mac, _ := v.Val()
+	t.Logf("Using the DUT %s MAC address %s resolved by the ATE LAG with ARP", s.aggID, mac)
+	return mac
 }
 
 // validationFlowSet returns the name of the i-th control flow set used by the
@@ -661,15 +701,17 @@ func lagTracerouteFlowName(portID string, v6 bool, set string) string {
 	return tracerouteFlowName("lag-"+portID, v6, set)
 }
 
-// dutLAGMACAddress returns the MAC address of DUT lag1.
+// dutLAGMACAddress returns the MAC address DUT lag1 reports in
+// /interfaces/interface/ethernet/state/mac-address, or "" if it reports none.
 func dutLAGMACAddress(t *testing.T, s *testState) string {
 	t.Helper()
-	v, ok := gnmi.Watch(t, s.dut, gnmi.OC().Interface(s.aggID).Ethernet().MacAddress().State(), 2*time.Minute, func(v *ygnmi.Value[string]) bool {
+	v, ok := gnmi.Watch(t, s.dut, gnmi.OC().Interface(s.aggID).Ethernet().MacAddress().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
 		mac, present := v.Val()
 		return present && mac != ""
 	}).Await(t)
 	if !ok {
-		t.Fatalf("DUT %s does not report /interfaces/interface/ethernet/state/mac-address", s.aggID)
+		t.Logf("DUT %s does not report /interfaces/interface/ethernet/state/mac-address; using the MAC address resolved by the ATE with ARP", s.aggID)
+		return ""
 	}
 	mac, _ := v.Val()
 	return mac
