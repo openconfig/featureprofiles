@@ -22,6 +22,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     oper_status_for_ic_unsupported: true
+    p4rt_device_down_rpc_not_found_unsupported: true
   }
 }
 platform_exceptions: {

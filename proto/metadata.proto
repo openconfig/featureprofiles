@@ -1623,6 +1623,14 @@ message Metadata {
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
 
+    // Device does not return NOT_FOUND for P4RT MasterArbitrationUpdate,
+    // SetForwardingPipelineConfig, Write and Read RPCs targeting a device_id
+    // whose integrated circuit/linecard is powered down (RPCs are served by the
+    // supervisor), and does not return NOT_FOUND for Write and Read RPCs
+    // targeting an unconfigured device_id.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/573499782
+    bool p4rt_device_down_rpc_not_found_unsupported = 490;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }
