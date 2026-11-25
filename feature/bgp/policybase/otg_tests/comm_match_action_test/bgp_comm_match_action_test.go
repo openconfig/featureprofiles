@@ -200,7 +200,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	// Configure BGP on DUT
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -256,7 +256,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	t.Logf("Waiting for BGP neighbor to establish...")
 	for _, nbr := range ebgpNbrs {
@@ -358,7 +358,7 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		gnmi.BatchReplace(batchConfig, gnmi.OC().RoutingPolicy().PolicyDefinition(policyName).Config(), pdef)
 	}
 
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	if nbr != nil {
 		applyPolicy := &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy{}
 		applyPolicy.SetImportPolicy([]string{policyName})
@@ -556,7 +556,7 @@ func validateATEIPv4PrefixCommunitySet(t *testing.T, ate *ondatra.ATEDevice, bgp
 }
 
 func validateDutIPv4PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgpNbr *bgpNeighbor, subnet string, wantCommunitySet []string) {
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	statePath := bgpPath.Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast()
 	state := gnmi.Get(t, dut, statePath.State())
 
@@ -603,7 +603,7 @@ func validateATEIPv6PrefixCommunitySet(t *testing.T, ate *ondatra.ATEDevice, bgp
 }
 
 func validateDutIPv6PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgpNbr *bgpNeighbor, subnet string, wantCommunitySet []string) {
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	statePath := bgpPath.Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast()
 	state := gnmi.Get(t, dut, statePath.State())
 
@@ -637,7 +637,7 @@ func TestBGPCommMatchAction(t *testing.T) {
 
 	configureDUT(t, dut)
 
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)

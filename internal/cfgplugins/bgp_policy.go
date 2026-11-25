@@ -393,6 +393,7 @@ func RoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 		// t.Log("Configuring local aggregate for 0.0.0.0/0...")
 		ni := root.GetOrCreateNetworkInstance(dni)
 
+		localAggregateName = deviations.NwInstLocalAggProtoName(dut, localAggregateName)
 		aggProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName)
 		aggProto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE)
 		aggProto.SetName(localAggregateName)

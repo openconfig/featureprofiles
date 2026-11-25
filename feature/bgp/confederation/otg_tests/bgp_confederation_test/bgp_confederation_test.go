@@ -54,7 +54,6 @@ const (
 	extPeerAS    = 64510 // AS of ATE R1, outside the confederation.
 
 	dutRouterID = "192.0.2.254"
-	bgpInstance = "BGP"   // BGP protocol name from the README Canonical OC.
 	allowPolicy = "ALLOW" // Accept-all import and export policy for every peer.
 
 	plenIPv4 = 30
@@ -642,7 +641,7 @@ func onChange(dut *ondatra.DUTDevice) *gnmi.Opts {
 // bgpPath returns the path of the DUT BGP instance in the DEFAULT network
 // instance.
 func bgpPath(dut *ondatra.DUTDevice) *netinstbgp.NetworkInstance_Protocol_BgpPath {
-	return gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	return gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 }
 
 // verifyConfederationState verifies the DUT BGP global AS, confederation

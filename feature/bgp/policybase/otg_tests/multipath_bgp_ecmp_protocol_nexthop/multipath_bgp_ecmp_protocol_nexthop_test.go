@@ -379,7 +379,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("Now configuring BGP config on DUT")
 	// Configure BGP neighbors and peer groups on DUT.
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(dutAS, ateAS, dut)
@@ -399,7 +399,7 @@ type bgpNeighbor struct {
 // enableMultipath enables multipath for the given DUT device with the given maximum paths.
 func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
 	dni := deviations.DefaultNetworkInstance(dut)
-	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
 	bgp := bgpProto.GetOrCreateBgp()
 	cliConfig := ""
@@ -485,7 +485,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr3v4, nbr1v6, nbr2v6, nbr3v6}
 	dev := &oc.Root{}
 	ni := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
@@ -690,7 +690,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, wantRx uint32, isV4 bool) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	for _, nbr := range nbrs {
 		t.Logf("Prefix telemetry on DUT for peer %v", nbr)
 		var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
@@ -709,7 +709,7 @@ func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []str
 }
 
 func verifyBGPSessionTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	t.Logf("Verifying DUT BGP sessions up for IPv4")
 	for _, neighborIP := range []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP} {

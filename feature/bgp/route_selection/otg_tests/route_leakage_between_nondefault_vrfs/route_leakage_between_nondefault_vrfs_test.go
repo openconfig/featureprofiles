@@ -271,8 +271,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 func verifyBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	bgpPath1 := gnmi.OC().NetworkInstance(vrf1Name).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	bgpPath2 := gnmi.OC().NetworkInstance(vrf2Name).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath1 := gnmi.OC().NetworkInstance(vrf1Name).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
+	bgpPath2 := gnmi.OC().NetworkInstance(vrf2Name).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	t.Logf("Waiting for BGP session to be ESTABLISHED in %s", vrf1Name)
 	status1, ok := gnmi.Watch(t, dut, bgpPath1.Neighbor(otgPort1.IPv4).SessionState().State(), bgpWaitTime, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -445,7 +445,7 @@ func enableDefaultVRFBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	bgp := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-		Name:       ygot.String("BGP"),
+		Name:       ygot.String(deviations.NwInstBgpProtoName(dut)),
 		Enabled:    ygot.Bool(true),
 		Bgp:        &oc.NetworkInstance_Protocol_Bgp{},
 	}
@@ -453,7 +453,7 @@ func enableDefaultVRFBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		As:       ygot.Uint32(globalAS),
 		RouterId: ygot.String("1.1.1.1"),
 	}
-	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
+	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config(), bgp)
 }
 
 func configureVrf(t *testing.T, dut *ondatra.DUTDevice, vrfName, interfaceName, routerId, peerAddress string, routerAS, peerAS uint32) {
@@ -465,7 +465,7 @@ func configureVrf(t *testing.T, dut *ondatra.DUTDevice, vrfName, interfaceName, 
 	niIntf.Interface = ygot.String(interfaceName)
 	niIntf.Subinterface = ygot.Uint32(0)
 
-	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := proto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(routerAS)

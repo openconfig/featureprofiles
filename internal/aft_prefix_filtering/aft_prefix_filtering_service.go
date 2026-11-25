@@ -287,11 +287,11 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []stri
 // (1.5M IPv4 and 500k IPv6).
 func ConfigureBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ni *oc.NetworkInstance) {
 	t.Helper()
-	configureBGPInstance(t, ni, DUTPort1.IPv4, []bgpNeighborSpec{
+	configureBGPInstance(t, dut, ni, DUTPort1.IPv4, []bgpNeighborSpec{
 		{address: ATEPort1.IPv4, peerGroup: bgpV4PeerGroup, v4: true},
 		{address: ATEPort2.IPv6, peerGroup: bgpV6PeerGroup, v4: false},
 	})
-	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Config(), ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)))
 }
 
 type BGPPrefixParams struct {
@@ -327,7 +327,7 @@ func ConfigureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, cfg BGPParams) {
 	t.Helper()
 	v4PeerGroup := fmt.Sprintf("%s-%s", bgpV4PeerGroup, cfg.NetworkInstance.GetName())
 	v6PeerGroup := fmt.Sprintf("%s-%s", bgpV6PeerGroup, cfg.NetworkInstance.GetName())
-	configureBGPInstance(t, cfg.NetworkInstance, cfg.RouterID, []bgpNeighborSpec{
+	configureBGPInstance(t, dut, cfg.NetworkInstance, cfg.RouterID, []bgpNeighborSpec{
 		{address: cfg.V4Neighbor, peerGroup: v4PeerGroup, v4: true},
 		{address: cfg.V6Neighbor, peerGroup: v6PeerGroup, v4: false},
 	})
@@ -347,12 +347,12 @@ type bgpNeighborSpec struct {
 
 // configureBGPInstance configures a complete eBGP protocol instance in the given network instance.
 // It applies the supplied router ID and single-AFI neighbors with the accept-all import/export policy.
-func configureBGPInstance(t *testing.T, ni *oc.NetworkInstance, routerID string, neighbors []bgpNeighborSpec) {
+func configureBGPInstance(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, routerID string, neighbors []bgpNeighborSpec) {
 	t.Helper()
 	if ni == nil {
 		t.Fatalf("Network Instance is not configured")
 	}
-	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	niProto.Enabled = ygot.Bool(true)
 	bgp := niProto.GetOrCreateBgp()
 	g := bgp.GetOrCreateGlobal()
@@ -494,7 +494,7 @@ func AwaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, cfg BGPConve
 // awaitBGPEstablished waits for a BGP neighbor session to reach ESTABLISHED, returning an error on timeout.
 func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string) error {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).SessionState().State()
+	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(neighbor).SessionState().State()
 	val, ok := gnmi.Watch(t, dut, path, bgpSessionTimeout, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := v.Val()
 		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
@@ -512,7 +512,7 @@ func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor 
 // times out.
 func awaitBGPPrefixCount(t *testing.T, dut *ondatra.DUTDevice, niName, neighbor string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, wantCount uint32) error {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(afiSafi).Prefixes().Installed().State()
+	path := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(neighbor).AfiSafi(afiSafi).Prefixes().Installed().State()
 	val, ok := gnmi.Watch(t, dut, path, bgpConvergenceWait, func(v *ygnmi.Value[uint32]) bool {
 		got, present := v.Val()
 		return present && got >= wantCount

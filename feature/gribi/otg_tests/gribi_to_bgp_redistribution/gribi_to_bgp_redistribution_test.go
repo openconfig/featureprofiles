@@ -244,10 +244,10 @@ func configureRoutingPolicies(t *testing.T, dut *ondatra.DUTDevice) {
 	// ----------------------------
 	// ATTACH EXPORT POLICY TO BGP
 	// ----------------------------
-	policy := root.GetOrCreateNetworkInstance(vrfName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	policy := root.GetOrCreateNetworkInstance(vrfName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{bgpExportPol})
 	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 
 	gnmi.BatchReplace(batch, path.Config(), policy)
 
@@ -313,7 +313,7 @@ func configureDrainPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 // appendDrainPolicyToExport appends the drain policy to the BGP export policy list applied to the neighbor connected to ATE port2.
 func appendDrainPolicyToExport(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	nbrPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	nbrPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	exportPolicies := []string{drainPolicy, bgpExportPol}
 	gnmi.Replace(t, dut, nbrPath.ExportPolicy().Config(), exportPolicies)
 }
@@ -321,7 +321,7 @@ func appendDrainPolicyToExport(t *testing.T, dut *ondatra.DUTDevice) {
 // removeDrainPolicyFromExport removes the drain policy from the BGP export chain.
 func removeDrainPolicyFromExport(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ni := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ni := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	nbr := ni.Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	exportPolicies := []string{bgpExportPol}
 	gnmi.Update(t, dut, nbr.ExportPolicy().Config(), exportPolicies)
@@ -454,7 +454,7 @@ func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 // verifyDUTBGPEstablished verifies on dut for BGP peer establishment.
 func verifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	sp := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().SessionState().State()
+	sp := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, dut, sp, 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
@@ -548,7 +548,7 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 // disableBGPSession disables the BGP session between DUT and ATE Port2 by setting the neighbor "enabled" field to false using OpenConfig via gNMI.
 func disableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).Enabled()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(atePort2.IPv4).Enabled()
 	gnmi.Replace(t, dut, path.Config(), false)
 	verifyBGPSessionDown(t, dut)
 }
@@ -556,7 +556,7 @@ func disableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyBGPSessionDown verifies that the BGP session between the DUT and the specified neighbor is in the IDLE state, indicating that the session is administratively disabled or not established.
 func verifyBGPSessionDown(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).SessionState()
+	statePath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(atePort2.IPv4).SessionState()
 
 	state := gnmi.Get(t, dut, statePath.State())
 	if state != oc.Bgp_Neighbor_SessionState_IDLE {
@@ -569,7 +569,7 @@ func verifyBGPSessionDown(t *testing.T, dut *ondatra.DUTDevice) {
 // enableBGPSession enables the BGP session between DUT and ATE Port2 by setting the neighbor "enabled" field to true using OpenConfig via gNMI.
 func enableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).Enabled()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(atePort2.IPv4).Enabled()
 	gnmi.Replace(t, dut, path.Config(), true)
 	verifyBGPSessionUp(t, dut)
 }
@@ -578,7 +578,7 @@ func enableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyBGPSessionUp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	statePath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).SessionState()
+	statePath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp().Neighbor(atePort2.IPv4).SessionState()
 
 	// Wait until BGP session becomes ESTABLISHED
 	state, ok := gnmi.Await(t, dut, statePath.State(), 60*time.Second, oc.Bgp_Neighbor_SessionState_ESTABLISHED).Val()

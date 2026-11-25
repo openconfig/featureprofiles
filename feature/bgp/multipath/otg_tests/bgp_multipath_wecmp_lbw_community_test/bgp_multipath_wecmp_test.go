@@ -199,7 +199,7 @@ func TestBGPSetup(t *testing.T) {
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, false)
 
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
-	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(bs.DUT)).GetOrCreateBgp()
 	switch bs.DUT.Vendor() {
 	case ondatra.NOKIA:
 		//BGP multipath enable/disable at the peer-group level not required b/376799583

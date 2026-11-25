@@ -119,7 +119,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	// Network instance and BGP configs.
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
-	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(DUTAs)
 	global.RouterId = ygot.String(dutStartIPAddr)
@@ -426,7 +426,7 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // VerifyBgpTelemetry function is to verify BGP telemetry on DUT using
 // BGP OC telemetry path.
 func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 	for _, peerAddr := range ATEIPList {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)

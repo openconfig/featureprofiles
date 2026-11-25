@@ -361,10 +361,10 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 
-	dutProto := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutProto := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	niProtocol := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
-		Name:       ygot.String("BGP"),
+		Name:       ygot.String(deviations.NwInstBgpProtoName(dut)),
 		Bgp:        bgpOC,
 	}
 	rpl, err := configureRoutingPolicy(&oc.Root{})
@@ -378,7 +378,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbors []string) {
 	for _, neighbor := range neighbors {
 		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).
 			Bgp().
 			Neighbor(neighbor).
 			SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)

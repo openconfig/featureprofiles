@@ -629,7 +629,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, neighbors []Neighbor) 
 	t.Helper()
 	t.Log("Verifying BGP neighbor sessions (IPv4 and IPv6)")
 
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	for idx, nbr := range neighbors {
 		t.Logf("Checking BGP IPv4 neighbor %s (Neighbor %d)", nbr.IPv4, idx+1)

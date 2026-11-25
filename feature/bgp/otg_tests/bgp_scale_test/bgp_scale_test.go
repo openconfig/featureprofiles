@@ -762,7 +762,7 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 		testConvergence[i] = func(t testing.TB) {
 			time.Sleep(10 * time.Second)
 			statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 			var prefixes *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
 			var peer string
 			var routeCount, routeCountWithdraw, prevSent uint32
@@ -1035,7 +1035,7 @@ func dutSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 			IPv6PrefixLen: 126,
 		})
 	}
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	t.Run("configure DUT", func(t *testing.T) {
 		configureDUTLoopback(t, dut)
 
@@ -1054,7 +1054,7 @@ func dutSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 			weightNHConfig += distanceConfigv6
 
 			helpers.GnmiCLIConfig(t, dut, weightNHConfig)
-			cfgplugins.DeviationCiscoRoutingPolicyBGPToISIS(t, dut, dutAS, "BGP", "TAG_7", "SNH", 7)
+			cfgplugins.DeviationCiscoRoutingPolicyBGPToISIS(t, dut, dutAS, deviations.NwInstBgpProtoName(dut), "TAG_7", "SNH", 7)
 		}
 
 		if dut.Vendor() == ondatra.JUNIPER {
@@ -1111,7 +1111,7 @@ func validateLinkBWNotAdvertised(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 // verifyBgpTelemetry verifies BGP telemetry.
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor) {
 	t.Helper()
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	counter := 0
 	counter2 := 0
@@ -1149,7 +1149,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 	nbrIP := []string{"192.0.2.2", "102.1.2.2", "153.1.2.2", "203.0.113.1", "2001:db8::192:0:2:2", "1002::102:1:2:2", "1003::153:1:2:2", "2001:db8::203:0:113:1"}
 
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	testBGPCapabilities := make([]func(testing.TB), len(nbrIP))
 
@@ -1239,7 +1239,7 @@ func verifyMSS(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNeighbor, dut
 			ipv4 = atePort1.IPv4
 			ipv6 = atePort1.IPv6
 		}
-		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 		if !deviations.SkipTCPNegotiatedMSSCheck(dut) {
 			t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
 				// Fetch interface MTU value to compare negotiated tcp mss.
@@ -1678,7 +1678,7 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 	afi := ""
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	// Global Configuration using cfgplugins

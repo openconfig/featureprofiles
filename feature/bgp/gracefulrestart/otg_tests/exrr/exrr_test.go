@@ -580,7 +580,7 @@ func buildNbrListibgp() []*bgpNeighbor {
 func ebgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
@@ -652,7 +652,7 @@ func ebgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor
 func ibgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
@@ -721,7 +721,7 @@ func ibgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor
 func mustCheckBgpGRConfig(t *testing.T, params cfgplugins.BGPGracefulRestartConfig, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	t.Log("Verifying BGP configuration")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	isGrEnabled := gnmi.Get(t, dut, statePath.Global().GracefulRestart().Enabled().State())
 	t.Logf("isGrEnabled %v", isGrEnabled)
@@ -752,7 +752,7 @@ func mustCheckBgpGRConfig(t *testing.T, params cfgplugins.BGPGracefulRestartConf
 func mustCheckBgpStatus(t *testing.T, dut *ondatra.DUTDevice, routeCount uint32) {
 	t.Helper()
 	t.Log("Verifying BGP state")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	for _, attr := range []attrs.Attributes{ateEBGP, ateIBGP} {
 
@@ -822,7 +822,7 @@ func mustCheckBgpStatus(t *testing.T, dut *ondatra.DUTDevice, routeCount uint32)
 func mustCheckBgpStatusDown(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Log("Verifying BGP state down")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut)).Bgp()
 
 	for _, attr := range []attrs.Attributes{ateEBGP, ateIBGP} {
 
@@ -1297,7 +1297,7 @@ func setup(t *testing.T, bgpGracefulRestartConfigParams cfgplugins.BGPGracefulRe
 
 	// Configure BGP+Neighbors on the DUT
 	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(dut))
 	nbrList := buildNbrListebgp()
 	dutConf := ebgpWithNbr(bgpGracefulRestartConfigParams, nbrList, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)

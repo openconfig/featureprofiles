@@ -214,7 +214,7 @@ func TestBGPSetup(t *testing.T) {
 			bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
 			bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, !tc.enableMultiAS)
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
-			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.NwInstBgpProtoName(bs.DUT)).GetOrCreateBgp()
 			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 			if tc.enableMultipath {
 				t.Logf("Enable Multipath")
