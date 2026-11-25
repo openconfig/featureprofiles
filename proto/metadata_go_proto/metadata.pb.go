@@ -1119,10 +1119,6 @@ type Metadata_Deviations struct {
 	IsisSrNodeSegmentConfigUnsupported bool `protobuf:"varint,311,opt,name=isis_sr_node_segment_config_unsupported,json=isisSrNodeSegmentConfigUnsupported,proto3" json:"isis_sr_node_segment_config_unsupported,omitempty"`
 	// Devices that do not support policy forwarding on next-hop
 	PolicyForwardingToNextHopOcUnsupported bool `protobuf:"varint,312,opt,name=policy_forwarding_to_next_hop_oc_unsupported,json=policyForwardingToNextHopOcUnsupported,proto3" json:"policy_forwarding_to_next_hop_oc_unsupported,omitempty"`
-	// Cisco: b/402672689
-	// Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
-	// this deviation to set specific value of N. Returns N=1,000,000 by default.
-	SflowIngressMinSamplingRate uint32 `protobuf:"varint,313,opt,name=sflow_ingress_min_sampling_rate,json=sflowIngressMinSamplingRate,proto3" json:"sflow_ingress_min_sampling_rate,omitempty"`
 	// DUT not supporting with qos remarking
 	// Arista: b/415889077
 	QosRemarkOcUnsupported bool `protobuf:"varint,314,opt,name=qos_remark_oc_unsupported,json=qosRemarkOcUnsupported,proto3" json:"qos_remark_oc_unsupported,omitempty"`
@@ -1137,9 +1133,6 @@ type Metadata_Deviations struct {
 	OtnToEthAssignment bool `protobuf:"varint,317,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
 	// Devices that do not support import export policies configured in network instance
 	NetworkInstanceImportExportPolicyOcUnsupported bool `protobuf:"varint,318,opt,name=network_instance_import_export_policy_oc_unsupported,json=networkInstanceImportExportPolicyOcUnsupported,proto3" json:"network_instance_import_export_policy_oc_unsupported,omitempty"`
-	// Device does not support 'origin' field in gNMI/gNOI RPC paths.
-	// Arista: https://partnerissuetracker.corp.google.com/issues/439656904
-	SkipOrigin bool `protobuf:"varint,319,opt,name=skip_origin,json=skipOrigin,proto3" json:"skip_origin,omitempty"`
 	// Devices that support pre-defined max ecmp paths
 	// Juniper b/422688435
 	PredefinedMaxEcmpPaths bool `protobuf:"varint,320,opt,name=predefined_max_ecmp_paths,json=predefinedMaxEcmpPaths,proto3" json:"predefined_max_ecmp_paths,omitempty"`
@@ -1220,9 +1213,6 @@ type Metadata_Deviations struct {
 	// Devices that do not support oc path for advertised cumulative link
 	// bandwidth.
 	AdvertisedCumulativeLbwOcUnsupported bool `protobuf:"varint,344,opt,name=advertised_cumulative_lbw_oc_unsupported,json=advertisedCumulativeLbwOcUnsupported,proto3" json:"advertised_cumulative_lbw_oc_unsupported,omitempty"`
-	// disable hardware nexthop proxying
-	// Arista : https://partnerissuetracker.corp.google.com/issues/422275961
-	DisableHardwareNexthopProxy bool `protobuf:"varint,345,opt,name=disable_hardware_nexthop_proxy,json=disableHardwareNexthopProxy,proto3" json:"disable_hardware_nexthop_proxy,omitempty"`
 	// Devices does not support uRPF configuration.
 	// Arista https://partnerissuetracker.corp.google.com/issues/444942109
 	UrpfConfigOcUnsupported bool `protobuf:"varint,346,opt,name=urpf_config_oc_unsupported,json=urpfConfigOcUnsupported,proto3" json:"urpf_config_oc_unsupported,omitempty"`
@@ -1568,7 +1558,7 @@ type Metadata_Deviations struct {
 	// ARISTA: https://partnerissuetracker.corp.google.com/issues/510723664
 	// NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
 	BgpAdjRibOcUnsupported bool `protobuf:"varint,457,opt,name=bgp_adj_rib_oc_unsupported,json=bgpAdjRibOcUnsupported,proto3" json:"bgp_adj_rib_oc_unsupported,omitempty"`
-	// Devices that donot support AIGP metric increment when IGP metric to original destination is zero
+	// Devices that do not support AIGP metric increment when IGP metric to original destination is zero
 	AigpMetricIncrement bool `protobuf:"varint,458,opt,name=aigp_metric_increment,json=aigpMetricIncrement,proto3" json:"aigp_metric_increment,omitempty"`
 	// Device does not support power supply telemetry.
 	// Cisco: https://b.corp.google.com/issues/307454993
@@ -1651,9 +1641,52 @@ type Metadata_Deviations struct {
 	// and requires /isis/interfaces/interface/levels/level/hello-authentication instead.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/567813121
 	IsisInterfaceAuthenticationContainerUnsupported bool `protobuf:"varint,478,opt,name=isis_interface_authentication_container_unsupported,json=isisInterfaceAuthenticationContainerUnsupported,proto3" json:"isis_interface_authentication_container_unsupported,omitempty"`
+	// deviation to skip authz verification of gnoi ping rpc
+	// Arista: https://partnerissuetracker.corp.google.com/issues/219953165
+	SkipGnoiPingRpcAuthzVerification bool `protobuf:"varint,479,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
+	// Device does not support IS-IS interface level packet-counters/lsp/state/retransmit leaf.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/570885559
+	IsisLspRetransmitCounterUnsupported bool `protobuf:"varint,480,opt,name=isis_lsp_retransmit_counter_unsupported,json=isisLspRetransmitCounterUnsupported,proto3" json:"isis_lsp_retransmit_counter_unsupported,omitempty"`
+	// Devices that do not validate that max-threshold is strictly greater than
+	// min-threshold, so a min > max configuration is accepted instead of
+	// rejected.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/573059610
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/573067365
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/573074330
+	EcnMinGreaterMaxThresholdUnsupported bool `protobuf:"varint,481,opt,name=ecn_min_greater_max_threshold_unsupported,json=ecnMinGreaterMaxThresholdUnsupported,proto3" json:"ecn_min_greater_max_threshold_unsupported,omitempty"`
+	// Maximum number of decap entries supported by the device.
+	MaxSupportedDecapEntries uint32 `protobuf:"varint,482,opt,name=max_supported_decap_entries,json=maxSupportedDecapEntries,proto3" json:"max_supported_decap_entries,omitempty"`
+	// Device does not support /interfaces/interface/ethernet/state/negotiated-port-speed telemetry path.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/572214470
+	NegotiatedPortSpeedUnsupported bool `protobuf:"varint,483,opt,name=negotiated_port_speed_unsupported,json=negotiatedPortSpeedUnsupported,proto3" json:"negotiated_port_speed_unsupported,omitempty"`
+	// Device does not support /interfaces/interface/subinterfaces/subinterface/state/ifindex telemetry path.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/572208368
+	SubinterfaceIfindexUnsupported bool `protobuf:"varint,484,opt,name=subinterface_ifindex_unsupported,json=subinterfaceIfindexUnsupported,proto3" json:"subinterface_ifindex_unsupported,omitempty"`
+	// Device requires all remote syslog servers to use the same facility and
+	// severity selector when configured via OpenConfig.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+	SyslogUniformSelectorRequired bool `protobuf:"varint,485,opt,name=syslog_uniform_selector_required,json=syslogUniformSelectorRequired,proto3" json:"syslog_uniform_selector_required,omitempty"`
+	// Device omits /system/logging/remote-servers/remote-server/state/network-instance
+	// when the remote syslog server is configured in the default network instance.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/574820175
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+	SyslogDefaultNiStateUnsupported bool `protobuf:"varint,486,opt,name=syslog_default_ni_state_unsupported,json=syslogDefaultNiStateUnsupported,proto3" json:"syslog_default_ni_state_unsupported,omitempty"`
+	// Device does not support configuring DEBUG severity for remote syslog
+	// selectors via OpenConfig.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/574811352
+	SyslogDebugSeverityUnsupported bool `protobuf:"varint,487,opt,name=syslog_debug_severity_unsupported,json=syslogDebugSeverityUnsupported,proto3" json:"syslog_debug_severity_unsupported,omitempty"`
+	// Device does not support /system/mount-points/mount-point/state/storage-component
+	// telemetry (including via the system_mount_point_state_ft functional translator).
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+	MountPointStorageComponentUnsupported bool `protobuf:"varint,488,opt,name=mount_point_storage_component_unsupported,json=mountPointStorageComponentUnsupported,proto3" json:"mount_point_storage_component_unsupported,omitempty"`
+	// Device requires explicit GR helper stale-route policy configuration
+	// for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
+	// https://issuetracker.google.com/581463773
+	BgpGrHelperHoldTimerExpiryRequiresStalePolicy bool `protobuf:"varint,489,opt,name=bgp_gr_helper_hold_timer_expiry_requires_stale_policy,json=bgpGrHelperHoldTimerExpiryRequiresStalePolicy,proto3" json:"bgp_gr_helper_hold_timer_expiry_requires_stale_policy,omitempty"`
 	// bgp_non_default_vrf_installed_prefixes_unsupported specifies if device
 	// does not report installed prefixes in a non-default network instance
-	BgpNonDefaultVrfInstalledPrefixesUnsupported bool `protobuf:"varint,479,opt,name=bgp_non_default_vrf_installed_prefixes_unsupported,json=bgpNonDefaultVrfInstalledPrefixesUnsupported,proto3" json:"bgp_non_default_vrf_installed_prefixes_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/577948222
+	BgpNonDefaultVrfInstalledPrefixesUnsupported bool `protobuf:"varint,490,opt,name=bgp_non_default_vrf_installed_prefixes_unsupported,json=bgpNonDefaultVrfInstalledPrefixesUnsupported,proto3" json:"bgp_non_default_vrf_installed_prefixes_unsupported,omitempty"`
 	unknownFields                                protoimpl.UnknownFields
 	sizeCache                                    protoimpl.SizeCache
 }
@@ -3620,13 +3653,6 @@ func (x *Metadata_Deviations) GetPolicyForwardingToNextHopOcUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetSflowIngressMinSamplingRate() uint32 {
-	if x != nil {
-		return x.SflowIngressMinSamplingRate
-	}
-	return 0
-}
-
 func (x *Metadata_Deviations) GetQosRemarkOcUnsupported() bool {
 	if x != nil {
 		return x.QosRemarkOcUnsupported
@@ -3658,13 +3684,6 @@ func (x *Metadata_Deviations) GetOtnToEthAssignment() bool {
 func (x *Metadata_Deviations) GetNetworkInstanceImportExportPolicyOcUnsupported() bool {
 	if x != nil {
 		return x.NetworkInstanceImportExportPolicyOcUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetSkipOrigin() bool {
-	if x != nil {
-		return x.SkipOrigin
 	}
 	return false
 }
@@ -3840,13 +3859,6 @@ func (x *Metadata_Deviations) GetAutoLinkBandwidthUnsupported() bool {
 func (x *Metadata_Deviations) GetAdvertisedCumulativeLbwOcUnsupported() bool {
 	if x != nil {
 		return x.AdvertisedCumulativeLbwOcUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetDisableHardwareNexthopProxy() bool {
-	if x != nil {
-		return x.DisableHardwareNexthopProxy
 	}
 	return false
 }
@@ -4782,6 +4794,83 @@ func (x *Metadata_Deviations) GetIsisInterfaceAuthenticationContainerUnsupported
 	return false
 }
 
+func (x *Metadata_Deviations) GetSkipGnoiPingRpcAuthzVerification() bool {
+	if x != nil {
+		return x.SkipGnoiPingRpcAuthzVerification
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisLspRetransmitCounterUnsupported() bool {
+	if x != nil {
+		return x.IsisLspRetransmitCounterUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetEcnMinGreaterMaxThresholdUnsupported() bool {
+	if x != nil {
+		return x.EcnMinGreaterMaxThresholdUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMaxSupportedDecapEntries() uint32 {
+	if x != nil {
+		return x.MaxSupportedDecapEntries
+	}
+	return 0
+}
+
+func (x *Metadata_Deviations) GetNegotiatedPortSpeedUnsupported() bool {
+	if x != nil {
+		return x.NegotiatedPortSpeedUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSubinterfaceIfindexUnsupported() bool {
+	if x != nil {
+		return x.SubinterfaceIfindexUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSyslogUniformSelectorRequired() bool {
+	if x != nil {
+		return x.SyslogUniformSelectorRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSyslogDefaultNiStateUnsupported() bool {
+	if x != nil {
+		return x.SyslogDefaultNiStateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSyslogDebugSeverityUnsupported() bool {
+	if x != nil {
+		return x.SyslogDebugSeverityUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMountPointStorageComponentUnsupported() bool {
+	if x != nil {
+		return x.MountPointStorageComponentUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy() bool {
+	if x != nil {
+		return x.BgpGrHelperHoldTimerExpiryRequiresStalePolicy
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetBgpNonDefaultVrfInstalledPrefixesUnsupported() bool {
 	if x != nil {
 		return x.BgpNonDefaultVrfInstalledPrefixesUnsupported
@@ -4845,7 +4934,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa1\x8f\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x93\x95\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4857,7 +4946,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x89\x84\x02\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xfb\x89\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5137,15 +5226,12 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1aisis_srgb_srlb_unsupported\x18\xb5\x02 \x01(\bR\x17isisSrgbSrlbUnsupported\x12X\n" +
 	")isis_sr_prefix_segment_config_unsupported\x18\xb6\x02 \x01(\bR$isisSrPrefixSegmentConfigUnsupported\x12T\n" +
 	"'isis_sr_node_segment_config_unsupported\x18\xb7\x02 \x01(\bR\"isisSrNodeSegmentConfigUnsupported\x12]\n" +
-	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12E\n" +
-	"\x1fsflow_ingress_min_sampling_rate\x18\xb9\x02 \x01(\rR\x1bsflowIngressMinSamplingRate\x12:\n" +
+	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12:\n" +
 	"\x19qos_remark_oc_unsupported\x18\xba\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12j\n" +
 	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12M\n" +
 	"#policy_rule_counters_oc_unsupported\x18\xbc\x02 \x01(\bR\x1fpolicyRuleCountersOcUnsupported\x122\n" +
 	"\x15otn_to_eth_assignment\x18\xbd\x02 \x01(\bR\x12otnToEthAssignment\x12m\n" +
-	"4network_instance_import_export_policy_oc_unsupported\x18\xbe\x02 \x01(\bR.networkInstanceImportExportPolicyOcUnsupported\x12 \n" +
-	"\vskip_origin\x18\xbf\x02 \x01(\bR\n" +
-	"skipOrigin\x12:\n" +
+	"4network_instance_import_export_policy_oc_unsupported\x18\xbe\x02 \x01(\bR.networkInstanceImportExportPolicyOcUnsupported\x12:\n" +
 	"\x19predefined_max_ecmp_paths\x18\xc0\x02 \x01(\bR\x16predefinedMaxEcmpPaths\x12D\n" +
 	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupported\x123\n" +
 	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupported\x12W\n" +
@@ -5170,8 +5256,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x18localhost_for_containerz\x18\xd5\x02 \x01(\bR\x16localhostForContainerz\x12a\n" +
 	"-aggregate_bandwidth_policy_action_unsupported\x18\xd6\x02 \x01(\bR)aggregateBandwidthPolicyActionUnsupported\x12F\n" +
 	"\x1fauto_link_bandwidth_unsupported\x18\xd7\x02 \x01(\bR\x1cautoLinkBandwidthUnsupported\x12W\n" +
-	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12D\n" +
-	"\x1edisable_hardware_nexthop_proxy\x18\xd9\x02 \x01(\bR\x1bdisableHardwareNexthopProxy\x12<\n" +
+	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12<\n" +
 	"\x1aurpf_config_oc_unsupported\x18\xda\x02 \x01(\bR\x17urpfConfigOcUnsupported\x12g\n" +
 	"1static_route_next_network_instance_oc_unsupported\x18\xdb\x02 \x01(\bR+staticRouteNextNetworkInstanceOcUnsupported\x121\n" +
 	"\x14gnpsi_oc_unsupported\x18\xdc\x02 \x01(\bR\x12gnpsiOcUnsupported\x12I\n" +
@@ -5306,9 +5391,20 @@ const file_metadata_proto_rawDesc = "" +
 	"\x13qos_red_unsupported\x18\xdb\x03 \x01(\bR\x11qosRedUnsupported\x12H\n" +
 	" invalid_interface_number_allowed\x18\xdc\x03 \x01(\bR\x1dinvalidInterfaceNumberAllowed\x12]\n" +
 	",bgp_afi_safi_send_community_type_unsupported\x18\xdd\x03 \x01(\bR&bgpAfiSafiSendCommunityTypeUnsupported\x12m\n" +
-	"3isis_interface_authentication_container_unsupported\x18\xde\x03 \x01(\bR/isisInterfaceAuthenticationContainerUnsupported\x12i\n" +
-	"2bgp_non_default_vrf_installed_prefixes_unsupported\x18\xdf\x03 \x01(\bR,bgpNonDefaultVrfInstalledPrefixesUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
+	"3isis_interface_authentication_container_unsupported\x18\xde\x03 \x01(\bR/isisInterfaceAuthenticationContainerUnsupported\x12P\n" +
+	"%skip_gnoi_ping_rpc_authz_verification\x18\xdf\x03 \x01(\bR skipGnoiPingRpcAuthzVerification\x12U\n" +
+	"'isis_lsp_retransmit_counter_unsupported\x18\xe0\x03 \x01(\bR#isisLspRetransmitCounterUnsupported\x12X\n" +
+	")ecn_min_greater_max_threshold_unsupported\x18\xe1\x03 \x01(\bR$ecnMinGreaterMaxThresholdUnsupported\x12>\n" +
+	"\x1bmax_supported_decap_entries\x18\xe2\x03 \x01(\rR\x18maxSupportedDecapEntries\x12J\n" +
+	"!negotiated_port_speed_unsupported\x18\xe3\x03 \x01(\bR\x1enegotiatedPortSpeedUnsupported\x12I\n" +
+	" subinterface_ifindex_unsupported\x18\xe4\x03 \x01(\bR\x1esubinterfaceIfindexUnsupported\x12H\n" +
+	" syslog_uniform_selector_required\x18\xe5\x03 \x01(\bR\x1dsyslogUniformSelectorRequired\x12M\n" +
+	"#syslog_default_ni_state_unsupported\x18\xe6\x03 \x01(\bR\x1fsyslogDefaultNiStateUnsupported\x12J\n" +
+	"!syslog_debug_severity_unsupported\x18\xe7\x03 \x01(\bR\x1esyslogDebugSeverityUnsupported\x12Y\n" +
+	")mount_point_storage_component_unsupported\x18\xe8\x03 \x01(\bR%mountPointStorageComponentUnsupported\x12m\n" +
+	"5bgp_gr_helper_hold_timer_expiry_requires_stale_policy\x18\xe9\x03 \x01(\bR-bgpGrHelperHoldTimerExpiryRequiresStalePolicy\x12i\n" +
+	"2bgp_non_default_vrf_installed_prefixes_unsupported\x18\xea\x03 \x01(\bR,bgpNonDefaultVrfInstalledPrefixesUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102J\x06\b\xb9\x02\x10\xba\x02J\x06\b\xbf\x02\x10\xc0\x02J\x06\b\xd9\x02\x10\xda\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
