@@ -6,7 +6,7 @@ This test suite should ensure that the router will be able to handle below BGP
 scale:
 
 *   200-1500 v4/v6 EBGP sessions
-*   7-31 v4/v6 IBGP sessions 
+*   7-31 v4/v6 IBGP sessions
 *   7-31 ISIS adjacencies
 *   v4/v6 IBGP transport addresses received via ISIS
 *   60000 x ISIS prefixes
@@ -42,13 +42,10 @@ graph LR
 
 ### DUT and OTG properties
 
-
 Device  |  Port4 IPv4 | Port4 IPv6 | ISIS AREA | ISIS ID | ROUTER ID
 :------ | :-------------- | :-------------  | :-------- | :--------: | :---------:
 DUT     | 200.1.[1-31].1/30 | 1000:4:[31-61]::200::0:1/126  | 49001 | 1920.0000.2001 | 200.1.1.200
 ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000[1-31] | 203.0.113.[1-31]
-
-
 
 ### Policy Definition:
 
@@ -125,6 +122,67 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
     *   Verify that no core file generated
     *   Measure BGP convergence for both V4/V6 unicast AFI/SAFI
 
+### RT-1.65.5: RT-1.65.3 setup + High-rate BGP control-plane stress (TX and RX host-path saturation)
+
+*   Same Setup as RT-1.65.3
+*   RT-1.65.5.1: High-rate outbound (TX) BGP control-plane stress across IPv4
+    and IPv6 AFI/SAFI:
+    *   Configure minimum advertisement interval to `0` seconds
+        (`/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/minimum-advertisement-interval`
+        and
+        `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/minimum-advertisement-interval`)
+        and aggressive keepalive/hold timers (`keepalive-interval = 1`,
+        `hold-time = 3`) on the DUT BGP peer groups (`BGP-PEER-GROUP-V41`,
+        `BGP-PEER-GROUP-V61`, `BGP-PEER-GROUP-V62-1`, `BGP-PEER-GROUP-V63-1`,
+        `Port4LoopV4`, `Port4LoopV6`).
+    *   Inject continuous rapid waves of IPv4 (`198.51.100.0/24`–
+        `198.51.255.0/24`) and IPv6 (`2001:db8:100::/48`–`2001:db8:1ff::/48`)
+        route advertisements, attribute modifications (MED, Local-Preference,
+        Community `100:101`–`100:107`, AS-Path length), and route withdrawals
+        and re-advertisements from ATE Port 1 (`192.0.2.2` and
+        `2001:db8::192:0:2:2`, AS `800100`) for 15 minutes so the DUT fans out
+        high-rate outbound BGP `UPDATE` and `KEEPALIVE` packets across all
+        200–1500 EBGP peers on DUT Ports 2–3 and 7–31 IBGP peers on DUT Port 4
+        (`203.0.113.200` and `2001:db8::203:0:113:200`).
+*   RT-1.65.5.2: High-rate inbound (RX) BGP control-plane stress across IPv4
+    and IPv6 AFI/SAFI:
+    *   Simultaneously inject a sustained 15-minute high-rate burst of inbound
+        IPv4 and IPv6 BGP `UPDATE` churn (advertising, modifying attributes,
+        withdrawing, and re-advertising `172.30.252.0/24`–`173.31.252.0/24`,
+        `198.51.100.0/24`–`198.51.255.0/24`, `2001:db8:2:118::/64`–
+        `2001:db8:3:119::/64`, and `2001:db8:100::/48`–`2001:db8:1ff::/48`),
+        1-second `KEEPALIVE` messages, and periodic `NOTIFICATION` session
+        resets from the 200–1500 ATE EBGP peers on Ports 2–3 and 7–31 ATE IBGP
+        loopback peers on Port 4 (`203.0.113.[1-31]` and
+        `2001:db8::203:0:113:[1-31]`) targeting the DUT control plane and
+        loopback (`203.0.113.200` and `2001:db8::203:0:113:200`).
+
+*   Verification (Telemetry):
+    *   Verify that all LAG ports and subinterfaces are UP
+        (`/interfaces/interface/state/oper-status`,
+        `/interfaces/interface/subinterfaces/subinterface/state/oper-status`),
+        LACP member ports on DUT Port 4 remain `IN_SYNC` with `collecting` and
+        `distributing` set to `true` and zero timeout transitions
+        (`/lacp/interfaces/interface/members/member/state/synchronization`,
+        `/lacp/interfaces/interface/members/member/state/collecting`,
+        `/lacp/interfaces/interface/members/member/state/distributing`,
+        `/lacp/interfaces/interface/members/member/state/counters/lacp-timeout-transitions`),
+        and all ISIS adjacencies are UP
+        (`/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state`)
+    *   Verify that all EBGP/IBGP sessions are established
+        (`/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state`),
+        BGP input/output queues drain to `0`
+        (`/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/input`,
+        `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/output`),
+        and BGP `UPDATE` and `NOTIFICATION` TX/RX counters increment as
+        expected
+    *   Verify that all configured BGP capabilities are negotiated
+    *   Verify that no process restarted
+        (`/system/processes/process/state/start-time`)
+    *   Verify that no core file generated
+    *   Measure BGP convergence for both V4/V6 unicast AFI/SAFI and verify zero
+        traffic blackholing across IPv4 and IPv6 flows
+
 ### Procedure
 
 #### DUT Setup:
@@ -168,7 +226,6 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
             *   173.30.252.0 - 173.30.252.100 + tcp ports 12345 - 12545
             *   173.31.252.0 - 173.31.252.100 + tcp ports 12345 - 12545
 
-
     10. Create IPv6 Flows from Agg2 to the below ranges
             *   2001:db8:2:118::1 - 2001:db8:2:118::64 + tcp ports 12345 - 12545
             *   2001:db8:2:119::1 - 2001:db8:2:119::64 + tcp ports 12345 - 12545
@@ -190,9 +247,12 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
             *   Set ISIS level capability to level 2 only
             *   Set metric style to wide
             *   Enable IPv4-unicast and IPv6-unicast address families.
-            *   Enable ISIS on the Loopback and the  LAG's subInterfaces (7/31).
+            *   Enable ISIS on the Loopback and the LAG's subInterfaces (7/31).
             *   Create BGP_TO_ISIS policy
-            *   Export policy to redistribute EBGP routes tagged with communities 100:100/NO-ADVERTISE into ISIS. those /25 routes (~500 /25 prefixes) summarize PNH used to recursive lookup BGP routes.
+            *   Export policy to redistribute EBGP routes tagged with
+                communities 100:100/NO-ADVERTISE into ISIS. those /25 routes
+                (~500 /25 prefixes) summarize PNH used to recursive lookup BGP
+                routes.
             *   Push the configuration to the DUT.
     8.  Configure BGP for DUT :
             *   Create BGP instance under the default routing instance
@@ -222,14 +282,42 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
 #### Testing steps
 
 *   Measure IPv4/v6 BGP Convergence
+*   For RT-1.65.5, execute high-rate outbound (TX) and inbound (RX) BGP
+    control-plane stress for 15 minutes while continuous IPv4 and IPv6 traffic
+    flows are running:
+    1.  Configure `minimum-advertisement-interval = 0`,
+        `keepalive-interval = 1`, and `hold-time = 3` on the BGP peer groups
+        and neighbors via `gNMI.Set` and trigger rapid IPv4
+        (`198.51.100.0/24`–`198.51.255.0/24`) and IPv6
+        (`2001:db8:100::/48`–`2001:db8:1ff::/48`) route advertisements,
+        attribute modifications, and withdrawals/re-advertisements from ATE
+        Port 1 to fan out high-rate outbound BGP `UPDATE` and `KEEPALIVE`
+        packets across all EBGP peers on Ports 2–3 and IBGP peers on Port 4
+        (RT-1.65.5.1).
+    2.  Simultaneously inject high-rate inbound IPv4 and IPv6 BGP `UPDATE`
+        churn, 1-second `KEEPALIVE` messages, and periodic `NOTIFICATION`
+        resets from the ATE EBGP peers on Ports 2–3 and ATE IBGP loopback peers
+        on Port 4 targeting the DUT control plane and loopback (RT-1.65.5.2).
 *   Collect the below states from the DUT :
     1.  Count of UP ISIS adjacencies
     2.  Count of UP V4 BGP sessions
-    3. Count of UP V6 BGP sessions
+    3.  Count of UP V6 BGP sessions
     4.  Count of BGP IPv4 routes advertised to Port1
     5.  Count of BGP IPv6 routes advertised to Port1
+    6.  LACP member synchronization (`IN_SYNC`), collecting (`true`),
+        distributing (`true`), LACP packet counters (`lacp-in-pkts`,
+        `lacp-out-pkts`), and timeout transitions (`lacp-timeout-transitions`)
+        on Port 4 LAG
+    7.  BGP neighbor TX/RX message counters (`messages/sent/UPDATE`,
+        `messages/sent/NOTIFICATION`, `messages/received/UPDATE`,
+        `messages/received/NOTIFICATION`), queue depths (`queues/input`,
+        `queues/output`), prefix counters (`prefixes/received`,
+        `prefixes/installed`, `prefixes/sent`), and session state transitions
+        (`established-transitions`, `last-established`)
+    8.  System process start times (`start-time`), CPU utilization
+        (`cpu-utilization`), and memory utilization (`memory-utilization`)
 *   Start traffic flows
-*   Wait for 2 mins
+*   Wait for 2 mins (or 15 mins during RT-1.65.5 high-rate BGP stress)
 *   Stop traffic flows
 *   Collect the number of RX and TX traffic flows packets
 
@@ -239,13 +327,22 @@ ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000
     1.  Count of ISIS adjacencies in the "UP" state is less than 7/31
     2.  Count of any of the below metrics was not equal to the below values :
         a. v4 BGP sessions is less than 208/1532
-           (The number of v4 BGP sessions is the sum of eBGP sessions [200/1500], iBGP sessions [7/31], and one session for
-           convergence measurement)
+           (The number of v4 BGP sessions is the sum of eBGP sessions
+           [200/1500], iBGP sessions [7/31], and one session for convergence
+           measurement)
         b. v6 BGP sessions is less than 208/1532
         c. BGP capabilities successfully negotiated
         d. BGP routes successfully reflected to Port1's v4/v6 EBGP sessions
+        e. BGP input and output queues (`queues/input`, `queues/output`) did
+           not drain to `0` or expected IPv4/IPv6 prefixes were not received
+           and installed (`prefixes/received`, `prefixes/installed`)
     3.  Number of TX packets is not equal to RX packets.
-    4. No critical process (RPD, Bgp-main, BGP, sr_bgp_mgr) restarted during the test
+    4.  No critical process (RPD, Bgp-main, BGP, sr_bgp_mgr) restarted during
+        the test (`/system/processes/process/state/start-time` unchanged)
+    5.  Any LACP LAG member on Port 4 is not in `IN_SYNC` state, `collecting`
+        or `distributing` is `false`, `lacp-timeout-transitions` is greater
+        than `0`, or aggregate/subinterface `oper-status` is not `UP` during or
+        after high-rate TX/RX BGP control-plane stress (host-loopback wedge)
 
 ## Canonical OC
 
@@ -1999,15 +2096,35 @@ paths:
 
   ## Telemetry State paths
   /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/state/oper-status:
+  /lacp/interfaces/interface/members/member/state/synchronization:
+  /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/distributing:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-timeout-transitions:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/UPDATE:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/NOTIFICATION:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/UPDATE:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/NOTIFICATION:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/input:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/output:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
   /system/processes/process/state/cpu-utilization:
   /system/processes/process/state/memory-utilization:
+  /system/processes/process/state/start-time:
 
 rpcs:
   gnmi:
+    gNMI.Get:
     gNMI.Subscribe:
     gNMI.Set:
 ```
