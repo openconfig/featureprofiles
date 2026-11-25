@@ -158,16 +158,6 @@ func TestGNMIIntfConfigImpactsGRIBINH(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-	// See: https://partnerissuetracker.corp.google.com/issues/422275961
-	if deviations.DisableHardwareNexthopProxy(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, "ip hardware fib next-hop proxy disabled")
-		default:
-			t.Errorf("Deviation DisableHardwareNexthopProxy is not handled for the dut: %v", dut.Vendor())
-		}
-	}
-
 	client := &gribi.Client{DUT: dut, FIBACK: !deviations.GRIBIRIBAckOnly(dut), Persistence: true}
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI client could not start: %v", err)
