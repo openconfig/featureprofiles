@@ -250,8 +250,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		// Step 1 - Configure one IPv4 static route with next-hops set to the IPv4
 		// address of ATE port-2 (index 0) and port-3 (index 1).
 		prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 		t.Cleanup(func() {
-			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 			gnmi.Delete(t, dut, sp.Static(prefix.cidr(t)).Config())
 		})
 		b := &gnmi.SetBatch{}
@@ -266,6 +266,7 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
 			t.Fatalf("Failed to configure IPv4 static route: %v", err)
 		}
+		gnmi.BatchUpdate(b, sp.Enabled().Config(), true)
 
 		// Step 2 - Push configuration to DUT.
 		b.Set(t, dut)
@@ -328,6 +329,15 @@ func TestStaticRouteAddRemove(t *testing.T) {
 
 func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV4 *cfgplugins.StaticRouteCfg) {
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	if _, ok := gnmi.Watch(t, dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+		enabled, present := val.Val()
+		if !present {
+			return deviations.MissingValueForDefaults(dut)
+		}
+		return enabled
+	}).Await(t); !ok {
+		t.Errorf("Static protocol enabled state is not true")
+	}
 	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 120*time.Second, prefix)
 
 	if deviations.SkipStaticNexthopCheck(dut) {
@@ -581,6 +591,8 @@ func (td *testData) configureStaticRouteToATEP1AndP2(t *testing.T) {
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+	gnmi.BatchUpdate(b, sp.Enabled().Config(), true)
 	b.Set(t, td.dut)
 }
 
@@ -604,6 +616,15 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	t.Run("Telemetry", func(t *testing.T) {
 
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		if _, ok := gnmi.Watch(t, td.dut, sp.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+			enabled, present := val.Val()
+			if !present {
+				return deviations.MissingValueForDefaults(td.dut)
+			}
+			return enabled
+		}).Await(t); !ok {
+			t.Errorf("Static protocol enabled state is not true")
+		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv6.cidr(t))
 
