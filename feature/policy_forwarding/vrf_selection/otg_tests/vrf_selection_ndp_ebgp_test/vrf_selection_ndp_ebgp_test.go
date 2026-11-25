@@ -150,6 +150,7 @@ type testEnv struct {
 	aggPorts           []*ondatra.Port
 	singleAFPolicyOnly bool
 	ipv4PolicyOnly     bool
+	omitDefaultRule    bool
 }
 
 func TestMain(m *testing.M) {
@@ -611,8 +612,9 @@ func seqIDOffset(dut *ondatra.DUTDevice, seq uint32) uint32 {
 }
 
 // buildVRFSelectionPolicy constructs VRF-SELECT-POLICY with the requested IPv4 (Rule 10)
-// and/or IPv6 (Rule 20) DSCP [0, 10] VRF-10 steering rules and trailing DEFAULT catch-all rule(s).
-func buildVRFSelectionPolicy(dut *ondatra.DUTDevice, includeIPv4, includeIPv6 bool) *oc.NetworkInstance_PolicyForwarding {
+// and/or IPv6 (Rule 20) DSCP [0, 10] VRF-10 steering rules and, if includeDefault is set,
+// trailing DEFAULT catch-all rule(s).
+func buildVRFSelectionPolicy(dut *ondatra.DUTDevice, includeIPv4, includeIPv6, includeDefault bool) *oc.NetworkInstance_PolicyForwarding {
 	defNI := deviations.DefaultNetworkInstance(dut)
 	pf := &oc.NetworkInstance_PolicyForwarding{}
 	policy := pf.GetOrCreatePolicy(vrfSelectionPolicyName)
@@ -630,6 +632,9 @@ func buildVRFSelectionPolicy(dut *ondatra.DUTDevice, includeIPv4, includeIPv6 bo
 		r20.GetOrCreateAction().SetNetworkInstance(vrf10Name)
 	}
 
+	if !includeDefault {
+		return pf
+	}
 	if deviations.PfRequireMatchDefaultRule(dut) {
 		nextSeq := uint32(rule30SeqID)
 		if includeIPv4 {
@@ -679,39 +684,46 @@ func bindVRFSelectionPolicyToIngressLAG(t testing.TB, env *testEnv) {
 //   - If the platform rejects mixing IPv4 and IPv6 match conditions within a single VRF_SELECTION_POLICY,
 //     falls back to single-AF VRF_SELECTION_POLICY (trying IPv6 Rule 20 first, or IPv4 Rule 10 if the platform
 //     does not support IPv6 match criteria in vrf-selection-policy).
+//   - If the platform rejects the trailing catch-all rule (e.g. "conflicting matches"), each candidate policy
+//     is retried without it; unmatched traffic then stays in the DEFAULT network instance.
 func configureDUTVRFSelectionPolicy(t *testing.T, env *testEnv) {
 	t.Helper()
 	dut := env.dut
 	defNI := deviations.DefaultNetworkInstance(dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	dualStackPF := buildVRFSelectionPolicy(dut, true, true)
-	errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), dualStackPF)
-		bindVRFSelectionPolicyToIngressLAG(t, env)
-	})
-	if errMsg == nil {
-		return
+	candidates := []struct {
+		desc                              string
+		includeIPv4, includeIPv6, withDef bool
+	}{
+		{"combined IPv4+IPv6 (Rules 10, 20, 30)", true, true, true},
+		{"combined IPv4+IPv6 without catch-all (Rules 10, 20)", true, true, false},
+		{"IPv6-only (Rules 20, 30)", false, true, true},
+		{"IPv6-only without catch-all (Rule 20)", false, true, false},
+		{"IPv4-only (Rules 10, 30)", true, false, true},
+		{"IPv4-only without catch-all (Rule 10)", true, false, false},
 	}
-
-	t.Logf("Combined IPv4+IPv6 VRF_SELECTION_POLICY was rejected by DUT (%s); attempting IPv6-only VRF_SELECTION_POLICY (Rule 20 + Rule 30)", *errMsg)
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
-	ipv6PF := buildVRFSelectionPolicy(dut, false, true)
-	errMsgV6 := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), ipv6PF)
-		bindVRFSelectionPolicyToIngressLAG(t, env)
-	})
-	if errMsgV6 == nil {
-		env.singleAFPolicyOnly = true
-		return
+	var lastErr string
+	for i, c := range candidates {
+		if i > 0 {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
+		}
+		pf := buildVRFSelectionPolicy(dut, c.includeIPv4, c.includeIPv6, c.withDef)
+		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), pf)
+			bindVRFSelectionPolicyToIngressLAG(t, env)
+		})
+		if errMsg == nil {
+			t.Logf("Applied %s VRF_SELECTION_POLICY on ingress LAG", c.desc)
+			env.singleAFPolicyOnly = c.includeIPv6 && !c.includeIPv4
+			env.ipv4PolicyOnly = c.includeIPv4 && !c.includeIPv6
+			env.omitDefaultRule = !c.withDef
+			return
+		}
+		lastErr = *errMsg
+		t.Logf("%s VRF_SELECTION_POLICY was rejected by DUT: %s", c.desc, lastErr)
 	}
-
-	t.Logf("IPv6-only VRF_SELECTION_POLICY was also rejected by DUT (%s); applying IPv4 VRF_SELECTION_POLICY (Rule 10 + Rule 30) on ingress LAG", *errMsgV6)
-	env.ipv4PolicyOnly = true
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config())
-	ipv4PF := buildVRFSelectionPolicy(dut, true, false)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Config(), ipv4PF)
-	bindVRFSelectionPolicyToIngressLAG(t, env)
+	t.Fatalf("DUT rejected every VRF_SELECTION_POLICY variant; last error: %s", lastErr)
 }
 
 // verifyControlPlaneState implements RT-3.5.1 Step 4:
@@ -1057,7 +1069,7 @@ func configureOTGTrafficFlows(t *testing.T, env *testEnv) []string {
 func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 	t.Helper()
 	if len(flowNames) == 0 {
-		t.Fatalf("flowNames must not be empty")
+		t.Fatalf("No traffic flows configured: RT-3.5.1 did not complete")
 	}
 	dut := env.dut
 	defNI := deviations.DefaultNetworkInstance(dut)
@@ -1081,12 +1093,12 @@ func runAndVerifyTraffic(t *testing.T, env *testEnv, flowNames []string) {
 
 	// Pass 2: Replace policy rules with IPv4 rule (Rule 10 + Rule 30) -> verify Flow 1, Flow 2, Flow 3 and Rule 10 counters.
 	t.Log("RT-3.5.2 Pass 2 (IPv4 VRF selection rule active): updating VRF-SELECT-POLICY to Rule 10 + Rule 30 and verifying Flow-1-Default-IPv4, Flow-2-Default-IPv6, Flow-3-Steered-IPv4, and Rule 10 counters")
-	ipv4Policy := buildVRFSelectionPolicy(dut, true, false).GetPolicy(vrfSelectionPolicyName)
+	ipv4Policy := buildVRFSelectionPolicy(dut, true, false, !env.omitDefaultRule).GetPolicy(vrfSelectionPolicyName)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Policy(vrfSelectionPolicyName).Config(), ipv4Policy)
 	runTrafficPass(t, env, flowNames, []string{flow1IPv4DefaultVRF, flow2IPv6DefaultVRF, flow3IPv4VRF10}, []uint32{rule10Idx}, 2*trafficPackets, 1*trafficPackets)
 
 	// Restore IPv6 rule (Rule 20 + Rule 30) and re-verify eBGP and IPv6 NDP stability.
-	ipv6Policy := buildVRFSelectionPolicy(dut, false, true).GetPolicy(vrfSelectionPolicyName)
+	ipv6Policy := buildVRFSelectionPolicy(dut, false, true, !env.omitDefaultRule).GetPolicy(vrfSelectionPolicyName)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defNI).PolicyForwarding().Policy(vrfSelectionPolicyName).Config(), ipv6Policy)
 	verifyBGPSessionsEstablished(t, env)
 	verifyDUTIPv6NDPNeighborState(t, env)

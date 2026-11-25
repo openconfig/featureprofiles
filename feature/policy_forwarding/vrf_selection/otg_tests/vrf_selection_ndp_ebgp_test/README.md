@@ -143,6 +143,10 @@ graph LR
     IPv6 NDP (DSCP `0`) and dual-stack eBGP are verified with an active IPv6
     VRF selection rule. If the DUT also rejects an IPv6-only
     `VRF_SELECTION_POLICY`, configure Rule 10 and Rule 30 only (IPv4).
+  * **Platforms that reject the catch-all rule**: If the DUT rejects a policy
+    because of the trailing match-all Rule 30 (for example, "conflicting
+    matches"), retry the same policy without Rule 30. Traffic that matches no
+    rule is then forwarded using the `DEFAULT` network instance.
 
 * **Step 3 - Configure Dual-Stack eBGP Sessions**:
   * In the `DEFAULT` network instance, configure BGP

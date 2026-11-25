@@ -30,6 +30,7 @@ platform_exceptions: {
     interface_id_format_required_for_policy_forwarding: true
     ipv4_missing_enabled: true
     lacp_config_after_aggregate_replace: true
+    policy_rule_counters_oc_unsupported: true
   }
 }
 platform_exceptions: {
