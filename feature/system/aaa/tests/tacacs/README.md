@@ -121,6 +121,196 @@ This test suite aims to thoroughly validate the correct implementation  of the A
 *   Verification:
     *   Use gNMI to get the device's configuration and validate that the accounting settings are correctly implemented as intended.
 
+### SYS-3.1.6 Local Fallback Authentication on Unexpected TACACS+ Server EOF
+
+SYS-3.1.3 configures TACACS+ as the primary authentication method and local
+authentication as the fallback, but only verifies that configuration through
+gNMI. This subtest exercises the runtime behavior of that fallback chain when
+the TACACS+ server terminates the TCP session abruptly (EOF) in the middle of an
+authentication exchange, without returning a TACACS+ REPLY packet. A transient
+TACACS+ connection reset or EOF must be handled gracefully by the DUT: the
+authentication attempt toward the server must fail cleanly, the DUT must fall
+through to the next configured method (LOCAL), the SSH login of a valid local
+user must succeed, and the SSH server process on the DUT must remain stable
+(no crash, abort, restart, or core dump).
+
+#### Topology and EOF server emulation
+
+*   The test uses the DUT-only topology defined above. No ATE ports are needed.
+*   The test harness hosts a scripted TCP listener that emulates a misbehaving
+    TACACS+ server. The listener:
+    *   Listens on TCP port 49 on `192.0.2.10` (IPv4) and `2001:db8::10` (IPv6).
+        These are documentation addresses used as placeholders; the actual
+        harness addresses must be reachable from the DUT management interface.
+    *   Accepts each incoming TCP connection from the DUT.
+    *   Reads the TACACS+ authentication START packet sent by the DUT.
+    *   Immediately closes the socket (TCP FIN) without sending any TACACS+
+        REPLY, producing an "unexpected EOF from server" condition on the DUT.
+    *   Counts accepted connections so the test can confirm that the DUT
+        actually attempted TACACS+ authentication.
+
+#### Configuration
+
+*   Ensure the local user `testuser` with role `SYSTEM_ROLE_ADMIN` from
+    SYS-3.1.1 is present on the DUT. This user is the local fallback identity
+    used to log in after the TACACS+ attempt fails.
+*   Configure a TACACS+ server-group named `tacacs_eof_group` with a single
+    server pointing to the IPv4 address of the EOF listener:
+    *   Server name: `tacacs_eof_server`
+    *   Address: `192.0.2.10`
+    *   Port: `49`
+    *   Secret key: `tacacs_password`
+    *   Timeout: `5` seconds
+*   Configure the authentication method list so that the TACACS+ server-group
+    is tried first and local authentication is the fallback:
+    `authentication-method: ["tacacs_eof_group", LOCAL]`.
+*   Push the configuration using gNMI.Set with UPDATE (or REPLACE at the
+    `/system/aaa` subtree) so that unrelated baseline AAA configuration is
+    preserved.
+
+#### Canonical OC
+
+```json
+{
+  "system": {
+    "aaa": {
+      "authentication": {
+        "config": {
+          "authentication-method": [
+            "tacacs_eof_group",
+            "LOCAL"
+          ]
+        },
+        "users": {
+          "user": [
+            {
+              "config": {
+                "password": "password",
+                "role": "SYSTEM_ROLE_ADMIN",
+                "username": "testuser"
+              },
+              "username": "testuser"
+            }
+          ]
+        }
+      },
+      "server-groups": {
+        "server-group": [
+          {
+            "config": {
+              "name": "tacacs_eof_group",
+              "type": "TACACS"
+            },
+            "name": "tacacs_eof_group",
+            "servers": {
+              "server": [
+                {
+                  "address": "192.0.2.10",
+                  "config": {
+                    "address": "192.0.2.10",
+                    "name": "tacacs_eof_server",
+                    "timeout": 5
+                  },
+                  "tacacs": {
+                    "config": {
+                      "port": 49,
+                      "secret-key": "tacacs_password"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+#### Procedure (IPv4 TACACS+ server)
+
+*   Step 1 - Verify configuration
+    *   Use gNMI Get on
+        `/system/aaa/server-groups/server-group/servers/server/state/address`,
+        `/system/aaa/server-groups/server-group/servers/server/state/timeout`,
+        and
+        `/system/aaa/server-groups/server-group/servers/server/tacacs/state/port`
+        to verify that the server `192.0.2.10`, port `49`, and timeout `5` are
+        applied.
+    *   Use gNMI Get on
+        `/system/aaa/authentication/state/authentication-method` to verify the
+        method list is exactly `["tacacs_eof_group", LOCAL]` in that order.
+*   Step 2 - Record baseline state
+    *   Record `/system/state/boot-time`.
+    *   Record a snapshot of all processes using
+        `/system/processes/process/state/name`,
+        `/system/processes/process/state/pid`, and
+        `/system/processes/process/state/start-time`.
+    *   Record `/system/ssh-server/state/counters/access-accepts` and
+        `/system/ssh-server/state/counters/access-rejects`.
+    *   Record the TACACS+ server counters
+        `/system/aaa/server-groups/server-group/servers/server/state/connection-opens`,
+        `/system/aaa/server-groups/server-group/servers/server/state/connection-aborts`,
+        and
+        `/system/aaa/server-groups/server-group/servers/server/state/errors-received`
+        where supported.
+*   Step 3 - Trigger the TACACS+ EOF condition
+    *   Start the EOF listener on `192.0.2.10:49`.
+    *   Sequentially open 5 SSH sessions to the DUT management IPv4 address as
+        `testuser` with password `password`. For each session, open a session
+        channel, wait for the session to be established, and then close it.
+    *   Each SSH login triggers a TACACS+ authentication START toward the EOF
+        listener, which closes the connection without a REPLY. The DUT is
+        expected to treat this as a TACACS+ failure and fall back to LOCAL.
+*   Step 4 - Validate behavior
+    *   Each of the 5 SSH logins completes successfully within 30 seconds.
+    *   The EOF listener reports at least 5 accepted connections from the DUT,
+        confirming the TACACS+ EOF path was exercised and not bypassed.
+    *   Use `gnmi.Watch` on `/system/ssh-server/state/counters/access-accepts`
+        until it increases by at least 5 relative to the baseline;
+        `/system/ssh-server/state/counters/access-rejects` must not increase.
+    *   Where supported, the TACACS+ server counters reflect the aborted
+        sessions (`connection-opens` increases, and `connection-aborts` or
+        `errors-received` increases).
+    *   The DUT remains responsive to gNMI, and `/system/state/boot-time` is
+        unchanged.
+    *   Compare the process snapshot against the baseline: no long-running
+        process (in particular the SSH server process, matched in a
+        vendor-neutral way by a process name containing `ssh`) has disappeared
+        or has a changed `start-time`, apart from short-lived per-session child
+        processes. This confirms the SSH server did not crash, abort, or
+        restart while handling the TACACS+ EOF.
+
+#### Procedure (IPv6 TACACS+ server)
+
+*   Replace the server in `tacacs_eof_group` with one whose address is
+    `2001:db8::10` (port `49`, timeout `5`, same secret key) and verify it via
+    `/system/aaa/server-groups/server-group/servers/server/state/address`.
+*   Start the EOF listener on `[2001:db8::10]:49`.
+*   Repeat Steps 2 through 4, opening the 5 SSH sessions to the DUT management
+    IPv6 address. All pass criteria are identical to the IPv4 case.
+
+#### Cleanup
+
+*   Stop the EOF listener on the test harness.
+*   Restore `/system/aaa/authentication/config/authentication-method` to the
+    value recorded before this subtest.
+*   Delete the `tacacs_eof_group` server-group.
+*   Remove `testuser` if it was created by this test, so the DUT is returned to
+    its baseline AAA configuration regardless of pass or fail.
+
+#### Pass/Fail criteria
+
+*   **Pass**: All SSH logins for both the IPv4 and IPv6 TACACS+ server cases
+    succeed via LOCAL fallback, `access-accepts` increases by at least 5 per
+    address family with no increase in `access-rejects`, the EOF listener
+    observes the DUT connections, `boot-time` is unchanged, and no SSH server
+    process restart or crash is observed.
+*   **Fail**: Any SSH login is rejected, hangs, or times out; the SSH server
+    process crashes, aborts, restarts, or produces a core dump; the DUT
+    reboots or stops responding to gNMI; or the EOF listener observes no
+    connection from the DUT (TACACS+ path not exercised).
 
 ## OpenConfig Path and RPC Coverage
 
@@ -142,6 +332,10 @@ paths:
   /system/aaa/server-groups/server-group/servers/server/tacacs/config/secret-key:
   /system/aaa/server-groups/server-group/servers/server/tacacs/config/secret-key-hashed:
   /system/aaa/server-groups/server-group/servers/server/tacacs/config/source-address:
+  /system/aaa/authentication/config/authentication-method:
+  /system/aaa/server-groups/server-group/config/name:
+  /system/aaa/server-groups/server-group/config/type:
+  /system/aaa/server-groups/server-group/servers/server/config/name:
 
   ## State paths
   /system/aaa/authentication/users/user/state/username:
@@ -157,6 +351,16 @@ paths:
   /system/aaa/server-groups/server-group/servers/server/tacacs/state/secret-key:
   /system/aaa/server-groups/server-group/servers/server/tacacs/state/secret-key-hashed:
   /system/aaa/server-groups/server-group/servers/server/tacacs/state/source-address:
+  /system/aaa/authentication/state/authentication-method:
+  /system/aaa/server-groups/server-group/servers/server/state/connection-opens:
+  /system/aaa/server-groups/server-group/servers/server/state/connection-aborts:
+  /system/aaa/server-groups/server-group/servers/server/state/errors-received:
+  /system/ssh-server/state/counters/access-accepts:
+  /system/ssh-server/state/counters/access-rejects:
+  /system/processes/process/state/name:
+  /system/processes/process/state/pid:
+  /system/processes/process/state/start-time:
+  /system/state/boot-time:
 
 
 rpcs:
