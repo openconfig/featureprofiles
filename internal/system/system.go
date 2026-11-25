@@ -161,6 +161,8 @@ type ProcessSampleStream struct {
 	lastSampleTime time.Time
 	// streaming is true while the single long-lived background SAMPLE subscription is open.
 	streaming bool
+	// done is closed when the background SAMPLE subscription goroutine exits (nil if none started).
+	done chan struct{}
 }
 
 // NewProcessSampleStream opens one long-lived wildcard SAMPLE subscription on
@@ -191,7 +193,9 @@ func NewProcessSampleStream(t testing.TB, dut *ondatra.DUTDevice, interval time.
 		return s
 	}
 	s.streaming = true
+	s.done = make(chan struct{})
 	go func() {
+		defer close(s.done)
 		_, err := ygnmi.WatchAll(ctx, c, gnmi.OC().System().ProcessAny().State(), func(v *ygnmi.Value[*oc.System_Process]) error {
 			if proc, ok := v.Val(); ok {
 				s.record(proc)
@@ -349,10 +353,17 @@ func (s *ProcessSampleStream) watchSlice(t testing.TB, dut *ondatra.DUTDevice, d
 	}).Await(t)
 }
 
-// Close cancels the underlying gNMI SAMPLE subscription.
+// Close cancels the underlying gNMI SAMPLE subscription and waits for the background goroutine to
+// exit, so it never logs after the test has completed. Close is safe to call more than once.
 func (s *ProcessSampleStream) Close() {
-	if s != nil && s.cancel != nil {
+	if s == nil {
+		return
+	}
+	if s.cancel != nil {
 		s.cancel()
+	}
+	if s.done != nil {
+		<-s.done
 	}
 }
 
@@ -744,6 +755,8 @@ func VerifyProcessMemoryWithinBounds(
 				}
 				if respawnedPID != 0 {
 					t.Errorf("%s Fail: Persistent daemon pid=%d name=%q restarted under new pid=%d", stepLabel, pid, refProc.Name, respawnedPID)
+				} else {
+					t.Logf("%s: Persistent daemon pid=%d name=%q disappeared without a respawned instance; no longer tracked", stepLabel, pid, refProc.Name)
 				}
 			}
 			delete(persistent, pid)

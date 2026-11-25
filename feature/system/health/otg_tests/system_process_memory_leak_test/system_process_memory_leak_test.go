@@ -373,7 +373,7 @@ func warmUpRouteChurn(t *testing.T, env *testEnvironment) {
 		stream.AwaitHoldWindow(t, env.dut, churnHoldDuration-time.Since(withdrawStart))
 	}
 	t.Logf("Section 1 Warm-up: awaiting one %v [OC-Group-A] SAMPLE interval before the Health-1.3.1 baseline", sampleInterval)
-	stream.AwaitNextSample(t, env.dut)
+	stream.AwaitHoldWindow(t, env.dut, sampleInterval)
 }
 
 // configureDUTEnvironment pushes the Canonical OC configuration to the DUT using a unified
@@ -787,6 +787,8 @@ func runHealth132SteadyStateSampling(t *testing.T, env *testEnvironment) {
 					}
 					if respawnedPID != 0 {
 						t.Errorf("Health-1.3.2 Step 3 Fail: Persistent daemon pid=%d name=%q restarted under new pid=%d at sample %d", pid, baseProc.Name, respawnedPID, i+1)
+					} else {
+						t.Logf("Health-1.3.2 Step 3: Persistent daemon pid=%d name=%q disappeared at sample %d without a respawned instance; no longer tracked", pid, baseProc.Name, i+1)
 					}
 				}
 				delete(persistent, pid)
@@ -991,6 +993,8 @@ func runHealth133And134RouteChurnAndFIBUtilization(t *testing.T, env *testEnviro
 				}
 				if respawnedPID != 0 {
 					t.Errorf("Health-1.3.3 Step 5 Fail: Persistent daemon pid=%d name=%q restarted under new pid=%d by Cycle 1", pid, baseProc.Name, respawnedPID)
+				} else {
+					t.Logf("Health-1.3.3 Step 5: Persistent daemon pid=%d name=%q disappeared by Cycle 1 without a respawned instance; no longer tracked", pid, baseProc.Name)
 				}
 			}
 			delete(trackedProcs, pid)
@@ -1022,6 +1026,8 @@ func runHealth133And134RouteChurnAndFIBUtilization(t *testing.T, env *testEnviro
 					}
 					if respawnedPID != 0 {
 						t.Errorf("Health-1.3.3 Step 5 Fail: Persistent daemon pid=%d name=%q restarted under new pid=%d in Cycle %d", pid, baseProc.Name, respawnedPID, idx+1)
+					} else {
+						t.Logf("Health-1.3.3 Step 5: Persistent daemon pid=%d name=%q disappeared in Cycle %d without a respawned instance; no longer tracked", pid, baseProc.Name, idx+1)
 					}
 				}
 				delete(trackedProcs, pid)
@@ -1564,6 +1570,12 @@ func awaitAllBGPSessionsEstablished(t *testing.T, env *testEnvironment) {
 			watches = append(watches, sessionWatch{w: w, nbrIP: nbrIP, peerName: peer.name})
 		}
 	}
+	// Cancel any watchers still running if an Await below fails the test early.
+	defer func() {
+		for _, sw := range watches {
+			sw.w.Cancel()
+		}
+	}()
 	for _, sw := range watches {
 		if _, ok := sw.w.Await(t); !ok {
 			t.Fatalf("BGP neighbor %s (%s) did not reach ESTABLISHED state within %v", sw.nbrIP, sw.peerName, bgpConvergenceTimeout)
@@ -1628,6 +1640,12 @@ func awaitAllPeersPrefixCounts(t *testing.T, env *testEnvironment, peers []bgpPe
 			prefixWatch{gnmi.Watch(t, env.dut, v6Pfx.Installed().State(), fallbackTimeout, pred), fmt.Sprintf("Peer %s (%s) IPv6 prefixes/installed", peer.name, peer.ateAttr.IPv6)},
 		)
 	}
+	// Cancel any watchers still running if an Await below fails the test early.
+	defer func() {
+		for _, pw := range watches {
+			pw.w.Cancel()
+		}
+	}()
 	for _, pw := range watches {
 		if got, ok := pw.w.Await(t); !ok {
 			failed = true
@@ -1986,14 +2004,21 @@ func verifyTrafficForwarding(t *testing.T, env *testEnvironment, duration time.D
 
 	setFlowTransmitState(t, env.ate, targetFlows, gosnappi.StateTrafficFlowTransmitState.START)
 	for _, flowName := range targetFlows {
-		targetBase := beforeFlowOutPkts[flowName]
-		if b, ok := resetOutBaseline[flowName]; ok {
-			targetBase = b
-		}
-		targetOut := targetBase + minDeltaPkts
+		// Wait for minDeltaPkts beyond the actual OutPkts baseline. If OTG resets OutPkts down to
+		// the prior InPkts on START (observed as OutPkts dropping below the actual baseline),
+		// switch to the reset baseline so the window is not lengthened by the earlier loss.
+		actualBase := beforeFlowOutPkts[flowName]
+		resetBase, hasResetBase := resetOutBaseline[flowName]
+		targetOut := actualBase + minDeltaPkts
 		_, _ = gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), watchTimeout, func(v *ygnmi.Value[uint64]) bool {
 			got, present := v.Val()
-			return present && got >= targetOut
+			if !present {
+				return false
+			}
+			if hasResetBase && got < actualBase {
+				targetOut = resetBase + minDeltaPkts
+			}
+			return got >= targetOut
 		}).Await(t)
 	}
 	setFlowTransmitState(t, env.ate, targetFlows, gosnappi.StateTrafficFlowTransmitState.STOP)
@@ -2161,7 +2186,7 @@ func verifyTrafficForwarding(t *testing.T, env *testEnvironment, duration time.D
 			atePortName := env.ate.Port(t, portID).ID()
 			afterATEIn, _ := gnmi.Lookup(t, otg, gnmi.OTG().Port(atePortName).Counters().InFrames().State()).Val()
 			afterATEInFrames[portID] = afterATEIn
-			if afterATEIn <= beforeATEInFrames[portID] {
+			if afterATEIn < beforeATEInFrames[portID] {
 				otgCounterReset = true
 			}
 		}

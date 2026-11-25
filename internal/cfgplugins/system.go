@@ -845,23 +845,38 @@ func AwaitHardwareFIBUtilization(
 		return initialMap
 	}
 
-	var lastMap map[string]*HardwareResourceUtilization
+	// Re-evaluate on each new [OC-Group-D] SAMPLE update until pred holds or timeout expires. The
+	// WatchAll predicate only signals that a fresh sample (at least one sample interval after the
+	// subscription started) arrived; QueryHardwareFIBUtilization runs on the test goroutine, since
+	// it uses t-based gNMI helpers that must not run inside the WatchAll goroutine.
+	const fibSampleInterval = 5 * time.Second
 	sampleOpts := dut.GNMIOpts().WithYGNMIOpts(
 		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-		ygnmi.WithSampleInterval(5*time.Second),
+		ygnmi.WithSampleInterval(fibSampleInterval),
 	)
-	if deviations.UseChassisAggregateUtilization(dut) {
-		_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().Component("Chassis").Chassis().Utilization().ResourceAny().State(), timeout, func(v *ygnmi.Value[*oc.Component_Chassis_Utilization_Resource]) bool {
-			m, ok := checkAll()
-			lastMap = m
-			return ok
+	awaitFreshSample := func(wait time.Duration) {
+		start := time.Now()
+		fresh := func(recv time.Time) bool { return recv.Sub(start) >= fibSampleInterval }
+		if deviations.UseChassisAggregateUtilization(dut) {
+			_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().Component("Chassis").Chassis().Utilization().ResourceAny().State(), wait, func(v *ygnmi.Value[*oc.Component_Chassis_Utilization_Resource]) bool {
+				return fresh(v.RecvTimestamp)
+			}).Await(t)
+			return
+		}
+		_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().State(), wait, func(v *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
+			return fresh(v.RecvTimestamp)
 		}).Await(t)
-	} else {
-		_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().ComponentAny().IntegratedCircuit().Utilization().ResourceAny().State(), timeout, func(v *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
-			m, ok := checkAll()
-			lastMap = m
-			return ok
-		}).Await(t)
+	}
+
+	var lastMap map[string]*HardwareResourceUtilization
+	deadline := time.Now().Add(timeout)
+	for rem := time.Until(deadline); rem > 0; rem = time.Until(deadline) {
+		awaitFreshSample(rem)
+		m, ok := checkAll()
+		lastMap = m
+		if ok {
+			return lastMap
+		}
 	}
 	if len(lastMap) == 0 {
 		lastMap = QueryHardwareFIBUtilization(t, dut, resourceName)
@@ -1047,9 +1062,8 @@ func AwaitBGPPrefixLimitExceeded(t *testing.T, dut *ondatra.DUTDevice, neighborI
 	if ok {
 		return true
 	}
-	if wantExceeded && (lastVal == nil || !lastVal.IsPresent()) {
-		t.Logf("Note: neighbor %s prefix-limit-exceeded state leaf is not populated while session is IDLE", neighborIP)
-		return true
+	if lastVal == nil || !lastVal.IsPresent() {
+		t.Logf("Neighbor %s prefix-limit-exceeded state leaf was not populated within %v", neighborIP, watchTimeout)
 	}
 	return false
 }
