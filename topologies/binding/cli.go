@@ -17,6 +17,7 @@ package binding
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/openconfig/ondatra/binding"
 	"golang.org/x/crypto/ssh"
@@ -32,14 +33,36 @@ func newCLI(sc *ssh.Client) (*cli, error) {
 	return &cli{ssh: sc}, nil
 }
 
-func (c *cli) RunCommand(_ context.Context, cmd string) (binding.CommandResult, error) {
+func (c *cli) RunCommand(ctx context.Context, cmd string) (binding.CommandResult, error) {
 	sess, err := c.ssh.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("could not create session: %w", err)
 	}
 	defer sess.Close()
+	// Some network CLIs require Enter to accept confirmation prompts.
+	sess.Stdin = strings.NewReader("\n")
 
-	out, err := sess.CombinedOutput(cmd)
+	type commandResult struct {
+		out []byte
+		err error
+	}
+	resultCh := make(chan commandResult, 1)
+	go func() {
+		out, err := sess.CombinedOutput(cmd)
+		resultCh <- commandResult{out: out, err: err}
+	}()
+
+	var result commandResult
+	select {
+	case result = <-resultCh:
+	case <-ctx.Done():
+		// Closing the session unblocks CombinedOutput and releases its goroutines.
+		sess.Close()
+		<-resultCh
+		return nil, ctx.Err()
+	}
+
+	out, err := result.out, result.err
 	switch err.(type) {
 	case nil:
 		return &cmdResult{output: string(out)}, nil

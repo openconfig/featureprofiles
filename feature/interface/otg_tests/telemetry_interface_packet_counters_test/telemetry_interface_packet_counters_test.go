@@ -55,7 +55,9 @@ func clearInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, intfName strin
 		t.Logf("No CLI counter clear command defined for vendor %v", dut.Vendor())
 		return
 	}
-	res, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), cmd)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, cmd)
 	if err != nil {
 		t.Logf("Failed to run CLI command %q on %s: %v", cmd, dut.Name(), err)
 		return
@@ -402,13 +404,14 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 }
 
 func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) (map[string]uint64, map[string]uint64) {
-	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	if deviations.InterfaceCountersFromContainer(dut) {
+		inCounters := gnmi.Get(t, dut, i1.Counters().State())
+		outCounters := gnmi.Get(t, dut, i2.Counters().State())
 		inPkts := map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
+			"parent": inCounters.GetInPkts(),
 		}
 		outPkts := map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
+			"parent": outCounters.GetOutPkts(),
 		}
 		return inPkts, outPkts
 	}
@@ -424,6 +427,29 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.
 
 func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath,
 	inTarget, outTarget uint64) (map[string]uint64, map[string]uint64) {
+	if deviations.InterfaceCountersFromContainer(dut) {
+		inWatcher := gnmi.Watch(t, dut, i1.Counters().State(), time.Second*60, func(v *ygnmi.Value[*oc.Interface_Counters]) bool {
+			got, present := v.Val()
+			return present && got.GetInPkts() >= inTarget
+		})
+		outWatcher := gnmi.Watch(t, dut, i2.Counters().State(), time.Second*60, func(v *ygnmi.Value[*oc.Interface_Counters]) bool {
+			got, present := v.Val()
+			return present && got.GetOutPkts() >= outTarget
+		})
+
+		inCounters, ok := inWatcher.Await(t)
+		if !ok {
+			t.Fatalf("InPkts counter did not update in time")
+		}
+		outCounters, ok := outWatcher.Await(t)
+		if !ok {
+			t.Fatalf("OutPkts counter did not update in time")
+		}
+		inPkts, _ := inCounters.Val()
+		outPkts, _ := outCounters.Val()
+		return map[string]uint64{"parent": inPkts.GetInPkts()}, map[string]uint64{"parent": outPkts.GetOutPkts()}
+	}
+
 	inWatcher := gnmi.Watch(t, dut, i1.Counters().InUnicastPkts().State(), time.Second*60, func(v *ygnmi.Value[uint64]) bool {
 		got, present := v.Val()
 		return present && got >= inTarget

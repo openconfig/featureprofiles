@@ -27,6 +27,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -38,7 +39,8 @@ import (
 // transport will implicitly close when the handshake fails, or if the
 // cli is closed.
 type cliFixture struct {
-	cli *cli
+	cli        *cli
+	stdinLines chan string
 }
 
 // serverPrivateKey and serverPublicKey are ed25519 key pairs
@@ -79,6 +81,7 @@ func init() {
 }
 
 func (f *cliFixture) start(t testing.TB) error {
+	f.stdinLines = make(chan string, 1)
 	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		return err
@@ -228,6 +231,13 @@ func (f *cliFixture) handleServerChannel(c ssh.Channel, reqs <-chan *ssh.Request
 		if err != nil {
 			return // io.EOF or otherwise.
 		}
+		if line == "\n" {
+			select {
+			case f.stdinLines <- line:
+			default:
+			}
+			continue
+		}
 
 		output := fmt.Sprintf("%s %s %s",
 			which(pty, "pty", "nopty"),
@@ -254,6 +264,12 @@ func (f *cliFixture) handleExec(c ssh.Channel, req *ssh.Request) {
 		return
 	}
 	req.Reply(true, nil)
+	if execMsg.Command == "hang" {
+		return
+	}
+	if execMsg.Command == "confirm" {
+		<-f.stdinLines
+	}
 	output := fmt.Sprintf("exec command: %s\n", execMsg.Command)
 	c.Write([]byte(output))
 	c.Stderr().Write([]byte("exec stderr\n"))
@@ -284,5 +300,36 @@ func TestCLI(t *testing.T) {
 	want := []string{"exec command: xyzzy", "exec stderr", ""}
 	if diff := cmp.Diff(want, got, cmpSortStrings); diff != "" {
 		t.Errorf("Command output -want, +got:\n%s", diff)
+	}
+}
+
+func TestCLICommandContextTimeout(t *testing.T) {
+	f := &cliFixture{}
+	if err := f.start(t); err != nil {
+		t.Fatalf("Could not start cliFixture: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := f.cli.RunCommand(ctx, "hang")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("RunCommand() got error %v, want %v", err, context.DeadlineExceeded)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("RunCommand() returned after %v, want no more than 1s", elapsed)
+	}
+}
+
+func TestCLICommandConfirmation(t *testing.T) {
+	f := &cliFixture{}
+	if err := f.start(t); err != nil {
+		t.Fatalf("Could not start cliFixture: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if _, err := f.cli.RunCommand(ctx, "confirm"); err != nil {
+		t.Fatalf("RunCommand() got error %v, want nil", err)
 	}
 }
