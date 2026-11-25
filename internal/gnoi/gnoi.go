@@ -173,17 +173,21 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 	_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
 		t.Logf("Error: %v in executing the kill process %v", err.Error(), daemonName)
-		if signal == SigTerm {
-			t.Logf("Retrying with SIGNAL_KILL (cold restart)...")
-			currentPid := system.FindProcessIDByName(t, dut, daemonName)
-			if currentPid != 0 {
-				killProcessRequest.Pid = uint32(currentPid)
+		if daemon == OCAGENT && waitForRestart {
+			t.Logf("Tolerating expected disconnect/error during %s self-restart; waiting for agent to restart", daemonName)
+		} else {
+			if signal == SigTerm {
+				t.Logf("Retrying with SIGNAL_KILL (cold restart)...")
+				currentPid := system.FindProcessIDByName(t, dut, daemonName)
+				if currentPid != 0 {
+					killProcessRequest.Pid = uint32(currentPid)
+				}
+				killProcessRequest.Signal = SigKill
+				_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 			}
-			killProcessRequest.Signal = SigKill
-			_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
-		}
-		if err != nil {
-			t.Fatalf("Failed to kill process %v: %v", daemonName, err)
+			if err != nil {
+				t.Fatalf("Failed to kill process %v: %v", daemonName, err)
+			}
 		}
 	}
 
