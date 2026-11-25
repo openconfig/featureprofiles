@@ -91,12 +91,15 @@ graph LR
         = `128`
 *   **Target Scratch Directory (`<scratch_dir>`)**:
     *   A platform-resolved writable scratch directory on the DUT. Probe the
-        candidate directories `"/misc/disk1"`, `"harddisk:"`, `"/tmp"`
-        (default), `"/var/tmp"`, and `"/mnt/flash"` in order with
-        `gnoi.file.File.Stat` and use the first one that exists; fall back to
-        `"/tmp"` if none respond. Platform-specific storage paths are probed
-        before `"/tmp"` because some platforms expose `"/tmp"` to
-        `File.Stat` but do not accept it as a `File.Put` destination.
+        candidate directories `"harddisk:"`, `"harddisk:/"`, `"/misc/disk1"`,
+        `"/tmp"` (default), `"/var/tmp"`, and `"/mnt/flash"` in order. A
+        candidate is selected only if `gnoi.file.File.Stat` on it succeeds and
+        a small probe file (`<scratch_dir>/gnoi_conformance_scratch_probe.txt`)
+        can be written with `gnoi.file.File.Put` and then removed with
+        `gnoi.file.File.Remove`; fall back to `"/tmp"` if no candidate
+        qualifies. A write probe is used because some platforms accept
+        `File.Stat` on a directory that they do not accept as a `File.Put`
+        destination.
     *   All test file paths below are relative to `<scratch_dir>` and are
         written as `<scratch_dir>/<filename>`.
     *   **Path construction**: When `<scratch_dir>` ends with `":"` (for
@@ -104,7 +107,8 @@ graph LR
         `<scratch_dir><filename>` with no extra `/` (for example
         `"harddisk:gnoi_conformance_roundtrip_sha256.txt"`). Otherwise
         `<scratch_dir>` and `<filename>` are joined with a single `/` (for
-        example `"/tmp/gnoi_conformance_roundtrip_sha256.txt"`).
+        example `"/tmp/gnoi_conformance_roundtrip_sha256.txt"` or
+        `"harddisk:/gnoi_conformance_roundtrip_sha256.txt"`).
 *   **Storage Mount-Point Telemetry**:
     *   Verified via `/system/mount-points/mount-point/state/name`, `size`,
         `available`, and `utilized`.
