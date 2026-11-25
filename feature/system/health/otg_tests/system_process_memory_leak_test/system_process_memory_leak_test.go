@@ -112,6 +112,10 @@ const (
 	bgpConvergenceTimeout       = 3 * time.Minute
 	aftConvergenceTimeout       = 2 * time.Minute
 	interfaceOperStatusTimeout  = 1 * time.Minute
+	// processStartTimeTolerance absorbs per-query jitter in /system/processes/process/state/start-time
+	// on platforms that derive it from boot time at query time. A real restart moves start-time by
+	// far more than this (and normally changes the PID).
+	processStartTimeTolerance = uint64(2 * time.Second)
 )
 
 var (
@@ -682,6 +686,19 @@ func runHealth131BaselineTelemetry(t *testing.T, env *testEnvironment) {
 	verifyTrafficForwarding(t, env, baselineTrafficHold, []string{flowBaselineIPv4, flowBaselineIPv6}, nil)
 }
 
+// sameProcessStartTime reports whether two samples of the same PID have the same process start-time,
+// allowing processStartTimeTolerance of query-time jitter. It returns true when either sample does
+// not report start-time.
+func sameProcessStartTime(a, b system.ProcessSample) bool {
+	if !a.StartTimePresent || !b.StartTimePresent {
+		return true
+	}
+	if a.StartTime > b.StartTime {
+		return a.StartTime-b.StartTime <= processStartTimeTolerance
+	}
+	return b.StartTime-a.StartTime <= processStartTimeTolerance
+}
+
 // runHealth132SteadyStateSampling implements Health-1.3.2:
 // Validate Steady-State Per-Process Memory Usage Over Time.
 func runHealth132SteadyStateSampling(t *testing.T, env *testEnvironment) {
@@ -706,6 +723,7 @@ func runHealth132SteadyStateSampling(t *testing.T, env *testEnvironment) {
 	// Health-1.3.2 Step 2: Identify persistent user-space daemons present across both the baseline
 	// (Health-1.3.1) and warm-up (samples 1-5) window, ignoring short-lived OS/cron/helper processes.
 	persistent := make(map[uint64]system.ProcessSample)
+	startTimeMismatches := 0
 	for pid, baseProc := range env.baselineProcesses {
 		presentInAllWarmup := true
 		for i := 0; i < steadyStateWarmupSamples; i++ {
@@ -714,7 +732,12 @@ func runHealth132SteadyStateSampling(t *testing.T, env *testEnvironment) {
 				presentInAllWarmup = false
 				break
 			}
-			if baseProc.StartTimePresent && wProc.StartTimePresent && wProc.StartTime != baseProc.StartTime {
+			if !sameProcessStartTime(baseProc, wProc) {
+				if startTimeMismatches < 5 {
+					t.Logf("Health-1.3.2 Step 2: pid=%d name=%q start-time changed from %d to %d at warm-up sample %d; not treated as persistent",
+						pid, baseProc.Name, baseProc.StartTime, wProc.StartTime, i+1)
+				}
+				startTimeMismatches++
 				presentInAllWarmup = false
 				break
 			}
@@ -724,6 +747,10 @@ func runHealth132SteadyStateSampling(t *testing.T, env *testEnvironment) {
 		}
 	}
 	env.persistentProcesses = persistent
+	if startTimeMismatches > 0 {
+		t.Logf("Health-1.3.2 Step 2: %d processes excluded because start-time changed by more than %v during warm-up",
+			startTimeMismatches, time.Duration(processStartTimeTolerance))
+	}
 	t.Logf("Health-1.3.2 Step 2: Identified %d persistent user-space daemons across baseline and warm-up samples 1-%d",
 		len(persistent), steadyStateWarmupSamples)
 
@@ -766,7 +793,7 @@ func runHealth132SteadyStateSampling(t *testing.T, env *testEnvironment) {
 				missing = true
 				break
 			}
-			if baseProc.StartTimePresent && sProc.StartTimePresent && sProc.StartTime != baseProc.StartTime {
+			if !sameProcessStartTime(baseProc, sProc) {
 				t.Errorf("Health-1.3.2 Step 3 Fail: Persistent daemon pid=%d name=%q restarted (start-time changed from %d to %d at sample %d)",
 					pid, baseProc.Name, baseProc.StartTime, sProc.StartTime, i+1)
 				missing = true
@@ -1939,11 +1966,14 @@ func verifyTrafficForwarding(t *testing.T, env *testEnvironment, duration time.D
 		}
 	}
 	// When starting only zero-loss flows after a 4-flow withdrawal window where packets were dropped,
-	// OTG resets the flow's OutPkts baseline down to its prior InPkts count upon START.
+	// some OTG implementations reset the flow's OutPkts baseline down to its prior InPkts count upon
+	// START, while others keep counting. Keep both baselines: the measured window uses the actual
+	// OutPkts baseline unless the counters show the reset happened (see below).
+	resetOutBaseline := make(map[string]uint64, len(zeroLossFlows))
 	if len(fullLossFlows) == 0 {
 		for _, flowName := range zeroLossFlows {
 			if beforeFlowOutPkts[flowName] > beforeFlowInPkts[flowName] {
-				beforeFlowOutPkts[flowName] = beforeFlowInPkts[flowName]
+				resetOutBaseline[flowName] = beforeFlowInPkts[flowName]
 			}
 		}
 	}
@@ -1956,7 +1986,11 @@ func verifyTrafficForwarding(t *testing.T, env *testEnvironment, duration time.D
 
 	setFlowTransmitState(t, env.ate, targetFlows, gosnappi.StateTrafficFlowTransmitState.START)
 	for _, flowName := range targetFlows {
-		targetOut := beforeFlowOutPkts[flowName] + minDeltaPkts
+		targetBase := beforeFlowOutPkts[flowName]
+		if b, ok := resetOutBaseline[flowName]; ok {
+			targetBase = b
+		}
+		targetOut := targetBase + minDeltaPkts
 		_, _ = gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State(), watchTimeout, func(v *ygnmi.Value[uint64]) bool {
 			got, present := v.Val()
 			return present && got >= targetOut
@@ -1983,6 +2017,11 @@ func verifyTrafficForwarding(t *testing.T, env *testEnvironment, duration time.D
 		}
 		if afterIn > beforeFlowInPkts[flow] {
 			rxDelta = afterIn - beforeFlowInPkts[flow]
+		}
+		// If OTG reset OutPkts down to the prior InPkts on START, the actual-baseline txDelta is
+		// short by the earlier loss and ends up below rxDelta; use the reset baseline instead.
+		if resetBase, ok := resetOutBaseline[flow]; ok && rxDelta > txDelta && afterOut > resetBase {
+			txDelta = afterOut - resetBase
 		}
 		expectedInDelta += txDelta
 		expectedOutDelta += txDelta
