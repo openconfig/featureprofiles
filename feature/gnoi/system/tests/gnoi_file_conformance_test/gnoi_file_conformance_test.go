@@ -90,6 +90,7 @@ const (
 
 	incompleteNoHashPayload = "incomplete-stream-without-hash-192.0.2.1-2001:db8::1\n"
 	contentsBeforeOpenData  = "contents-before-open"
+	scratchProbeContent     = "gnoi-conformance-scratch-probe\n"
 
 	fileNameRoundtripSHA256  = "gnoi_conformance_roundtrip_sha256.txt"
 	fileNameRoundtripMD5     = "gnoi_conformance_roundtrip_md5.txt"
@@ -97,6 +98,7 @@ const (
 	fileNameIncompleteNoHash = "gnoi_conformance_incomplete_no_hash.txt"
 	fileNameHashMismatch     = "gnoi_conformance_hash_mismatch.txt"
 	fileNameNonExistent      = "gnoi_conformance_nonexistent_file.txt"
+	scratchProbeFileName     = "gnoi_conformance_scratch_probe.txt"
 	relativePutFilePath      = "relative/path/gnoi_invalid_dir.txt"
 	relativeTestFilePath     = "relative/path/gnoi_conformance_file.txt"
 )
@@ -232,21 +234,32 @@ func isRPCTimeout(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.DeadlineExceeded
 }
 
-// resolveScratchDir determines the writable scratch directory on the DUT using
-// gNOI File.Stat without calling dut.Vendor(). Platform-specific storage paths
-// are probed before "/tmp" because some platforms expose "/tmp" to File.Stat
-// but reject it as a File.Put destination. Defaults to "/tmp" as specified in
-// the README.
+// resolveScratchDir determines the writable scratch directory on the DUT
+// without calling dut.Vendor(). A candidate is selected only if gNOI File.Stat
+// on it succeeds and a small probe file can be written with File.Put and then
+// removed with File.Remove, because some platforms accept File.Stat on a
+// directory that they reject as a File.Put destination. Defaults to "/tmp" as
+// specified in the README.
 func resolveScratchDir(ctx context.Context, t *testing.T, fc fpb.FileClient) string {
 	t.Helper()
-	candidates := []string{"/misc/disk1", "harddisk:", defaultScratchDir, "/var/tmp", "/mnt/flash"}
+	candidates := []string{"harddisk:", "harddisk:/", "/misc/disk1", defaultScratchDir, "/var/tmp", "/mnt/flash"}
+	probePayload := []byte(scratchProbeContent)
+	probeDigest, _ := computeDigest(t, probePayload, tpb.HashType_SHA256)
 	for _, dir := range candidates {
-		_, err := statFile(ctx, fc, dir)
-		if err == nil {
-			t.Logf("Resolved writable scratch directory via gNOI File.Stat: %s", dir)
-			return dir
+		if _, err := statFile(ctx, fc, dir); err != nil {
+			t.Logf("gNOI File.Stat(%q) probe returned: %v", dir, err)
+			continue
 		}
-		t.Logf("gNOI File.Stat(%q) probe returned: %v", dir, err)
+		probePath := dutFilePath(dir, scratchProbeFileName)
+		if err := putFileStatus(ctx, t, fc, probePath, probePayload, probeDigest); err != nil {
+			t.Logf("gNOI File.Put(%q) write probe rejected: %v", probePath, err)
+			continue
+		}
+		if err := removeFile(ctx, fc, probePath); err != nil {
+			t.Errorf("gNOI File.Remove(%q) failed to remove the scratch write probe: %v", probePath, err)
+		}
+		t.Logf("Resolved writable scratch directory via gNOI File.Stat and File.Put write probe: %s", dir)
+		return dir
 	}
 	t.Logf("Falling back to default scratch directory: %s", defaultScratchDir)
 	return defaultScratchDir
@@ -657,11 +670,11 @@ func putFileComplete(ctx context.Context, t *testing.T, fc fpb.FileClient, spec 
 	}
 }
 
-// putInvalidRemoteFile sends a complete gnoi.file.File.Put exchange (Open,
-// payload contents, and the valid SHA256 digest of payload) for remoteFile,
-// bounded by rpcTimeout, and returns the CloseAndRecv error. Send errors are ignored
+// putFileStatus sends a complete gnoi.file.File.Put exchange (Open, payload
+// contents, and the valid SHA256 digest of payload) for remoteFile, bounded by
+// rpcTimeout, and returns the CloseAndRecv error. Send errors are ignored
 // because the DUT may reject the stream at any point.
-func putInvalidRemoteFile(ctx context.Context, t *testing.T, fc fpb.FileClient, remoteFile string, payload, sha256Digest []byte) error {
+func putFileStatus(ctx context.Context, t *testing.T, fc fpb.FileClient, remoteFile string, payload, sha256Digest []byte) error {
 	t.Helper()
 	rctx, cancel := rpcContext(ctx)
 	defer cancel()
@@ -1222,7 +1235,7 @@ func TestGNOIFileConformance(t *testing.T) {
 
 		t.Log("gNOI-5.4.5 - Step 2: Negative Case — Invalid remote_file (empty, relative, and existing directory) in PutRequest{open}")
 		for _, badPutPath := range []string{"", relativePutFilePath, scratchDir} {
-			if putErr := putInvalidRemoteFile(ctx, t, fc, badPutPath, payloadABytes, payloadADigest); putErr == nil || status.Code(putErr) == codes.OK {
+			if putErr := putFileStatus(ctx, t, fc, badPutPath, payloadABytes, payloadADigest); putErr == nil || status.Code(putErr) == codes.OK {
 				t.Errorf("gnoi.file.File.Put(remote_file=%q) returned StatusCode.OK, want non-OK gRPC error (remote_file must be an absolute file path)", badPutPath)
 			} else if isRPCTimeout(putErr) {
 				t.Errorf("gnoi.file.File.Put(remote_file=%q) did not complete within %v: %v, want non-OK gRPC error (remote_file must be an absolute file path)", badPutPath, rpcTimeout, putErr)
