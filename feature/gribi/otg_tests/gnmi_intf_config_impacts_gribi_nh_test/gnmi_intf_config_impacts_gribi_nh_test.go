@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -98,7 +97,6 @@ const (
 
 	// Used only with the GRIBIMACOverrideStaticARPStaticRoute deviation.
 	magicMac   = "02:00:00:00:00:01"
-	magicIP    = "192.168.1.1"
 	magicMacXR = "0200.0000.0001"
 )
 
@@ -131,7 +129,8 @@ var portPairs = []portPair{
 	},
 }
 
-var ciscoMagicIPByPort = map[string]string{
+// One destination per port so a down port leaves only its own NH unresolvable.
+var magicIPByPort = map[string]string{
 	"port2": "192.168.1.2",
 	"port3": "192.168.1.3",
 	"port4": "192.168.1.4",
@@ -289,7 +288,7 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 
 		// IOS XR global static ARP entries, using a unique IP per next hop.
 		for _, pp := range portPairs[1:] {
-			ip := magicIPForPort(t, dut, pp.name)
+			ip := magicIPForPort(t, pp.name)
 			fmt.Fprintf(&cfg, "arp %s %s ARPA\n", ip, magicMacXR)
 		}
 
@@ -298,7 +297,7 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 		cfg.WriteString(" address-family ipv4 unicast\n")
 		for _, pp := range portPairs[1:] {
 			p := dut.Port(t, pp.name)
-			ip := magicIPForPort(t, dut, pp.name)
+			ip := magicIPForPort(t, pp.name)
 			fmt.Fprintf(&cfg, "  %s/32 %s\n", ip, p.Name())
 		}
 		cfg.WriteString(" !\n")
@@ -320,64 +319,43 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 		gnmi.BatchUpdate(
 			arpBatch,
 			gnmi.OC().Interface(p.Name()).Config(),
-			configStaticArp(p.Name(), magicIP, magicMac),
+			configStaticArp(p.Name(), magicIPForPort(t, pp.name), magicMac),
 		)
 	}
 	arpBatch.Set(t, dut)
 
-	// Step 2: Configure the static route.
-	if dut.Vendor() == ondatra.CISCO {
-		// IOS XR rejects the OpenConfig static-route update.
-		// Configure the ECMP next hops using the native CLI.
-		var cfg strings.Builder
-		cfg.WriteString("router static\n")
-		cfg.WriteString(" address-family ipv4 unicast\n")
-
-		for _, pp := range portPairs[1:] {
-			intf := dut.Port(t, pp.name).Name()
-			fmt.Fprintf(&cfg, "  %s/32 %s\n", magicIP, intf)
-		}
-
-		cfg.WriteString(" !\n")
-		cfg.WriteString("!\n")
-		helpers.GnmiCLIConfig(t, dut, cfg.String())
-	} else {
-		// Preserve the existing Arista OpenConfig implementation.
-		nexthops := map[string]*oc.NetworkInstance_Protocol_Static_NextHop{}
-		for idx, pp := range portPairs[1:] {
-			intf := dut.Port(t, pp.name).Name()
-			nexthops[strconv.Itoa(idx)] = &oc.NetworkInstance_Protocol_Static_NextHop{
-				Index: ygot.String(strconv.Itoa(idx)),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(intf),
+	// Step 2: Configure one /32 static route per port.
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		deviations.StaticProtocolName(dut),
+	)
+	routeBatch := &gnmi.SetBatch{}
+	for _, pp := range portPairs[1:] {
+		prefix := magicIPForPort(t, pp.name) + "/32"
+		gnmi.BatchUpdate(routeBatch, sp.Static(prefix).Config(), &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(prefix),
+			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+				"0": {
+					Index: ygot.String("0"),
+					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+						Interface: ygot.String(dut.Port(t, pp.name).Name()),
+					},
 				},
-			}
-		}
-
-		sp := gnmi.OC().NetworkInstance(ni).Protocol(
-			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-			deviations.StaticProtocolName(dut),
-		)
-		gnmi.Update(
-			t,
-			dut,
-			sp.Static(magicIP+"/32").Config(),
-			&oc.NetworkInstance_Protocol_Static{
-				Prefix:  ygot.String(magicIP + "/32"),
-				NextHop: nexthops,
 			},
-		)
+		})
 	}
+	routeBatch.Set(t, dut)
 
 	// Step 3: Verify ARP state after route configuration.
 	// Missing state telemetry is logged but does not abort the test here.
 	for _, pp := range portPairs[1:] {
 		p := dut.Port(t, pp.name)
+		ip := magicIPForPort(t, pp.name)
 		q := gnmi.OC().
 			Interface(p.Name()).
 			Subinterface(0).
 			Ipv4().
-			Neighbor(magicIP).
+			Neighbor(ip).
 			LinkLayerAddress().
 			State()
 
@@ -396,7 +374,7 @@ func configStaticRouteAndARPForMagicIP(t *testing.T, dut *ondatra.DUTDevice, ni 
 			t.Logf(
 				"Static ARP state not observed on %s for %s within %v; continuing to subsequent checks",
 				p.Name(),
-				magicIP,
+				ip,
 				convergeSettle,
 			)
 		}
@@ -452,7 +430,7 @@ func nhOpts(t *testing.T, dut *ondatra.DUTDevice, idx int) *gribi.NHOptions {
 	intf := dut.Port(t, portPairs[idx].name).Name()
 	switch {
 	case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
-		dest := magicIPForPort(t, dut, portPairs[idx].name)
+		dest := magicIPForPort(t, portPairs[idx].name)
 		return &gribi.NHOptions{
 			Interface: intf,
 			Mac:       magicMac,
@@ -967,13 +945,10 @@ func errorFrameCounter(t *testing.T, dut *ondatra.DUTDevice, intfName string) (u
 	return gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Counters().InErrors().State()), "in-errors"
 }
 
-func magicIPForPort(t testing.TB, dut *ondatra.DUTDevice, portName string) string {
+func magicIPForPort(t testing.TB, portName string) string {
 	t.Helper()
 
-	if !deviations.GRIBIStaticARPUniqueNextHopIPRequired(dut) {
-		return magicIP
-	}
-	ip, ok := ciscoMagicIPByPort[portName]
+	ip, ok := magicIPByPort[portName]
 	if !ok {
 		t.Fatalf("No static-ARP destination IP configured for port %q", portName)
 	}
