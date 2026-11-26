@@ -4908,6 +4908,13 @@ func (x *Metadata_Deviations) GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 	return false
 }
 
+func (x *Metadata_Deviations) GetDecapNhWithoutNexthopNiUnsupported() bool {
+	if x != nil {
+		return x.DecapNhWithoutNexthopNiUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
