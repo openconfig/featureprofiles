@@ -609,7 +609,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Cleanup(func() {
 		t.Log("Cleanup interfaces")
-		return
 		restoreBatch := &gnmi.SetBatch{}
 		for _, id := range addedNIInterfaceIDs {
 			gnmi.BatchDelete(restoreBatch, gnmi.OC().NetworkInstance(niName).Interface(id).Config())
@@ -667,7 +666,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if sb := cfgplugins.ConfigureGNPSI(t, dut, &gnmi.SetBatch{}, params); sb != nil {
 		t.Cleanup(func() {
 			t.Log("Cleaning up gNPSI configuration")
-			return
 			gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer(params.ServerName).Config())
 		})
 		sb.Set(t, dut)
