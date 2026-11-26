@@ -1642,7 +1642,7 @@ message Metadata {
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 493;
 
     // https://partnerissuetracker.corp.google.com/issues/529388485
-    bool decap_nh_without_nexthop_ni_unsupported = 490;
+    bool decap_nh_without_nexthop_ni_unsupported = 494;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
