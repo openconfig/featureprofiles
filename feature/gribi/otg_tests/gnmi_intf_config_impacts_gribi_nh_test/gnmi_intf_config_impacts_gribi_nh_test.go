@@ -535,7 +535,7 @@ func portOutPkts(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) uint64 {
 	return gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().OutPkts().State())
 }
 
-func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, want map[*ondatra.Port]bool) {
+func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, want map[*ondatra.Port]bool, checkLoss bool) {
 	t.Helper()
 	if deviations.InterfaceOutPktsCounterIncludesUnsent(dut) {
 		ateWant := make(map[string]bool, len(want))
@@ -547,7 +547,7 @@ func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDev
 			}
 			ateWant[ate.Port(t, pp.name).ID()] = wantTraffic
 		}
-		verifyPortAndATETraffic(t, dut, ate, window, want, ateWant)
+		verifyPortAndATETraffic(t, dut, ate, window, want, ateWant, checkLoss)
 		return
 	}
 	// Keep the existing verifyPortTraffic implementation unchanged below
@@ -556,7 +556,11 @@ func verifyPortTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDev
 	for p := range want {
 		before[p] = portOutPkts(t, dut, p)
 	}
+	txBefore, rxBefore := ecmpFlowTotals(t, ate)
 	time.Sleep(window)
+	if checkLoss {
+		verifyECMPFlowsLoss(t, ate, txBefore, rxBefore)
+	}
 	deltas := make(map[*ondatra.Port]uint64, len(want))
 	for p, wantTraffic := range want {
 		delta := portOutPkts(t, dut, p) - before[p]
@@ -616,6 +620,34 @@ func verifyFlowLoss(t *testing.T, ate *ondatra.ATEDevice, flowName string, windo
 	return dtx - drx
 }
 
+func ecmpFlowTotals(t *testing.T, ate *ondatra.ATEDevice) (tx, rx uint64) {
+	t.Helper()
+	for _, name := range []string{flowECMPv4Name, flowECMPv6Name} {
+		ftx, frx := flowCounters(t, ate, name)
+		tx += ftx
+		rx += frx
+	}
+	return tx, rx
+}
+
+func verifyECMPFlowsLoss(t *testing.T, ate *ondatra.ATEDevice, txBefore, rxBefore uint64) {
+	t.Helper()
+	txAfter, rxAfter := ecmpFlowTotals(t, ate)
+	dtx := txAfter - txBefore
+	drx := rxAfter - rxBefore
+	if dtx == 0 {
+		t.Errorf("ECMP flows: no packets transmitted during window, cannot compute loss")
+		return
+	}
+	lossPct := 0.0
+	if drx < dtx {
+		lossPct = float64(dtx-drx) / float64(dtx) * 100
+	}
+	if lossPct > lossTolerancePct {
+		t.Errorf("ECMP flows: got %.2f%% loss, want <= %.2f%%", lossPct, lossTolerancePct)
+	}
+}
+
 // verifyFlowHealthy fails fast so carried-over failures are attributed to the earlier subtest.
 func verifyFlowHealthy(t *testing.T, ate *ondatra.ATEDevice, flowName string, window time.Duration) {
 	t.Helper()
@@ -639,7 +671,7 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
-		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
+		map[string]bool{ateP2: true, ateP3: true, ateP4: true}, false)
 
 	setPortEnabled(t, dut, p2, false)
 	t.Cleanup(func() { setPortEnabled(t, dut, p2, true) })
@@ -647,7 +679,7 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	time.Sleep(convergeSettle)
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: false, p3: true, p4: true},
-		map[string]bool{ateP2: false, ateP3: true, ateP4: true})
+		map[string]bool{ateP2: false, ateP3: true, ateP4: true}, false)
 
 	// Threshold exceeds link-up control frames so only recovered data-plane traffic satisfies it.
 	p2FramesDown := ateInFrames(t, ate, ateP2)
@@ -656,7 +688,7 @@ func testPortAdminStateBounce(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	awaitCounterAbove(t, ate, gnmi.OTG().Port(ateP2).Counters().InFrames().State(), p2FramesDown+trafficPPS, reconvergeTimeout, "ATE port "+ateP2)
 	verifyPortAndATETraffic(t, dut, ate, monitorWindow,
 		map[*ondatra.Port]bool{p2: true, p3: true, p4: true},
-		map[string]bool{ateP2: true, ateP3: true, ateP4: true})
+		map[string]bool{ateP2: true, ateP3: true, ateP4: true}, true)
 }
 
 func ateInFrames(t *testing.T, ate *ondatra.ATEDevice, portID string) uint64 {
@@ -686,7 +718,7 @@ func awaitFlowTransmitting(t *testing.T, ate *ondatra.ATEDevice, flowName string
 	}
 }
 
-func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, dutWant map[*ondatra.Port]bool, ateWant map[string]bool) {
+func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, window time.Duration, dutWant map[*ondatra.Port]bool, ateWant map[string]bool, checkLoss bool) {
 	t.Helper()
 	// Cisco-specific deviation: the DUT out-pkts counter may include
 	// packets that were not actually transmitted. Use ATE ingress counters
@@ -703,8 +735,12 @@ func verifyPortAndATETraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	for portID := range ateWant {
 		ateBefore[portID] = ateInFrames(t, ate, portID)
 	}
+	txBefore, rxBefore := ecmpFlowTotals(t, ate)
 	// Measure forwarding during the requested observation window.
 	time.Sleep(window)
+	if checkLoss {
+		verifyECMPFlowsLoss(t, ate, txBefore, rxBefore)
+	}
 	// Calculate DUT egress deltas.
 	dutDeltas := make(map[*ondatra.Port]uint64, len(dutWant))
 	for p, wantTraffic := range dutWant {
@@ -823,13 +859,12 @@ func testMTUChange(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice,
 		awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
 	})
 	awaitMTU(t, dut, p2.Name(), mtuJumbo, awaitTimeout)
-	// verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
-	verifyPortTraffic(t, dut, ate, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	// A brief flap on port-2 is acceptable during the MTU change, so loss is only checked after revert.
+	verifyPortTraffic(t, dut, ate, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true}, false)
 
 	setMTU(t, dut, p2.Name(), mtuDefault)
 	awaitMTU(t, dut, p2.Name(), mtuDefault, awaitTimeout)
-	// verifyPortTraffic(t, dut, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
-	verifyPortTraffic(t, dut, ate, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true})
+	verifyPortTraffic(t, dut, ate, monitorWindow, map[*ondatra.Port]bool{p2: true, p3: true, p4: true}, true)
 }
 
 func testNHOnDownInterface(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, client *gribi.Client, ni string, p2 *ondatra.Port) {
