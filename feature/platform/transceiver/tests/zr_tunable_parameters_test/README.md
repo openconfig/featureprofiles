@@ -31,6 +31,9 @@ explicitly through OC operational mode.
 *   To establish a point to point ZR link ensure the following:
 
     *   Both transceivers states are enabled.
+    *   Retrieve the associated optical channel component for each transceiver
+        physical channel via
+        `/components/component/transceiver/physical-channels/channel/state/associated-optical-channel`.
     *   Validate setting 400ZR optics module tunable laser center frequency
         across frequency range 196.100 - 191.400 THz for 100GHz grid.
     *   Validate setting 400ZR optics module tunable laser center frequency
@@ -175,6 +178,8 @@ paths:
     platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/operational-mode:
     platform_type: ["OPTICAL_CHANNEL"]
+  /components/component/transceiver/physical-channels/channel/state/associated-optical-channel:
+    platform_type: ["TRANSCEIVER"]
 
 rpcs:
   gnmi:

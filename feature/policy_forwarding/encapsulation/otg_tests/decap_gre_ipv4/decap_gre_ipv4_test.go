@@ -271,21 +271,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 
 }
 
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
 func createFlow(flowName string, destMac string) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowName)
 	flow.Metrics().SetEnable(true)
@@ -324,14 +309,15 @@ func testGreDecapIPv4(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 
 	validateDUTPkts(t, dut)
 	validateTrafficLoss(t, otgConfig, config, "DecapGREIpv4")
@@ -361,14 +347,15 @@ func testGreDecapIPv6(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "DecapIpv6GRE")
 	validateGREDecapIpv6(t, otgConfig, false)
 
@@ -400,14 +387,15 @@ func testGreDecapIPv4MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-IPv4-over-MPLS")
 	validateGREDecapIpv4(t, otgConfig, true)
 
@@ -439,14 +427,15 @@ func testGreDecapIPv6MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-IPv6-over-MPLS")
 	validateGREDecapIpv6(t, otgConfig, true)
 
@@ -483,14 +472,15 @@ func testGreDecapMultiLabelMPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
 
-	cs := startCapture(t, otgConfig)
+	cs := otgutils.StartCapture(t, otgConfig)
+	defer otgutils.StopCapture(t, otgConfig, cs)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(sleepTime * time.Second)
 
 	otgConfig.StopTraffic(t)
 
-	stopCapture(t, otgConfig, cs)
+	otgutils.StopCapture(t, otgConfig, cs)
 	validateTrafficLoss(t, otgConfig, config, "Decap-Multilabel-MPLS")
 	validateMPLSDecapTraffic(t, otgConfig)
 
