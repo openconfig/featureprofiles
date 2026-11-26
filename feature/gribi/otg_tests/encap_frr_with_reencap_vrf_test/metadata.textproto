@@ -4,7 +4,7 @@
 uuid: "f8eee005-f5dc-4c58-a7f2-444571bcd49f"
 plan_id: "TE-16.3"
 description: "encapsulation FRR scenarios"
-testbed: TESTBED_DUT_ATE_8LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
 
 platform_exceptions:  {
   platform:  {
