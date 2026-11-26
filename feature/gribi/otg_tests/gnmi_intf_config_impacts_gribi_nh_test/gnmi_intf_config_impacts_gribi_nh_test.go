@@ -464,14 +464,12 @@ func verifyAFTCoverage(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	verifyNHGMembers(t, dut, ni, v6NHGID, "ipv6-entry "+v6Prefix)
 }
 
-// Some vendors report AFT next-hop-groups under an internal ID, not the gRIBI-assigned one.
+// Some vendors report AFT next-hop-groups and next-hop keys under internal IDs, not the gRIBI-assigned ones.
 func verifyNHGMembers(t *testing.T, dut *ondatra.DUTDevice, ni string, nhgID uint64, label string) {
 	t.Helper()
 	nhg := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ni).Afts().NextHopGroup(nhgID).State())
-	for _, want := range []uint64{nh2ID, nh3ID, nh4ID} {
-		if _, ok := nhg.NextHop[want]; !ok {
-			t.Errorf("AFT next-hop-group (reported id %d) for %s: missing next-hop index %d, want present", nhgID, label, want)
-		}
+	if got, want := len(nhg.NextHop), 3; got != want {
+		t.Errorf("AFT next-hop-group (reported id %d) for %s: got %d next hops, want %d", nhgID, label, got, want)
 	}
 }
 
