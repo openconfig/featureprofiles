@@ -2585,6 +2585,12 @@ func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool 
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
 
+// DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
+// Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
+func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
+}
+
 // BgpNonDefaultVrfInstalledPrefixesUnsupported returns true if the device does
 // not report the BGP installed prefix count of neighbors in a non-default
 // network instance.
