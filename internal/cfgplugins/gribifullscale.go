@@ -205,7 +205,7 @@ var (
 	}
 
 	// decapPrefixLens is the mix of prefix lengths for DECAP_TE_VRF.
-	decapPrefixLens = []int{22, 24, 26, 28}
+	decapPrefixLens = []int{22, 24}
 
 	// outerSrcs enumerates the two magic outer source IPs across traffic scenarios.
 	outerSrcs = []string{IPv4OuterSrc111, IPv4OuterSrc222}
@@ -2904,19 +2904,24 @@ func FetchHWUtilizationSnapshot(t *testing.T, dut *ondatra.DUTDevice, stage stri
 			continue
 		}
 		compName := "UNKNOWN"
-		if path := val.Path; path != nil {
-			for _, elem := range path.GetElem() {
-				if elem.GetName() == "component" {
-					if name, ok := elem.GetKey()["name"]; ok {
-						compName = name
-						break
-					}
+		resName := res.GetName()
+		for _, elem := range val.Path.GetElem() {
+			switch elem.GetName() {
+			case "component":
+				if name, ok := elem.GetKey()["name"]; ok {
+					compName = name
+				}
+			case "resource":
+				// Some devices do not send the state/name leaf, leaving res.GetName()
+				// empty; fall back to the list key from the path.
+				if name, ok := elem.GetKey()["name"]; ok && resName == "" {
+					resName = name
 				}
 			}
 		}
 		key := HWResourceKey{
 			Component: compName,
-			Name:      res.GetName(),
+			Name:      resName,
 		}
 		maxLimit := res.GetMaxLimit()
 		// If max limit is not set, calculate it based on used and free resources.

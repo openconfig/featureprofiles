@@ -12,10 +12,10 @@ Validate end-to-end route propagation across a two-tier BGP routing architecture
 
 ```mermaid
 graph LR;
-  ce1[ATE Port 1: CE1 (AS 65001)] -- "eBGP (VRF ce1)" --> dut1[DUT Port 1]
-  ce2[ATE Port 2: CE2 (AS 65002)] -- "eBGP (VRF ce1)" --> dut2[DUT Port 2]
-  dut3[DUT Port 3] -- "iBGP MP-BGP (AS 64500)" --> rr1[ATE Port 3: RR1]
-  dut4[DUT Port 4] -- "iBGP MP-BGP (AS 64500)" --> rr2[ATE Port 4: RR2]
+  ce1["ATE Port 1: CE1 (AS 65001)"] -- "eBGP (VRF ce1)" --> dut1["DUT Port 1"]
+  ce2["ATE Port 2: CE2 (AS 65002)"] -- "eBGP (VRF ce1)" --> dut2["DUT Port 2"]
+  dut3["DUT Port 3"] -- "iBGP MP-BGP (AS 64500)" --> rr1["ATE Port 3: RR1"]
+  dut4["DUT Port 4"] -- "iBGP MP-BGP (AS 64500)" --> rr2["ATE Port 4: RR2"]
 ```
 
 ## Procedure

@@ -113,6 +113,89 @@
 
 *   **Configuration & Cleanup**
     *   **Mandatory State Reversion:** Tests must always leave the system in the exact original state it was in prior to the test execution, regardless of whether the test passes or fails. This requirement applies to both standard gNMI `Set` configurations and raw/native CLI commands (e.g., using `helpers.GnmiCLIConfig`). The PR MUST include corresponding cleanup operations to revert any changes made during the test.
+    *   **OTG Interface State Reversion:**
+        - **Anti-pattern:** Modifying Open Traffic Generator (OTG) port link states (e.g., setting link state to DOWN) without a deferred cleanup. If the test fails or times out mid-run prior to sequential restoration, the OTG port is left disabled, potentially breaking subsequent tests.
+        - **Correction:** OTG interfaces MUST be explicitly guaranteed to be brought back UP via deferred cleanup functions immediately after modifying them. 
+        - **BAD (Do not do this):**
+
+        ```go
+        portAction := gosnappi.NewControlState()
+        portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+        ate.OTG().SetControlState(t, portAction)
+        
+        // ... mid-run test execution that might panic or fail ...
+        
+        // If a failure occurs above, this code is never reached and the port remains DOWN.
+        portAction.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+        ate.OTG().SetControlState(t, portAction)
+        ```
+        - **GOOD (Do this instead):**
+
+        ```go
+        portAction := gosnappi.NewControlState()
+        portAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+        ate.OTG().SetControlState(t, portAction)
+        
+        // Immediately defer the restoration to UP
+        defer func() {
+            restoreAction := gosnappi.NewControlState()
+            restoreAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+            ate.OTG().SetControlState(t, restoreAction)
+        }()
+        ```
+    *   **OTG Port Capture Cleanup:**
+        - **Anti-pattern:** Starting an Open Traffic Generator (OTG) port packet
+          capture (`gosnappi.StatePortCaptureState.START` or
+          `otgutils.StartCapture`) without stopping it, or stopping it
+          sequentially without a `defer` / `t.Cleanup()`. If the test omits
+          stopping capture or fails/aborts mid-run (e.g., via `t.Fatalf`) prior
+          to sequential cleanup, the capture session remains active on the
+          ATE/Ixia port, exhausting hardware capture slot limits across subtests
+          or subsequent tests.
+        - **Correction:** Use the centralized helpers
+          `cs := otgutils.StartCapture(t, ate.OTG())` (which automatically
+          registers a `t.Cleanup()` fallback) and idempotent
+          `otgutils.StopCapture(t, ate.OTG(), cs)` (or
+          `packetvalidationhelpers.StartCapture` /
+          `packetvalidationhelpers.StopCapture` when using `CaptureConfig`).
+          Whenever an OTG port capture is started, register
+          `defer otgutils.StopCapture(t, ate.OTG(), cs)` immediately after
+          starting capture (unless inside a `for` loop without `t.Run`, where
+          `defer` would accumulate across iterations and
+          `otgutils.StartCapture`'s `t.Cleanup()` plus explicit per-iteration
+          `otgutils.StopCapture(t, ate.OTG(), cs)` should be used instead), in
+          addition to calling `otgutils.StopCapture(t, ate.OTG(), cs)` before
+          reading `.pcap` bytes with `GetCapture`.
+        - **BAD (Do not do this):**
+
+        ```go
+        cs := gosnappi.NewControlState()
+        cs.Port().Capture().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortCaptureState.START)
+        ate.OTG().SetControlState(t, cs)
+
+        ate.OTG().StartTraffic(t)
+        // ... wait for traffic/protocol packets ...
+        ate.OTG().StopTraffic(t)
+
+        // Missing capture STOP entirely, or calling STOP sequentially without defer
+        // where an earlier t.Fatalf would leave the capture session open.
+        bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(atePort.ID()))
+        ```
+        - **GOOD (Do this instead):**
+
+        ```go
+        cs := otgutils.StartCapture(t, ate.OTG())
+        defer otgutils.StopCapture(t, ate.OTG(), cs)
+
+        ate.OTG().StartTraffic(t)
+        // ... wait for traffic/protocol packets ...
+        ate.OTG().StopTraffic(t)
+
+        // Explicitly stop capture before downloading pcap bytes if read in the same function,
+        // while the defer above guarantees cleanup if any step fails early.
+        otgutils.StopCapture(t, ate.OTG(), cs)
+        bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(atePort.ID()))
+        ```
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
     *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
     *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
@@ -208,3 +291,21 @@ To achieve high-velocity test execution and prevent pipeline bottlenecks, review
 *   **Eliminating Static Sleeps (CRITICAL / HIGH PRIORITY):**
     *   **Anti-pattern:** Relying on static `time.Sleep` calls based on legacy assumptions. **This is a critical performance issue that must be avoided and flagged as high priority.**
     *   **Correction:** The use of `gnmi.Watch` is mandatory to detect desired states in real-time. Wait times should not be hardcoded, as static sleeps become a fixed tax on the pipeline.
+
+### **6. Testbed & Topology Guidelines (CRITICAL / HIGH PRIORITY)**
+
+**Source:** `topologies/`
+
+To preserve hardware device availability in lab pools and prevent scheduling bottlenecks, test authors MUST choose the simplest homogeneous single-DUT topology needed for the test, and reviewers MUST flag overly complex, high-link-count, DUT-DUT, or mixed-speed topologies in `README.md`, `metadata.textproto`, `testregistry.textproto`, and `topologies/*.testbed`:
+
+*   **Avoid Complex and High-Link-Count Topologies (e.g., 8-Link+ Testbeds):**
+    *   **Anti-pattern:** Selecting complex multi-device or high-link-count topologies (such as 8-link or larger testbeds like `atedut_8.testbed` / `TESTBED_DUT_ATE_8LINKS`, `atedut_8_lag.testbed` / `TESTBED_DUT_ATE_8LINKS_LAG`, `dut_8_loop_2_ate.testbed` / `TESTBED_DUT_8_LOOP_2_ATE`, `dutdutate_8.testbed` / `TESTBED_DUT_DUT_ATE_8LINKS`, `atedut_9.testbed`, `atedut_9_lag.testbed` / `TESTBED_DUT_ATE_9LINKS_LAG`, or `atedut_12.testbed`) for functional tests that do not strictly require that link or device count. High-link-count topologies severely limit matching testbed availability across labs, increase reservation contention, and cause avoidable scheduling failures.
+    *   **Correction:** Always choose the minimal topology capable of validating the feature under test (for example, `dut.testbed` / `TESTBED_DUT`, `dut_2links.testbed` / `TESTBED_DUT_2LINKS`, `atedut_2.testbed` / `TESTBED_DUT_ATE_2LINKS`, or `atedut_4.testbed` / `TESTBED_DUT_ATE_4LINKS`). Reserve 8-link and higher-port-count topologies strictly for dedicated scale or wide-ECMP/LAG tests that cannot be verified on fewer links, keep those tests separate from baseline functional tests, and justify the link count in `README.md`.
+
+*   **Avoid DUT-DUT (Multi-DUT) Topologies:**
+    *   **Anti-pattern:** Selecting or introducing DUT-to-DUT topologies (such as `dutdut.testbed` / `TESTBED_DUT_DUT_4LINKS`, `dutdutate.testbed` / `TESTBED_DUT_DUT_ATE_2LINKS`, `dutdutate_8.testbed` / `TESTBED_DUT_DUT_ATE_8LINKS`, or `ate_dut1_4links_dut2_ate.testbed` / `TESTBED_ATE_DUT1_4LINKS_DUT2_ATE`) when the feature under test can be validated with a single DUT. Requiring two physical DUTs doubles hardware consumption, compounds lab reservation contention, and blocks execution on single-DUT testbeds.
+    *   **Correction:** Prefer a single-DUT topology (`dut.testbed`, `dut_2links.testbed`, `atedut_2.testbed`, or `atedut_4.testbed`), modeling peer protocol interactions or traffic flows with the ATE/OTG (`otg_tests`) or single-DUT loopback links where applicable. Only use a DUT-DUT topology when direct DUT-to-DUT behavior cannot be emulated with an ATE/OTG or loopback (such as genuine multi-device interoperability or physical hardware-to-hardware handoff), and explicitly justify requiring the second DUT in `README.md`.
+
+*   **Avoid Mixed-Speed Topologies (Keep Per-Speed Tests Separate):**
+    *   **Anti-pattern:** Combining multiple port speeds or heterogeneous optics/PMDs in a single testbed or monolithic test suite (such as `dut_400zr_100g_4links.testbed` / `TESTBED_DUT_400ZR_100G_4LINKS` or `dut_400fr_100g_4links.testbed` / `TESTBED_DUT_400FR_100G_4LINKS`), or introducing new mixed-speed `.testbed` files. Mixed-speed topologies sharply shrink the pool of eligible lab devices and block execution when a DUT only has a single port speed populated.
+    *   **Correction:** Always keep testbeds single-speed and split multi-speed coverage into separate, standalone test suites (separate test directories, `README.md`, `metadata.textproto`, and `testregistry.textproto` entries) per speed tier (for example, separate 100G, 400G, and 800G tests backed by single-speed topologies such as `dut_400zr.testbed` / `TESTBED_DUT_400ZR`, `dut_800zr.testbed` / `TESTBED_DUT_800ZR`, or dedicated single-speed loop/ATE testbeds, sharing common helpers in `internal/`). Reviewers MUST flag new or updated tests introducing mixed-speed testbeds or combined multi-speed suites and require splitting them into separate single-speed tests unless cross-speed interaction on the same DUT is explicitly the behavior under test and cannot be verified independently.

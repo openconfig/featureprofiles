@@ -985,11 +985,12 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, flowNames []string
 			SetFlowNames(flowNames)
 		ate.OTG().SetControlState(t, cs)
 	}
-	cs = packetvalidationhelpers.StartCapture(t, ate)
+	cs = otgutils.StartCapture(t, ate.OTG())
+	defer otgutils.StopCapture(t, ate.OTG(), cs)
 	time.Sleep(60 * time.Second)
 	ate.OTG().StopTraffic(t)
 	time.Sleep(60 * time.Second)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+	otgutils.StopCapture(t, ate.OTG(), cs)
 }
 
 func validatePacket(t *testing.T, ate *ondatra.ATEDevice, validationPacket *packetvalidationhelpers.PacketValidation) error {
@@ -1669,9 +1670,15 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	time.Sleep(20 * time.Second)
 	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dut.Port(t, "port2").Name())
+	dutPort2 := dut.Port(t, otgBGPConfig[1].port)
+	i := d.GetOrCreateInterface(dutPort2.Name())
 	i.SetEnabled(false)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Config(), i)
+	t.Cleanup(func() {
+		for _, subintfData := range otgBGPConfig[1].dutPortData {
+			configureDUT(t, dut, dutPort2, subintfData)
+		}
+	})
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort2.Name()).Config(), i)
 
 	ate.OTG().StartProtocols(t)
 

@@ -102,14 +102,27 @@ paths:
   ## Config Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address:
 
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/NOTIFICATION:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-subcode:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/input:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/queues/output:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-port:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/local-address:
 
 rpcs:
   gnmi:

@@ -31,6 +31,7 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    vendor_pre_config_required: true
     omit_l2_mtu: true
     static_protocol_name: "STATIC"
     interface_config_vrf_before_address: true

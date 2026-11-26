@@ -141,6 +141,12 @@ func TestTimeZone(t *testing.T) {
 			config := gnmi.OC().System().Clock().TimezoneName()
 			state := gnmi.OC().System().Clock().TimezoneName()
 
+			tzDeleted := false
+			t.Cleanup(func() {
+				if !tzDeleted {
+					gnmi.Delete(t, dut, config.Config())
+				}
+			})
 			gnmi.Replace(t, dut, config.Config(), testCase.tz)
 
 			t.Run("Get Timezone Config", func(t *testing.T) {
@@ -159,6 +165,7 @@ func TestTimeZone(t *testing.T) {
 
 			t.Run("Delete Timezone", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
+				tzDeleted = true
 				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
 					t.Errorf("Delete timezone fail: got %v", qs)
 				}
