@@ -41,8 +41,11 @@ const (
 	targetGroupBE1 = "target-group-BE1"
 	targetGroupAF1 = "target-group-AF1"
 
-	baselineMinThreshold              = uint64(81920)
-	baselineMaxThreshold              = uint64(163840)
+	// Baseline Profile Defaults (DP-1.20 Topology table).
+	baselineMinThreshold = uint64(3276800)
+	baselineMaxThreshold = uint64(6553600)
+	// DP-1.20.1 invalid threshold pair: min-threshold (81920) > max-threshold (40960).
+	invalidHigherMinThreshold         = uint64(81920)
 	invalidLowerMaxThreshold          = uint64(40960)
 	baselineWeight                    = uint32(0)
 	baselineMaxDropProbabilityPercent = uint8(100)
@@ -274,7 +277,7 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		t.Log("DP-1.20.1 Step 1: Constructing ECN_PROFILE_NEG with min-threshold (81920) > max-threshold (40960) and output queue binding")
 		q := &oc.Qos{}
 		cfg := baselineECNProfileConfig(negativeProfileName)
-		cfg.MinThreshold = baselineMinThreshold
+		cfg.MinThreshold = invalidHigherMinThreshold
 		cfg.MaxThreshold = invalidLowerMaxThreshold
 		qoscfg.BuildECNQueueManagementProfile(dut, q, cfg)
 		qoscfg.BuildOutputQueueManagementProfile(dut, q, dp1.Name(), queueBE1, negativeProfileName)
