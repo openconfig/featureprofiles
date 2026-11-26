@@ -255,6 +255,11 @@ user must succeed, and the SSH server process on the DUT must remain stable
         and
         `/system/aaa/server-groups/server-group/servers/server/state/errors-received`
         where supported.
+    *   Record the baseline list of core dump files on the DUT using
+        `gnoi.file.File.Stat` on the platform-specific core dump directory
+        (the same per-vendor directory and file name pattern used by the
+        featureprofiles core file validator). The baseline is needed so that
+        pre-existing core files on the DUT are not attributed to this test.
 *   Step 3 - Trigger the TACACS+ EOF condition
     *   Start the EOF listener on `192.0.2.10:49`.
     *   Sequentially open 5 SSH sessions to the DUT management IPv4 address as
@@ -281,6 +286,13 @@ user must succeed, and the SSH server process on the DUT must remain stable
         or has a changed `start-time`, apart from short-lived per-session child
         processes. This confirms the SSH server did not crash, abort, or
         restart while handling the TACACS+ EOF.
+    *   Use `gnoi.file.File.Stat` on the same platform-specific core dump
+        directory and compare the result against the baseline recorded in
+        Step 2. No new core dump file may be present. An abnormal termination
+        of the SSH server (or any other process) while handling the TACACS+
+        EOF typically leaves a core file even if the process is restarted
+        quickly enough to escape the process snapshot comparison, so this check
+        is the authoritative crash signal.
 
 #### Procedure (IPv6 TACACS+ server)
 
@@ -305,10 +317,12 @@ user must succeed, and the SSH server process on the DUT must remain stable
 *   **Pass**: All SSH logins for both the IPv4 and IPv6 TACACS+ server cases
     succeed via LOCAL fallback, `access-accepts` increases by at least 5 per
     address family with no increase in `access-rejects`, the EOF listener
-    observes the DUT connections, `boot-time` is unchanged, and no SSH server
-    process restart or crash is observed.
+    observes the DUT connections, `boot-time` is unchanged, no SSH server
+    process restart or crash is observed, and `gnoi.file.File.Stat` shows no
+    new core dump files relative to the baseline.
 *   **Fail**: Any SSH login is rejected, hangs, or times out; the SSH server
-    process crashes, aborts, restarts, or produces a core dump; the DUT
+    process crashes, aborts, or restarts; `gnoi.file.File.Stat` reports any
+    new core dump file in the platform core dump directory; the DUT
     reboots or stops responding to gNMI; or the EOF listener observes no
     connection from the DUT (TACACS+ path not exercised).
 
@@ -367,6 +381,8 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
+  gnoi:
+    file.File.Stat:
 ```
 
 ## Minimum DUT platform requirement
