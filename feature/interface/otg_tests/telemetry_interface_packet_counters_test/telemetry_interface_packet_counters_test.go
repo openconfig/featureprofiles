@@ -335,8 +335,13 @@ func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, inPkts, outPkts []*ygn
 
 	t.Logf("in-pkts: %d samples, out-pkts: %d samples", len(inPkts), len(outPkts))
 	for i := 1; i < len(inPkts); i++ {
-		inOld, _ := inPkts[i-1].Val()
-		inNew, _ := inPkts[i].Val()
+		inOld, okOld := inPkts[i-1].Val()
+		inNew, okNew := inPkts[i].Val()
+		if !okOld || !okNew {
+			t.Errorf("in-pkts sample %d (present: %t) or %d (present: %t) is missing", i-1, okOld, i, okNew)
+			counterOK = false
+			continue
+		}
 		inDelta := inNew - inOld
 		t.Logf("in-pkts sample %d: %d (delta %d)", i, inNew, inDelta)
 		if inNew <= inOld {
@@ -345,8 +350,13 @@ func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, inPkts, outPkts []*ygn
 		}
 	}
 	for i := 1; i < len(outPkts); i++ {
-		outOld, _ := outPkts[i-1].Val()
-		outNew, _ := outPkts[i].Val()
+		outOld, okOld := outPkts[i-1].Val()
+		outNew, okNew := outPkts[i].Val()
+		if !okOld || !okNew {
+			t.Errorf("out-pkts sample %d (present: %t) or %d (present: %t) is missing", i-1, okOld, i, okNew)
+			counterOK = false
+			continue
+		}
 		outDelta := outNew - outOld
 		t.Logf("out-pkts sample %d: %d (delta %d)", i, outNew, outDelta)
 		if outNew <= outOld {
