@@ -2609,7 +2609,7 @@ func RebootChassis(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 
 		if uint64(time.Since(startReboot).Seconds()) > MaxRebootTime {
-			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), MaxRebootTime)
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), MaxRebootTime)
 		}
 	}
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
