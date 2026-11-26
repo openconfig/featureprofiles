@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -250,18 +249,6 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, topo, "IPv6")
 
-	// Disable hardware nexthop proxying for Arista devices to ensure FIB-ACK works correctly.
-	// See: https://partnerissuetracker.corp.google.com/issues/422275961
-	if deviations.DisableHardwareNexthopProxy(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			const aristaDisableNHGProxyCLI = "ip hardware fib next-hop proxy disabled"
-			helpers.GnmiCLIConfig(t, dut, aristaDisableNHGProxyCLI)
-		default:
-			t.Errorf("Deviation DisableHardwareNexthopProxy is not handled for the dut: %v", dut.Vendor())
-		}
-	}
-
 	// Configure gRIBI client
 	c := gribi.Client{
 		DUT:         dut,
@@ -272,7 +259,12 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	if err := c.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	defer c.Close(t)
+	t.Cleanup(func() {
+		c.Close(t)
+	})
+	t.Cleanup(func() {
+		c.FlushAll(t)
+	})
 	c.BecomeLeader(t)
 
 	// Flush all existing AFT entries and set up basic routing infrastructure
