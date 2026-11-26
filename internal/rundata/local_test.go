@@ -15,9 +15,12 @@
 package rundata
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -415,5 +418,120 @@ func TestLocal(t *testing.T) {
 
 	if _, ok := m["test.path"]; !ok {
 		t.Errorf("Missing test.path key from local.")
+	}
+}
+
+// initCLIRepo creates a git repository with one commit in a temporary
+// directory using the git CLI, passing initArgs to git init. It skips
+// the test if git is unavailable or does not support initArgs.
+func initCLIRepo(t *testing.T, initArgs ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	git := func(args ...string) error {
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		// Isolate from the user's and system's git configuration.
+		cmd.Env = append(cmd.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("git %v: %v\n%s", args, err, out)
+		}
+		return nil
+	}
+	if err := git(append([]string{"init", "-q"}, initArgs...)...); err != nil {
+		t.Skipf("Skipping test because git init %v is not supported: %v", initArgs, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "foo"), []byte("foo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"remote", "add", "origin", wantOrigin},
+		{"add", "foo"},
+		{"-c", "user.name=Alan Smithee", "-c", "user.email=alan.smithee@example.com", "commit", "-q", "-m", "commit message"},
+	} {
+		if err := git(args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func TestGitInfo_Reftable(t *testing.T) {
+	dir := initCLIRepo(t, "--ref-format=reftable")
+	wantWd, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCommit, err := runGit(dir, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	got := make(map[string]string)
+	if gotWd := gitInfo(got); gotWd != wantWd {
+		t.Errorf("gitInfo got working directory %q, want %q", gotWd, wantWd)
+	}
+	if got["git.commit"] != wantCommit {
+		t.Errorf("gitInfo got git.commit %q, want %q", got["git.commit"], wantCommit)
+	}
+	if got["git.origin"] != wantOrigin {
+		t.Errorf("gitInfo got git.origin %q, want %q", got["git.origin"], wantOrigin)
+	}
+	if got["git.commit_timestamp"] == "" {
+		t.Error("gitInfo got empty git.commit_timestamp")
+	}
+	if got["git.clean"] != "true" {
+		t.Errorf("gitInfo got git.clean %q, want \"true\"", got["git.clean"])
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "foo"), []byte("bar\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got = make(map[string]string)
+	gitInfo(got)
+	if got["git.clean"] != "false" {
+		t.Errorf("gitInfo after modifying a tracked file got git.clean %q, want \"false\"", got["git.clean"])
+	}
+	if got["git.status"] == "" {
+		t.Error("gitInfo after modifying a tracked file got empty git.status")
+	}
+}
+
+func TestGitInfo_NotRepo(t *testing.T) {
+	t.Chdir(t.TempDir())
+	got := make(map[string]string)
+	if gotWd := gitInfo(got); gotWd != "" {
+		t.Errorf("gitInfo got working directory %q, want \"\"", gotWd)
+	}
+	if len(got) != 0 {
+		t.Errorf("gitInfo got %v, want no properties", got)
+	}
+}
+
+func TestGitInfoWithCLI_NoGit(t *testing.T) {
+	orig := runGit
+	t.Cleanup(func() { runGit = orig })
+	runGit = func(string, ...string) (string, error) {
+		return "", errors.New("git not found")
+	}
+	got := make(map[string]string)
+	if gotWd := gitInfoWithCLI(got, t.TempDir()); gotWd != "" {
+		t.Errorf("gitInfoWithCLI got working directory %q, want \"\"", gotWd)
+	}
+	if len(got) != 0 {
+		t.Errorf("gitInfoWithCLI got %v, want no properties", got)
+	}
+}
+
+func TestGitProperties(t *testing.T) {
+	dir := initCLIRepo(t)
+	t.Chdir(dir)
+	got := GitProperties()
+	for _, k := range []string{"git.commit", "git.commit_timestamp", "git.origin", "git.clean"} {
+		if got[k] == "" {
+			t.Errorf("GitProperties() missing %q, got %v", k, got)
+		}
+	}
+	if _, ok := got["build.go_version"]; ok {
+		t.Errorf("GitProperties() got non-git property build.go_version")
 	}
 }

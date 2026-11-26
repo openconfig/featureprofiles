@@ -71,6 +71,7 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 
 *   Generate traffic from ATE port-1 destined towards switch’s system mac address
 *   Generate traffic within and exceeding the system defined thresholds
+*   **Note:** Skipped on Arista Strata platform because software does not forward unicast L2 traffic towards the CPU by default.
 * Monitor CoPP telemetry for System destined L2 Unicast traffic class using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
