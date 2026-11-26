@@ -409,7 +409,6 @@ func programECMPBaseline(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Cli
 	}
 	addEntriesBatched(t, client, v4Entries, v4Results)
 
-	// ipv4NegRoute is left unprogrammed: TE-1.7.3 introduces it as new.
 	client.AddIPv4(t, ipv4MTURoute+"/32", nhgPort2OnlyID, ni, ni, wantResult)
 
 	v6Prefixes, err := iputil.GenerateIPv6s(net.ParseIP(ipv6BaseRoute), numV6Routes)

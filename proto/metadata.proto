@@ -1623,17 +1623,20 @@ message Metadata {
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
 
+    // https://partnerissuetracker.corp.google.com/issues/529388485
+    bool decap_nh_without_nexthop_ni_unsupported = 490;
+
     // Device does not support the OpenConfig AFT telemetry required by the test.
-    bool gribi_aft_unsupported = 490;
+    bool gribi_aft_unsupported = 491;
 
     //static ip arp
-    bool gribi_static_arp_unique_next_hop_ip_required = 491;
+    bool gribi_static_arp_unique_next_hop_ip_required = 492;
 
     //convert default MTU from 1500 to 1514
-    bool interface_mtu_1500_maps_to_1514 = 492;
+    bool interface_mtu_1500_maps_to_1514 = 493;
 
     //out-pkts counter
-    bool interface_out_pkts_counter_includes_unsent = 493;
+    bool interface_out_pkts_counter_includes_unsent = 494;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
