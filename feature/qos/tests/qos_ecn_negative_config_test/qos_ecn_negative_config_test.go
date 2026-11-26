@@ -97,7 +97,10 @@ func baselineECNProfileConfig(name string) qoscfg.ECNProfileConfig {
 }
 
 // setupEnvironment implements the DP-1.20 Test environment setup procedure.
-func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, queueBE1, queueAF1 string) {
+// It sets *configPushed once the first configuration has been accepted by the
+// DUT, so that the caller knows whether cleanup is required and that the gNMI
+// server is reachable.
+func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, queueBE1, queueAF1 string, configPushed *bool) {
 	t.Helper()
 
 	// DP-1.20 Test environment setup - Step 1: Interface Configuration.
@@ -106,6 +109,9 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Po
 	// Topology table.
 	t.Log("DP-1.20 Test environment setup - Step 1: Configuring IPv4 and IPv6 addresses on DUT port-1 and port-2")
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Config(), dutPort1.NewOCInterface(dp1.Name(), dut))
+	// gnmi.Replace calls t.Fatal on failure, so reaching this line means the DUT
+	// accepted configuration and must be restored to baseline.
+	*configPushed = true
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp2.Name()).Config(), dutPort2.NewOCInterface(dp2.Name(), dut))
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
@@ -226,18 +232,19 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 
 	// teardownVerified is set when DP-1.20.5 removes and verifies all config.
 	teardownVerified := false
-	// setupOK is set when DP-1.20 Test environment setup completes successfully.
-	setupOK := false
+	// configPushed is set by setupEnvironment once the DUT has accepted
+	// configuration, meaning cleanup is required and gNMI is reachable.
+	configPushed := false
 	// Safety net for DP-1.20.5: registered before any configuration is pushed so
 	// the DUT is restored to baseline even if a subtest fails or panics early.
 	t.Cleanup(func() {
 		if teardownVerified {
 			return
 		}
-		if !setupOK {
-			// Setup failures are typically caused by an unreachable gNMI server,
+		if !configPushed {
+			// Nothing was configured. This also covers an unreachable gNMI server,
 			// where further gNMI calls can block until the test times out.
-			t.Log("DP-1.20 Test environment setup did not complete; skipping DUT cleanup")
+			t.Log("DP-1.20 Test environment setup pushed no configuration; skipping DUT cleanup")
 			return
 		}
 		t.Log("DP-1.20.5 did not complete; removing ECN and setup configuration (best effort)")
@@ -248,10 +255,9 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 	// The negative tests (DP-1.20.1 - DP-1.20.4) pass when gNMI Set fails, so
 	// they must not run against a DUT that was never configured or cannot be
 	// reached; otherwise a transport error would be counted as a rejection.
-	setupOK = t.Run("Test environment setup", func(t *testing.T) {
-		setupEnvironment(t, dut, dp1, dp2, queueBE1, queueAF1)
-	})
-	if !setupOK {
+	if !t.Run("Test environment setup", func(t *testing.T) {
+		setupEnvironment(t, dut, dp1, dp2, queueBE1, queueAF1, &configPushed)
+	}) {
 		t.Fatal("DP-1.20 Test environment setup failed; skipping DP-1.20.1 - DP-1.20.5")
 	}
 
@@ -400,6 +406,13 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// /qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE].
 		t.Log("DP-1.20.5 Step 3: Deleting ECN_VALID_PROFILE globally")
 		gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(validProfileName).Config())
+		// ECN_PROFILE_NEG exists only if DP-1.20.1 or DP-1.20.2 was wrongly
+		// accepted by the DUT; delete it best effort so the DUT returns to baseline.
+		if msg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(negativeProfileName).Config())
+		}); msg != nil {
+			t.Logf("DP-1.20.5 Step 3: deleting %s failed (ignored): %s", negativeProfileName, *msg)
+		}
 
 		// DP-1.20.5 Step 4 - Verify via gNMI Subscribe (Watch) on
 		// /qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/state/name
