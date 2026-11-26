@@ -43,7 +43,7 @@
 | QoS Queues | `0` (`BE1`), `1` (`AF1`) | `/qos/queues/queue/config/name` |
 | Forwarding Groups | `target-group-BE1`, `target-group-AF1` | Output queues: `0` and `1` |
 | Input Classifiers | `dscp_based_classifier_ipv4`, `dscp_based_classifier_ipv6` | `IPV4` and `IPV6`; DSCP `[0, 1, 2, 3]` -> `target-group-BE1`, DSCP `[8, 9, 10, 11]` -> `target-group-AF1` |
-| Baseline Profile Defaults | `ECN_VALID_PROFILE` / `ECN_PROFILE_NEG` | `min-threshold`: `81920`, `max-threshold`: `163840`, `enable-ecn`: `true`, `drop`: `false`, `weight`: `0`, `max-drop-probability-percent`: `100` |
+| Baseline Profile Defaults | `ECN_VALID_PROFILE` / `ECN_PROFILE_NEG` | `min-threshold`: `3276800`, `max-threshold`: `6553600`, `enable-ecn`: `true`, `drop`: `false`, `weight`: `0`, `max-drop-probability-percent`: `100` |
 
 ### Test environment setup
 
@@ -288,8 +288,8 @@ queue binding.
                 "drop": false,
                 "enable-ecn": true,
                 "max-drop-probability-percent": 100,
-                "max-threshold": "163840",
-                "min-threshold": "81920",
+                "max-threshold": "6553600",
+                "min-threshold": "3276800",
                 "weight": 0
               }
             }
@@ -318,10 +318,10 @@ queue binding.
         == `ECN_VALID_PROFILE`
     *   Verify
         `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/min-threshold`
-        == `81920`
+        == `3276800`
     *   Verify
         `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/max-threshold`
-        == `163840`
+        == `6553600`
     *   Verify
         `/qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]/wred/uniform/state/enable-ecn`
         == `true`
