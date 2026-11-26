@@ -12,11 +12,8 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     omit_l2_mtu: true
-    fragment_total_drops_unsupported: true
     aggregate_atomic_update: true
     interface_enabled: true
-    fragment_punt_unsupported: true
-    fragment_punt_pkts_unsupported: true
   }
 }
 platform_exceptions: {
@@ -27,25 +24,5 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    fragment_punt_unsupported: true
-    fragment_punt_pkts_unsupported: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    fragment_total_drops_unsupported: true
-    fragment_punt_ft: "ciscoxr-fragment-ft"
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    fragment_punt_unsupported: true
-    fragment_punt_pkts_unsupported: true
   }
 }

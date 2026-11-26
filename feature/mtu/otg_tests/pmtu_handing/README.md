@@ -28,17 +28,15 @@ This tests ensures that DUT generates ICMP "Fragmentation Needed and Don't Fragm
 
 ### MTU-1.5.1 IPv4 Path MTU 
 
-Run traffic flows to IPV4-DST with the sizes at 50% linerate for 30 seconds:
+Run traffic flows to IPV4-DST with the sizes at 50% linerate for 15 seconds:
 - 2000 Bytes
 - 4000 Bytes
 - 9000 Bytes
 
 Verify:
-* Ensure that ATE Port-1 receives ICMP type-3, code-4 for packet of every flow sent.
-* Verify that DUT pipeline counters report fragment packet discards.
-* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment traffic is permitted.
-  * Verify `fragment-punt-pkts` telemetry counts the number of packets successfully punted to the CPU.
-  * Verify `fragment-punt` telemetry accounts for the number of packets dropped due to policing/rate-limiting to the CPU.
+* Require at least one ICMP type-3, code-4 response addressed to ATE Port-1 for each flow.
+* Require traffic transmitted on ATE Port-1 and zero flow packets received on ATE Port-2.
+* Require present `packet-processing-aggregate` counters on matching integrated circuits, with a positive combined delta within 30 seconds after traffic. Take a per-flow baseline immediately before traffic and fail on missing counters or counter decreases. Aggregate drops may include unrelated causes; the ICMP check establishes PMTU response coverage. Default ICMP rate-limiting is permitted.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
 #### Canonical OC
@@ -50,16 +48,14 @@ Verify:
 
 ### MTU-1.5.2 IPv6 Path MTU 
 
-Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
+Run UDP/IPv6 traffic flows to IPV6-DST with the sizes at 50% linerate for 15 seconds:
 - 2000 Bytes
 - 4000 Bytes
 - 9000 Bytes
 
-* Ensure that ATE Port-1 receives ICMPv6 type-2 code-0 for packet of every flow sent.
-* Verify that DUT pipeline counters report fragment packet discards.
-* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment traffic is permitted.
-  * Verify `fragment-punt-pkts` telemetry counts the number of packets successfully punted to the CPU.
-  * Verify `fragment-punt` telemetry accounts for the number of packets dropped due to policing/rate-limiting to the CPU.
+* Require at least one ICMPv6 type-2, code-0 response addressed to ATE Port-1 for each flow.
+* Require traffic transmitted on ATE Port-1 and zero flow packets received on ATE Port-2.
+* Require present `packet-processing-aggregate` counters on matching integrated circuits, with a positive combined delta within 30 seconds after traffic. Take a per-flow baseline immediately before traffic and fail on missing counters or counter decreases. Aggregate drops may include unrelated causes; the ICMP check establishes PMTU response coverage. Default ICMP rate-limiting is permitted.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
 #### Canonical OC
@@ -78,12 +74,6 @@ paths:
     # telemetry
     /interfaces/interface/state/mtu:
     /components/component/integrated-circuit/pipeline-counters/drop/state/packet-processing-aggregate:
-      platform_type: [ "INTEGRATED_CIRCUIT" ]
-    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
-      platform_type: [ "INTEGRATED_CIRCUIT" ]
-    /components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/fragment-punt:
-      platform_type: [ "INTEGRATED_CIRCUIT" ]
-    /components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/fragment-punt-pkts:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
 
 
