@@ -160,7 +160,7 @@ func nokiaCreateTestGrpcServer(t *testing.T) *gnmipb.SetRequest {
 					"session-limit":           1024,
 					"metadata-authentication": true,
 					"yang-models":             "openconfig",
-					"tls-profile":             "self-signed-certs-profile",
+					"default-tls-profile":     true,
 					"network-instance":        "mgmtVrf",
 					"port":                    10162,
 					"services":                []string{"gnmi", "gnoi", "gnsi"},
@@ -1710,7 +1710,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
+				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 			},
 			User: &acctzpb.UserDetail{
 				Identity: shellUsername,

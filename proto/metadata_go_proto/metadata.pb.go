@@ -21,13 +21,12 @@
 package metadata_go_proto
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -1133,9 +1132,6 @@ type Metadata_Deviations struct {
 	OtnToEthAssignment bool `protobuf:"varint,317,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
 	// Devices that do not support import export policies configured in network instance
 	NetworkInstanceImportExportPolicyOcUnsupported bool `protobuf:"varint,318,opt,name=network_instance_import_export_policy_oc_unsupported,json=networkInstanceImportExportPolicyOcUnsupported,proto3" json:"network_instance_import_export_policy_oc_unsupported,omitempty"`
-	// Device does not support 'origin' field in gNMI/gNOI RPC paths.
-	// Arista: https://partnerissuetracker.corp.google.com/issues/439656904
-	SkipOrigin bool `protobuf:"varint,319,opt,name=skip_origin,json=skipOrigin,proto3" json:"skip_origin,omitempty"`
 	// Devices that support pre-defined max ecmp paths
 	// Juniper b/422688435
 	PredefinedMaxEcmpPaths bool `protobuf:"varint,320,opt,name=predefined_max_ecmp_paths,json=predefinedMaxEcmpPaths,proto3" json:"predefined_max_ecmp_paths,omitempty"`
@@ -1216,9 +1212,6 @@ type Metadata_Deviations struct {
 	// Devices that do not support oc path for advertised cumulative link
 	// bandwidth.
 	AdvertisedCumulativeLbwOcUnsupported bool `protobuf:"varint,344,opt,name=advertised_cumulative_lbw_oc_unsupported,json=advertisedCumulativeLbwOcUnsupported,proto3" json:"advertised_cumulative_lbw_oc_unsupported,omitempty"`
-	// disable hardware nexthop proxying
-	// Arista : https://partnerissuetracker.corp.google.com/issues/422275961
-	DisableHardwareNexthopProxy bool `protobuf:"varint,345,opt,name=disable_hardware_nexthop_proxy,json=disableHardwareNexthopProxy,proto3" json:"disable_hardware_nexthop_proxy,omitempty"`
 	// Devices does not support uRPF configuration.
 	// Arista https://partnerissuetracker.corp.google.com/issues/444942109
 	UrpfConfigOcUnsupported bool `protobuf:"varint,346,opt,name=urpf_config_oc_unsupported,json=urpfConfigOcUnsupported,proto3" json:"urpf_config_oc_unsupported,omitempty"`
@@ -1685,9 +1678,15 @@ type Metadata_Deviations struct {
 	// telemetry (including via the system_mount_point_state_ft functional translator).
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
 	MountPointStorageComponentUnsupported bool `protobuf:"varint,488,opt,name=mount_point_storage_component_unsupported,json=mountPointStorageComponentUnsupported,proto3" json:"mount_point_storage_component_unsupported,omitempty"`
+	// Device requires explicit GR helper stale-route policy configuration
+	// for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
+	// https://issuetracker.google.com/581463773
+	BgpGrHelperHoldTimerExpiryRequiresStalePolicy bool `protobuf:"varint,489,opt,name=bgp_gr_helper_hold_timer_expiry_requires_stale_policy,json=bgpGrHelperHoldTimerExpiryRequiresStalePolicy,proto3" json:"bgp_gr_helper_hold_timer_expiry_requires_stale_policy,omitempty"`
+	// https://partnerissuetracker.corp.google.com/issues/529388485
+	DecapNhWithoutNexthopNiUnsupported bool `protobuf:"varint,490,opt,name=decap_nh_without_nexthop_ni_unsupported,json=decapNhWithoutNexthopNiUnsupported,proto3" json:"decap_nh_without_nexthop_ni_unsupported,omitempty"`
 	// Device does not support generating ICMP TTL Exceeded messages for decapsulated packets
 	// when the inner/MPLS TTL expires after decapsulation (e.g. GRE and MPLS-in-UDP decap cases).
-	DecapIcmpTtlExceededUnsupported bool `protobuf:"varint,489,opt,name=decap_icmp_ttl_exceeded_unsupported,json=decapIcmpTtlExceededUnsupported,proto3" json:"decap_icmp_ttl_exceeded_unsupported,omitempty"`
+	DecapIcmpTtlExceededUnsupported bool `protobuf:"varint,491,opt,name=decap_icmp_ttl_exceeded_unsupported,json=decapIcmpTtlExceededUnsupported,proto3" json:"decap_icmp_ttl_exceeded_unsupported,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
 }
@@ -3689,13 +3688,6 @@ func (x *Metadata_Deviations) GetNetworkInstanceImportExportPolicyOcUnsupported(
 	return false
 }
 
-func (x *Metadata_Deviations) GetSkipOrigin() bool {
-	if x != nil {
-		return x.SkipOrigin
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetPredefinedMaxEcmpPaths() bool {
 	if x != nil {
 		return x.PredefinedMaxEcmpPaths
@@ -3867,13 +3859,6 @@ func (x *Metadata_Deviations) GetAutoLinkBandwidthUnsupported() bool {
 func (x *Metadata_Deviations) GetAdvertisedCumulativeLbwOcUnsupported() bool {
 	if x != nil {
 		return x.AdvertisedCumulativeLbwOcUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetDisableHardwareNexthopProxy() bool {
-	if x != nil {
-		return x.DisableHardwareNexthopProxy
 	}
 	return false
 }
@@ -4879,6 +4864,20 @@ func (x *Metadata_Deviations) GetMountPointStorageComponentUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy() bool {
+	if x != nil {
+		return x.BgpGrHelperHoldTimerExpiryRequiresStalePolicy
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDecapNhWithoutNexthopNiUnsupported() bool {
+	if x != nil {
+		return x.DecapNhWithoutNexthopNiUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetDecapIcmpTtlExceededUnsupported() bool {
 	if x != nil {
 		return x.DecapIcmpTtlExceededUnsupported
@@ -4942,7 +4941,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe0\x94\x02\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"͕\x02\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4954,7 +4953,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aȉ\x02\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb5\x8a\x02\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -5239,9 +5238,7 @@ const file_metadata_proto_rawDesc = "" +
 	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12M\n" +
 	"#policy_rule_counters_oc_unsupported\x18\xbc\x02 \x01(\bR\x1fpolicyRuleCountersOcUnsupported\x122\n" +
 	"\x15otn_to_eth_assignment\x18\xbd\x02 \x01(\bR\x12otnToEthAssignment\x12m\n" +
-	"4network_instance_import_export_policy_oc_unsupported\x18\xbe\x02 \x01(\bR.networkInstanceImportExportPolicyOcUnsupported\x12 \n" +
-	"\vskip_origin\x18\xbf\x02 \x01(\bR\n" +
-	"skipOrigin\x12:\n" +
+	"4network_instance_import_export_policy_oc_unsupported\x18\xbe\x02 \x01(\bR.networkInstanceImportExportPolicyOcUnsupported\x12:\n" +
 	"\x19predefined_max_ecmp_paths\x18\xc0\x02 \x01(\bR\x16predefinedMaxEcmpPaths\x12D\n" +
 	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupported\x123\n" +
 	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupported\x12W\n" +
@@ -5266,8 +5263,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x18localhost_for_containerz\x18\xd5\x02 \x01(\bR\x16localhostForContainerz\x12a\n" +
 	"-aggregate_bandwidth_policy_action_unsupported\x18\xd6\x02 \x01(\bR)aggregateBandwidthPolicyActionUnsupported\x12F\n" +
 	"\x1fauto_link_bandwidth_unsupported\x18\xd7\x02 \x01(\bR\x1cautoLinkBandwidthUnsupported\x12W\n" +
-	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12D\n" +
-	"\x1edisable_hardware_nexthop_proxy\x18\xd9\x02 \x01(\bR\x1bdisableHardwareNexthopProxy\x12<\n" +
+	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12<\n" +
 	"\x1aurpf_config_oc_unsupported\x18\xda\x02 \x01(\bR\x17urpfConfigOcUnsupported\x12g\n" +
 	"1static_route_next_network_instance_oc_unsupported\x18\xdb\x02 \x01(\bR+staticRouteNextNetworkInstanceOcUnsupported\x121\n" +
 	"\x14gnpsi_oc_unsupported\x18\xdc\x02 \x01(\bR\x12gnpsiOcUnsupported\x12I\n" +
@@ -5412,9 +5408,11 @@ const file_metadata_proto_rawDesc = "" +
 	" syslog_uniform_selector_required\x18\xe5\x03 \x01(\bR\x1dsyslogUniformSelectorRequired\x12M\n" +
 	"#syslog_default_ni_state_unsupported\x18\xe6\x03 \x01(\bR\x1fsyslogDefaultNiStateUnsupported\x12J\n" +
 	"!syslog_debug_severity_unsupported\x18\xe7\x03 \x01(\bR\x1esyslogDebugSeverityUnsupported\x12Y\n" +
-	")mount_point_storage_component_unsupported\x18\xe8\x03 \x01(\bR%mountPointStorageComponentUnsupported\x12M\n" +
-	"#decap_icmp_ttl_exceeded_unsupported\x18\xe9\x03 \x01(\bR\x1fdecapIcmpTtlExceededUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102J\x06\b\xb9\x02\x10\xba\x02\x1a\xa0\x01\n" +
+	")mount_point_storage_component_unsupported\x18\xe8\x03 \x01(\bR%mountPointStorageComponentUnsupported\x12m\n" +
+	"5bgp_gr_helper_hold_timer_expiry_requires_stale_policy\x18\xe9\x03 \x01(\bR-bgpGrHelperHoldTimerExpiryRequiresStalePolicy\x12T\n" +
+	"'decap_nh_without_nexthop_ni_unsupported\x18\xea\x03 \x01(\bR\"decapNhWithoutNexthopNiUnsupported\x12M\n" +
+	"#decap_icmp_ttl_exceeded_unsupported\x18\xeb\x03 \x01(\bR\x1fdecapIcmpTtlExceededUnsupportedJ\x06\b\x85\x02\x10\x86\x02J\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102J\x06\b\xb9\x02\x10\xba\x02J\x06\b\xbf\x02\x10\xc0\x02J\x06\b\xd9\x02\x10\xda\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +

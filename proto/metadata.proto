@@ -905,10 +905,6 @@ message Metadata {
     // Devices that do not support import export policies configured in network instance
     bool network_instance_import_export_policy_oc_unsupported = 318;
 
-    // Device does not support 'origin' field in gNMI/gNOI RPC paths.
-    // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
-    bool skip_origin = 319;
-
     // Devices that support pre-defined max ecmp paths
     // Juniper b/422688435
     bool predefined_max_ecmp_paths = 320;
@@ -1014,9 +1010,6 @@ message Metadata {
     // bandwidth.
     bool advertised_cumulative_lbw_oc_unsupported = 344;
 
-    // disable hardware nexthop proxying
-    // Arista : https://partnerissuetracker.corp.google.com/issues/422275961
-    bool disable_hardware_nexthop_proxy = 345;
 
     // Devices does not support uRPF configuration.
     // Arista https://partnerissuetracker.corp.google.com/issues/444942109
@@ -1625,12 +1618,20 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     bool mount_point_storage_component_unsupported = 488;
 
+    // Device requires explicit GR helper stale-route policy configuration
+    // for hold-timer-expiry to trigger GR helper mode (RFC 8538 Section 4).
+    // https://issuetracker.google.com/581463773
+    bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
+
+    // https://partnerissuetracker.corp.google.com/issues/529388485
+    bool decap_nh_without_nexthop_ni_unsupported = 490;
+
     // Device does not support generating ICMP TTL Exceeded messages for decapsulated packets
     // when the inner/MPLS TTL expires after decapsulation (e.g. GRE and MPLS-in-UDP decap cases).
-    bool decap_icmp_ttl_exceeded_unsupported = 489;
+    bool decap_icmp_ttl_exceeded_unsupported = 491;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }
 
   message PlatformExceptions {
