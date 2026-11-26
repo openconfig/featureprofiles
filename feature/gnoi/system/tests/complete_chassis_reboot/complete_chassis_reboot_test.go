@@ -32,6 +32,8 @@ import (
 const (
 	// rebootDelay is the time to wait before the DUT starts the reboot process.
 	rebootDelay = 120 * time.Second
+	// rebootDelayMargin is the pre-reboot safety margin before rebootDelay.
+	rebootDelayMargin = 10 * time.Second
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
 	maxRebootTime = 15 * time.Minute
 	// maxCompWaitTime is the maximum wait time for all components to be in a responsive state after reboot.
@@ -146,9 +148,12 @@ func TestChassisReboot(t *testing.T) {
 				t.Logf("Validating DUT remains reachable for at least %.2f seconds.", rebootDelay.Seconds())
 				for {
 					time.Sleep(10 * time.Second)
-					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
-					if time.Since(start).Seconds() > rebootDelay.Seconds() {
-						t.Logf("Time elapsed (%.2f seconds) has exceeded the reboot delay of %.2f seconds.", time.Since(start).Seconds(), rebootDelay.Seconds())
+					elapsed := time.Since(start)
+					t.Logf("Time elapsed %v since reboot was requested.", elapsed)
+					// Exit with a safety margin before rebootDelay to avoid issuing an
+					// unbounded gnmi.Get right as the chassis halts.
+					if elapsed+rebootDelayMargin > rebootDelay {
+						t.Logf("Time elapsed %v is within %v of reboot delay (%v); exiting reachability loop.", elapsed, rebootDelayMargin, rebootDelay)
 						break
 					}
 					var latestTime time.Time
@@ -169,6 +174,15 @@ func TestChassisReboot(t *testing.T) {
 						t.Errorf("Get latest system time: got %v, want newer time than %v.", latestTime, prevTime)
 					}
 					prevTime = latestTime
+				}
+				if remaining := rebootDelay - time.Since(start); remaining > 0 {
+					timer := time.NewTimer(remaining)
+					defer timer.Stop()
+					select {
+					case <-timer.C:
+					case <-t.Context().Done():
+						t.Fatalf("Context cancelled while waiting for reboot delay: %v", t.Context().Err())
+					}
 				}
 			}
 
