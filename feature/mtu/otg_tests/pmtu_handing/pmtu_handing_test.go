@@ -386,7 +386,7 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	td.otg.StartProtocols(t)
 	waitF(t)
 	// Cap the PCAP window once enough return frames arrive to avoid exceeding OTG's per-port capture buffer limit.
-	baseInFrames, _ := gnmi.Lookup(t, td.otg, gnmi.OTG().Port(ateSrc.Name).Counters().InFrames().State()).Val()
+baseInFrames := gnmi.Get(t, td.otg, gnmi.OTG().Port(ateSrc.Name).Counters().InFrames().State())
 	cs := otgutils.StartCapture(t, td.otg)
 	defer otgutils.StopCapture(t, td.otg, cs)
 	captureStart := time.Now()
