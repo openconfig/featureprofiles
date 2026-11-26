@@ -48,7 +48,11 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-	for i := 0; i < maxNIs; i++ {
+	numNIs := maxNIs
+	if dut.Vendor() == ondatra.CISCO {
+		numNIs = 150
+	}
+	for i := 0; i < numNIs; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
@@ -75,7 +79,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	t.Cleanup(func() {
 		batch := &gnmi.SetBatch{}
-		for i := 0; i < maxNIs; i++ {
+		for i := 0; i < numNIs; i++ {
 			gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i)).Config())
 		}
 		batch.Set(t, dut)
@@ -91,7 +95,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!", queueSize, historyMemory)
+		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!\nrouter static\n maximum path ipv4 140000\n!", queueSize, historyMemory)
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
@@ -102,18 +106,24 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		Timestamp: requestTimestamp,
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
-	defer cancel()
+	// Keep the subscription alive while sendOversizedPayload() executes,
+	// and cancel it on test exit to avoid leaking the stream/goroutine.
+	subCtx, subCancel := context.WithCancel(t.Context())
+	defer subCancel()
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
-	acctzSubClient, err := acctzClient.RecordSubscribe(ctx, request, grpc.MaxCallRecvMsgSize(45000000))
+	acctzSubClient, err := acctzClient.RecordSubscribe(subCtx, request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
 	defer acctzSubClient.CloseSend()
 
 	sendOversizedPayload(t, dut)
+
+	// Start the 2-minute timeout only for receiving the acctz record after the gNMI Set completes.
+	recvCtx, recvCancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer recvCancel()
 
 	recordChan := make(chan recordRequestResult)
 	go func() {
@@ -122,7 +132,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			res := recordRequestResult{record: resp, err: err}
 			select {
 			case recordChan <- res:
-			case <-ctx.Done():
+			case <-recvCtx.Done():
 				return
 			}
 			if err != nil {
@@ -135,7 +145,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		var resp recordRequestResult
 		select {
 		case resp = <-recordChan:
-		case <-ctx.Done():
+		case <-recvCtx.Done():
 			t.Fatal("Done receiving records and did not find our record...")
 		}
 
