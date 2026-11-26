@@ -201,7 +201,7 @@ type testArgs struct {
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
 	otgConfig  gosnappi.Config
-	top        gosnappi.Config
+	flowDestIP string
 	electionID gribi.Uint128
 	otg        *otg.OTG
 }
@@ -572,7 +572,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureOTG configures the 4-link topology of the ATE (bidirectional IS-IS + iBGP on port1).
-func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
+func configureOTG(t *testing.T, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	atePortNamelist = nil
@@ -646,18 +646,17 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 		autoNegotiate.SetRsFec(false)
 	}
 
+	setEncapFlow(config, ipv4InnerDst)
+
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 	pb, _ := config.Marshal().ToProto()
 	t.Log(pb.GetCaptures())
 	return config
 }
 
-func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestIP string) {
-	t.Helper()
-
+func setEncapFlow(config gosnappi.Config, trafficDestIP string) {
 	config.Flows().Clear()
 
 	flow1 := gosnappi.NewFlow().SetName(encapFlow)
@@ -683,12 +682,23 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestI
 	UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 
 	config.Flows().Append(flow1)
+}
 
-	t.Logf("Pushing traffic flows to OTG and starting protocols...")
-	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
-	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
+func createFlow(t *testing.T, args *testArgs, trafficDestIP string) {
+	t.Helper()
+	if args.flowDestIP == trafficDestIP {
+		return
+	}
+
+	setEncapFlow(args.otgConfig, trafficDestIP)
+
+	t.Logf("Pushing traffic flow (dst=%s) to OTG and starting protocols...", trafficDestIP)
+	args.otg.PushConfig(t, args.otgConfig)
+	args.otg.StartProtocols(t)
+	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
+	verifyISISTelemetry(t, args.dut, args.dut.Port(t, "port1").Name())
+	verifyBgpTelemetry(t, args.dut)
+	args.flowDestIP = trafficDestIP
 }
 
 func sendTraffic(t *testing.T, args *testArgs, cs gosnappi.ControlState) {
@@ -1139,7 +1149,6 @@ func TestEncapFrr(t *testing.T) {
 
 	gribic := dut.RawAPIs().GRIBI(t)
 	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
 	dutPorts := sortPorts(dut.Ports())[0:4]
 	atePorts := sortPorts(ate.Ports())[0:4]
 
@@ -1208,7 +1217,7 @@ func TestEncapFrr(t *testing.T) {
 		dut:        dut,
 		ate:        ate,
 		otgConfig:  otgConfig,
-		top:        top,
+		flowDestIP: ipv4InnerDst,
 		electionID: eID,
 		otg:        otg,
 	}
@@ -1226,7 +1235,7 @@ func TestEncapFrr(t *testing.T) {
 			}
 			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[2]}
 			configureGribiRoute(ctx, t, dut, client)
-			createFlow(t, otgConfig, otg, ipv4InnerDst)
+			createFlow(t, args, ipv4InnerDst)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0, 0.25, 0.75, 0}
 			basePcaps := captureAndVerifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
@@ -1266,7 +1275,7 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "encapNoMatch" {
-				createFlow(t, otgConfig, otg, noMatchEncapDest)
+				createFlow(t, args, noMatchEncapDest)
 			}
 
 			capturePortList := tc.CapturePortList

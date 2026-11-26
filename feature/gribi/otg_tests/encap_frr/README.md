@@ -486,6 +486,17 @@ be routed to the DEFAULT VRF for further lookup.
 3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
     VR) out of DUT port-1.
 
+### Cleanup
+
+*   Restore all disabled DUT/ATE interfaces (`port2`, `port3`, `port4`) back to
+    the `UP` state via `t.Cleanup` after each subtest and verify operational
+    status returns to `UP`.
+*   Stop all active OTG packet capture sessions via `defer` / `t.Cleanup` and
+    remove temporary PCAP files.
+*   Flush all programmed gRIBI AFT entries (IPv4 entries, NextHopGroups, and
+    NextHops) across `DEFAULT`, `ENCAP_TE_VRF_A`, `TE_VRF_111`, and `TE_VRF_222`
+    via `gRIBI.Flush` to restore the DUT to its baseline operational state.
+
 #### Canonical OC
 ```json
 {}
