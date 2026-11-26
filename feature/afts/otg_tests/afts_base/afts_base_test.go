@@ -16,7 +16,6 @@ package afts_base_test
 import (
 	"flag"
 	"fmt"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"testing"
@@ -622,7 +621,8 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
 
-	// Direct zero-clone comparison of wantPrefixes and their referenced NHGs/NHs across both sessions.
+	// Compare wantPrefixes and their referenced NHGs/NHs directly across both
+	// sessions without cloning full maps.
 	usedNHGIDs := make(map[uint64]struct{})
 	for p := range wantPrefixes {
 		nhg1, ok1 := aft1.Prefixes[p]
@@ -684,10 +684,6 @@ type testCase struct {
 }
 
 func TestBGP(t *testing.T) {
-	// Reduce Go GC headroom from 100% (2x live heap) to 50% (1.5x live heap) to lower peak RSS.
-	prevGCPercent := debug.SetGCPercent(50)
-	defer debug.SetGCPercent(prevGCPercent)
-
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())

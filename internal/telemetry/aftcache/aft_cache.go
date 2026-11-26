@@ -12,9 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package aftcache is a test library for storing a stream of AFT telemetry at full RIB scale
-// in a local cache so we can periodically check if required test conditions are met,
-// such as verifying that all expected prefixes are present.
+// Package aftcache stores a stream of AFT telemetry at full RIB scale in a
+// local cache so tests can periodically check convergence conditions, such as
+// verifying that all expected prefixes and next hops are present.
+//
+// Telemetry contract (per OpenConfig openconfig/public#860 and gNMI spec
+// Section 2.1.1):
+//   - Atomic updates only: ipv4-entry, ipv6-entry, next-hop-group, and
+//     next-hop are oc-ext:telemetry-atomic containers. Non-atomic AFT update
+//     notifications return an explicit error; atomic notifications carrying
+//     deletes are rejected.
+//   - Atomic = replace: every AFT entry touched by an atomic notification is
+//     replaced as a whole (identified from notification prefix + update path).
+//   - Short-prefix atomic updates: atomic notifications without an entry-level
+//     prefix are accepted (entries are identified and replaced from full update
+//     paths) and counted/logged as compliance warnings.
+//   - Deletes: deletes must be non-atomic; any delete at or below an entry key
+//     removes the entire entry (table/ancestor deletes remove all matching
+//     entries).
+//   - Deviation-agnostic: test deviations (such as route scale or expected next
+//     hops) are handled by callers rather than inside aftcache.
 package aftcache
 
 import (
@@ -46,9 +63,10 @@ const (
 	periodicInterval = 2 * time.Minute
 	// periodicDeadline is the deadline for all periodic hooks in a run. Should be < periodicInterval.
 	periodicDeadline = 1*time.Minute + 45*time.Second
-	// aftBufferSize is the capacity of the internal channel queueing notifications from DUT
-	// before applying them to our internal cache. Kept at 4M slots (~30 MiB/session) to
-	// avoid backpressure regressions on slow-collector and pre-ListenUntil buffering tests.
+	// aftBufferSize is the capacity of the channel queueing notifications from
+	// the DUT before applying them to the cache. Kept at 4M slots
+	// (~30 MiB/session) to avoid backpressure regressions on slow-collector and
+	// pre-ListenUntil buffering tests.
 	aftBufferSize = 4000000
 	// missingPrefixesFile is the name of the file where missing prefixes are written.
 	missingPrefixesFile = "missing_prefixes.txt"
@@ -63,6 +81,9 @@ var (
 	ErrNotExist = errors.New("does not exist")
 	// ErrUnsupported is an error returned when AFT elements are not supported.
 	ErrUnsupported = errors.New("unsupported")
+	// errNonAtomicUpdate is returned when a non-atomic update targets an atomic
+	// AFT container.
+	errNonAtomicUpdate = errors.New("non-atomic AFT update (gNMI spec Section 2.1.1)")
 )
 
 func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
@@ -151,8 +172,8 @@ type nhRecord struct {
 	ts   int64
 }
 
-// aftCache stores compact typed AFT state parsed directly on gNMI notification arrival,
-// avoiding retention of raw *gnmipb.Notification struct trees in RAM.
+// aftCache stores compact typed AFT state parsed directly on notification
+// arrival, avoiding retention of raw *gnmipb.Notification trees in memory.
 type aftCache struct {
 	mu            sync.RWMutex
 	target        string
@@ -162,10 +183,11 @@ type aftCache struct {
 	nextHopGroups map[uint64]nhgRecord
 	nextHops      map[uint64]nhRecord
 
-	leafCount   int64
-	addCount    int64
-	updateCount int64
-	delCount    int64
+	leafCount              int64
+	addCount               int64
+	updateCount            int64
+	delCount               int64
+	shortPrefixAtomicCount int64
 }
 
 // aftNextHopGroup represents an AFT next hop group.
@@ -203,17 +225,17 @@ func (ss *AFTStreamSession) ToAFT(_ *testing.T, _ *ondatra.DUTDevice) (*AFTData,
 	defer c.mu.RUnlock()
 
 	prefixes := make(map[string]uint64, len(c.prefixesV4)+len(c.prefixesV6))
-	for pfx, rec := range c.prefixesV4 {
+	for prefix, rec := range c.prefixesV4 {
 		if !rec.hasNHG || !rec.hasStatePrefix {
-			return nil, fmt.Errorf("missing required fields for IPv4 prefix %s (hasPrefix=%v, hasNHG=%v)", pfx, rec.hasStatePrefix, rec.hasNHG)
+			return nil, fmt.Errorf("missing required fields for IPv4 prefix %s (hasPrefix=%v, hasNHG=%v)", prefix, rec.hasStatePrefix, rec.hasNHG)
 		}
-		prefixes[pfx] = rec.nhgID
+		prefixes[prefix] = rec.nhgID
 	}
-	for pfx, rec := range c.prefixesV6 {
+	for prefix, rec := range c.prefixesV6 {
 		if !rec.hasNHG || !rec.hasStatePrefix {
-			return nil, fmt.Errorf("missing required fields for IPv6 prefix %s (hasPrefix=%v, hasNHG=%v)", pfx, rec.hasStatePrefix, rec.hasNHG)
+			return nil, fmt.Errorf("missing required fields for IPv6 prefix %s (hasPrefix=%v, hasNHG=%v)", prefix, rec.hasStatePrefix, rec.hasNHG)
 		}
-		prefixes[pfx] = rec.nhgID
+		prefixes[prefix] = rec.nhgID
 	}
 
 	nhgs := make(map[uint64]*aftNextHopGroup, len(c.nextHopGroups))
@@ -236,7 +258,8 @@ func (ss *AFTStreamSession) ToAFT(_ *testing.T, _ *ondatra.DUTDevice) (*AFTData,
 		if rec.data == nil {
 			continue
 		}
-		// Match prior parseNH ErrNotExist behavior: omit next hops with no IP, LSP, or interface.
+		// Match prior parseNH ErrNotExist behavior: omit next hops with no IP,
+		// LSP, or interface.
 		if rec.data.IP == "" && rec.data.LSPName == "" && rec.data.IntfName == "" {
 			continue
 		}
@@ -251,13 +274,14 @@ func (ss *AFTStreamSession) ToAFT(_ *testing.T, _ *ondatra.DUTDevice) (*AFTData,
 	}, nil
 }
 
-// logMetadata sends cache metadata to testing log.
-func (c *aftCache) logMetadata(t *testing.T, start time.Time, prefix string) error {
+// logMetadata sends cache metadata to the test log.
+func (c *aftCache) logMetadata(t *testing.T, start time.Time, prefix string) {
 	c.mu.RLock()
 	leafCount := c.leafCount
 	addCount := c.addCount
 	updateCount := c.updateCount
 	delCount := c.delCount
+	shortPrefixCount := c.shortPrefixAtomicCount
 	c.mu.RUnlock()
 
 	msg := fmt.Sprintf("%s After %v: %s:%d %s:%d %s:%d %s:%d ",
@@ -269,7 +293,9 @@ func (c *aftCache) logMetadata(t *testing.T, start time.Time, prefix string) err
 		metadata.DelCount, delCount,
 	)
 	t.Log(msg)
-	return nil
+	if shortPrefixCount > 0 {
+		t.Logf("%s WARNING: received %d atomic AFT update notification(s) without an entry-level prefix (gNMI spec Section 2.1.1 compliance warning)", prefix, shortPrefixCount)
+	}
 }
 
 func (a *AFTData) isCNHG(nhgID uint64) (bool, error) {
@@ -284,7 +310,8 @@ func (a *AFTData) isCNHG(nhgID uint64) (bool, error) {
 	return false, nil
 }
 
-// resolveNHGCBF gets the possible next hops for a specific next-hop group ID and DSCP value.
+// resolveNHGCBF returns the possible next hops for a specific next-hop group
+// ID and DSCP value.
 func (a *AFTData) resolveNHGCBF(prefix string, nhgID uint64, dscp uint8) ([]*aftNextHop, error) {
 	visited := map[uint64]bool{} // Track NHGs we've seen in case of circular references.
 	for {
@@ -334,7 +361,8 @@ func (a *AFTData) resolveNHGCBF(prefix string, nhgID uint64, dscp uint8) ([]*aft
 	return nhs, nil
 }
 
-// elemAt indexes into the virtual concatenation of a followed by b with zero allocations.
+// elemAt indexes into the virtual concatenation of a followed by b without
+// allocating a combined slice.
 func elemAt(a, b []*gnmipb.PathElem, idx int) *gnmipb.PathElem {
 	if idx < len(a) {
 		return a[idx]
@@ -342,8 +370,9 @@ func elemAt(a, b []*gnmipb.PathElem, idx int) *gnmipb.PathElem {
 	return b[idx-len(a)]
 }
 
-// findAFTInPath scans the virtual concatenation (a + b) to find "afts" and optional
-// network-instance name, returning (aftIdx, niName). Returns (-1, "") if not found.
+// findAFTInPath scans the virtual concatenation (a + b) to find "afts" and an
+// optional network-instance name, returning (aftIdx, niName) or (-1, "") if
+// not found.
 func findAFTInPath(a, b []*gnmipb.PathElem) (int, string) {
 	total := len(a) + len(b)
 	var niName string
@@ -365,6 +394,21 @@ func (c *aftCache) matchesNI(niName string) bool {
 	return niName == "" || c.defaultNI == "" || niName == c.defaultNI
 }
 
+func (c *aftCache) hasMatchingAFTUpdate(prefixElems []*gnmipb.PathElem, updates []*gnmipb.Update) bool {
+	for _, u := range updates {
+		uElems := u.GetPath().GetElem()
+		aftIdx, niName := findAFTInPath(prefixElems, uElems)
+		if aftIdx < 0 || len(prefixElems)+len(uElems) < aftIdx+2 || !c.matchesNI(niName) {
+			continue
+		}
+		switch elemAt(prefixElems, uElems, aftIdx+1).GetName() {
+		case "ipv4-unicast", "ipv6-unicast", "next-hop-groups", "next-hops":
+			return true
+		}
+	}
+	return false
+}
+
 func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 	if n.GetSyncResponse() {
 		return nil
@@ -376,7 +420,7 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 	}
 
 	ts := update.GetTimestamp()
-	pfxElems := update.GetPrefix().GetElem()
+	prefixElems := update.GetPrefix().GetElem()
 	updates := update.GetUpdate()
 	deletes := update.GetDelete()
 	atomic := update.GetAtomic()
@@ -384,122 +428,134 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 		return errors.New("atomic deletes unsupported")
 	}
 
-	var updateErr error
 	if len(updates) > 0 {
-		updateErr = c.applyUpdates(pfxElems, updates, ts, atomic)
-		if updateErr != nil && !errors.Is(updateErr, cache.ErrStale) {
-			return updateErr
+		if atomic {
+			return c.applyAtomicUpdates(prefixElems, updates, ts)
+		}
+		if c.hasMatchingAFTUpdate(prefixElems, updates) {
+			return fmt.Errorf("%w: atomic AFT container requires atomic=true", errNonAtomicUpdate)
 		}
 	}
 	if len(deletes) > 0 {
-		if err := c.applyDeletes(pfxElems, deletes, ts); err != nil {
-			return err
-		}
+		c.applyDeletes(prefixElems, deletes, ts)
 	}
-	return updateErr
+	return nil
 }
 
-func (c *aftCache) applyUpdates(pfxElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64, atomic bool) error {
-	// Fast path: prefix already identifies the AFT table and entry (standard for atomic per-entry updates).
-	if aftIdx, niName := findAFTInPath(pfxElems, nil); aftIdx >= 0 && len(pfxElems) >= aftIdx+3 {
+type aftEntryKey struct {
+	table string
+	key   string
+}
+
+func extractEntryKey(table string, entryElem *gnmipb.PathElem) string {
+	switch table {
+	case "ipv4-unicast", "ipv6-unicast":
+		return entryElem.GetKey()["prefix"]
+	case "next-hop-groups":
+		return entryElem.GetKey()["id"]
+	case "next-hops":
+		return entryElem.GetKey()["index"]
+	default:
+		return ""
+	}
+}
+
+func (c *aftCache) applyAtomicUpdates(prefixElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64) error {
+	// Fast path: prefix already identifies the AFT table and entry key
+	// (standard for atomic per-entry updates).
+	if aftIdx, niName := findAFTInPath(prefixElems, nil); aftIdx >= 0 && len(prefixElems) >= aftIdx+3 {
 		if !c.matchesNI(niName) {
 			return nil
 		}
-		replaceEntry := atomic && len(pfxElems) == aftIdx+3
-		table := pfxElems[aftIdx+1].GetName()
-		entryElem := pfxElems[aftIdx+2]
-		switch table {
-		case "ipv4-unicast":
-			if pfx := entryElem.GetKey()["prefix"]; pfx != "" {
-				return c.upsertPrefix(false, pfx, pfxElems, updates, ts, replaceEntry)
-			}
-		case "ipv6-unicast":
-			if pfx := entryElem.GetKey()["prefix"]; pfx != "" {
-				return c.upsertPrefix(true, pfx, pfxElems, updates, ts, replaceEntry)
-			}
-		case "next-hop-groups":
-			if idStr := entryElem.GetKey()["id"]; idStr != "" {
-				return c.upsertNHG(idStr, pfxElems, updates, ts, replaceEntry)
-			}
-		case "next-hops":
-			if idxStr := entryElem.GetKey()["index"]; idxStr != "" {
-				return c.upsertNH(idxStr, pfxElems, updates, ts, replaceEntry)
-			}
+		table := prefixElems[aftIdx+1].GetName()
+		if key := extractEntryKey(table, prefixElems[aftIdx+2]); key != "" {
+			return c.replaceEntry(table, key, prefixElems, updates, ts)
 		}
 	}
 
-	// General path: handle notifications where table/entry elements live inside individual u.Path.
-	staleOnly := true
-	anyApplied := false
+	// Short-prefix atomic path: group updates by (table, entryKey) so every
+	// touched entry is replaced as a whole, and record a compliance warning.
+	grouped := make(map[aftEntryKey][]*gnmipb.Update)
+	var order []aftEntryKey
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
-		aftIdx, niName := findAFTInPath(pfxElems, uElems)
-		if aftIdx < 0 || len(pfxElems)+len(uElems) < aftIdx+3 {
+		aftIdx, niName := findAFTInPath(prefixElems, uElems)
+		if aftIdx < 0 || len(prefixElems)+len(uElems) < aftIdx+3 || !c.matchesNI(niName) {
 			continue
 		}
-		if !c.matchesNI(niName) {
+		table := elemAt(prefixElems, uElems, aftIdx+1).GetName()
+		key := extractEntryKey(table, elemAt(prefixElems, uElems, aftIdx+2))
+		if key == "" {
 			continue
 		}
-		table := elemAt(pfxElems, uElems, aftIdx+1).GetName()
-		entryElem := elemAt(pfxElems, uElems, aftIdx+2)
-		single := []*gnmipb.Update{u}
-		var err error
-		switch table {
-		case "ipv4-unicast":
-			if pfx := entryElem.GetKey()["prefix"]; pfx != "" {
-				err = c.upsertPrefix(false, pfx, pfxElems, single, ts, false)
-			}
-		case "ipv6-unicast":
-			if pfx := entryElem.GetKey()["prefix"]; pfx != "" {
-				err = c.upsertPrefix(true, pfx, pfxElems, single, ts, false)
-			}
-		case "next-hop-groups":
-			if idStr := entryElem.GetKey()["id"]; idStr != "" {
-				err = c.upsertNHG(idStr, pfxElems, single, ts, false)
-			}
-		case "next-hops":
-			if idxStr := entryElem.GetKey()["index"]; idxStr != "" {
-				err = c.upsertNH(idxStr, pfxElems, single, ts, false)
-			}
+		ek := aftEntryKey{table: table, key: key}
+		if _, exists := grouped[ek]; !exists {
+			order = append(order, ek)
 		}
+		grouped[ek] = append(grouped[ek], u)
+	}
+	if len(order) == 0 {
+		return nil
+	}
+
+	c.mu.Lock()
+	c.shortPrefixAtomicCount++
+	c.mu.Unlock()
+
+	staleOnly := true
+	for _, ek := range order {
+		err := c.replaceEntry(ek.table, ek.key, prefixElems, grouped[ek], ts)
 		if err != nil {
 			if errors.Is(err, cache.ErrStale) {
-				anyApplied = true
 				continue
 			}
 			return err
 		}
-		anyApplied = true
 		staleOnly = false
 	}
-	if anyApplied && staleOnly {
+	if staleOnly {
 		return cache.ErrStale
 	}
 	return nil
 }
 
-func (c *aftCache) upsertPrefix(isV6 bool, pfx string, pfxElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64, atomic bool) error {
+func (c *aftCache) replaceEntry(table, key string, prefixElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64) error {
+	switch table {
+	case "ipv4-unicast":
+		return c.replacePrefix(false, key, prefixElems, updates, ts)
+	case "ipv6-unicast":
+		return c.replacePrefix(true, key, prefixElems, updates, ts)
+	case "next-hop-groups":
+		return c.replaceNHG(key, prefixElems, updates, ts)
+	case "next-hops":
+		return c.replaceNH(key, prefixElems, updates, ts)
+	default:
+		return nil
+	}
+}
+
+func (c *aftCache) replacePrefix(isV6 bool, prefix string, prefixElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64) error {
 	var nhgID uint64
 	var gotNHG bool
 	var gotStatePrefix bool
 
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
-		total := len(pfxElems) + len(uElems)
+		total := len(prefixElems) + len(uElems)
 		if total < 2 {
 			continue
 		}
-		if elemAt(pfxElems, uElems, total-2).GetName() != "state" {
+		if elemAt(prefixElems, uElems, total-2).GetName() != "state" {
 			continue
 		}
-		last := elemAt(pfxElems, uElems, total-1).GetName()
+		last := elemAt(prefixElems, uElems, total-1).GetName()
 		switch last {
 		case "next-hop-group":
 			nhgID = u.GetVal().GetUintVal()
 			gotNHG = true
 		case "prefix":
-			if val := u.GetVal().GetStringVal(); val != pfx {
-				return fmt.Errorf("prefix mismatch: key=%q state=%q", pfx, val)
+			if val := u.GetVal().GetStringVal(); val != prefix {
+				return fmt.Errorf("prefix mismatch: key=%q state=%q", prefix, val)
 			}
 			gotStatePrefix = true
 		}
@@ -511,18 +567,9 @@ func (c *aftCache) upsertPrefix(isV6 bool, pfx string, pfxElems []*gnmipb.PathEl
 	if isV6 {
 		m = c.prefixesV6
 	}
-	if old, ok := m[pfx]; ok {
+	if old, ok := m[prefix]; ok {
 		if ts > 0 && ts < old.ts {
 			return cache.ErrStale
-		}
-		if !atomic {
-			if !gotNHG {
-				nhgID = old.nhgID
-				gotNHG = old.hasNHG
-			}
-			if !gotStatePrefix {
-				gotStatePrefix = old.hasStatePrefix
-			}
 		}
 		if ts > 0 && ts == old.ts && old.hasNHG == gotNHG && old.nhgID == nhgID && old.hasStatePrefix == gotStatePrefix {
 			return cache.ErrStale
@@ -531,24 +578,25 @@ func (c *aftCache) upsertPrefix(isV6 bool, pfx string, pfxElems []*gnmipb.PathEl
 		c.leafCount++
 		c.addCount++
 	}
-	m[pfx] = prefixRecord{nhgID: nhgID, ts: ts, hasNHG: gotNHG, hasStatePrefix: gotStatePrefix}
+	m[prefix] = prefixRecord{nhgID: nhgID, ts: ts, hasNHG: gotNHG, hasStatePrefix: gotStatePrefix}
 	c.updateCount += int64(len(updates))
 	return nil
 }
 
-func (c *aftCache) upsertNHG(idStr string, pfxElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64, atomic bool) error {
+func (c *aftCache) replaceNHG(idStr string, prefixElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64) error {
 	nhgID, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		return err
 	}
 
-	// Detect conditional next-hop-groups (unsupported per prior parseNHG behavior).
+	// Detect conditional next-hop-groups (unsupported per prior parseNHG
+	// behavior).
 	isConditional := false
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
-		total := len(pfxElems) + len(uElems)
+		total := len(prefixElems) + len(uElems)
 		for i := 0; i < total; i++ {
-			if elemAt(pfxElems, uElems, i).GetName() == "condition" {
+			if elemAt(prefixElems, uElems, i).GetName() == "condition" {
 				isConditional = true
 				break
 			}
@@ -574,35 +622,19 @@ func (c *aftCache) upsertNHG(idStr string, pfxElems []*gnmipb.PathElem, updates 
 		return nil
 	}
 
-	var nhg *aftNextHopGroup
-	nhidSeen := make(map[uint64]struct{})
-	if !atomic && exists && oldRec.data != nil {
-		nhg = &aftNextHopGroup{
-			NHIDs:        slices.Clone(oldRec.data.NHIDs),
-			NHWeights:    maps.Clone(oldRec.data.NHWeights),
-			Conditionals: slices.Clone(oldRec.data.Conditionals),
-		}
-		if nhg.NHWeights == nil {
-			nhg.NHWeights = make(map[uint64]uint64)
-		}
-		for _, id := range nhg.NHIDs {
-			nhidSeen[id] = struct{}{}
-		}
-	} else {
-		nhg = &aftNextHopGroup{
-			NHIDs:     []uint64{},
-			NHWeights: make(map[uint64]uint64),
-		}
+	nhg := &aftNextHopGroup{
+		NHWeights: make(map[uint64]uint64),
 	}
+	seen := make(map[uint64]struct{})
 
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
-		total := len(pfxElems) + len(uElems)
+		total := len(prefixElems) + len(uElems)
 		if total < 2 {
 			continue
 		}
-		parent := elemAt(pfxElems, uElems, total-2).GetName()
-		last := elemAt(pfxElems, uElems, total-1).GetName()
+		parent := elemAt(prefixElems, uElems, total-2).GetName()
+		last := elemAt(prefixElems, uElems, total-1).GetName()
 		if parent != "state" {
 			continue
 		}
@@ -613,15 +645,15 @@ func (c *aftCache) upsertNHG(idStr string, pfxElems []*gnmipb.PathElem, updates 
 			}
 		case "index":
 			id := u.GetVal().GetUintVal()
-			if _, seen := nhidSeen[id]; !seen {
-				nhidSeen[id] = struct{}{}
+			if _, ok := seen[id]; !ok {
+				seen[id] = struct{}{}
 				nhg.NHIDs = append(nhg.NHIDs, id)
 			}
 		case "weight":
 			// Locate enclosing next-hop[index=...] key element.
 			var nhKeyStr string
 			for i := total - 3; i >= 0; i-- {
-				e := elemAt(pfxElems, uElems, i)
+				e := elemAt(prefixElems, uElems, i)
 				if e.GetName() == "next-hop" {
 					nhKeyStr = e.GetKey()["index"]
 					break
@@ -647,7 +679,7 @@ func (c *aftCache) upsertNHG(idStr string, pfxElems []*gnmipb.PathElem, updates 
 	return nil
 }
 
-func (c *aftCache) upsertNH(idxStr string, pfxElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64, atomic bool) error {
+func (c *aftCache) replaceNH(idxStr string, prefixElems []*gnmipb.PathElem, updates []*gnmipb.Update, ts int64) error {
 	nhID, err := strconv.ParseUint(idxStr, 10, 64)
 	if err != nil {
 		return err
@@ -662,19 +694,14 @@ func (c *aftCache) upsertNH(idxStr string, pfxElems []*gnmipb.PathElem, updates 
 	}
 
 	nh := &aftNextHop{}
-	if !atomic && exists && oldRec.data != nil {
-		cp := *oldRec.data
-		nh = &cp
-	}
-
 	for _, u := range updates {
 		uElems := u.GetPath().GetElem()
-		total := len(pfxElems) + len(uElems)
+		total := len(prefixElems) + len(uElems)
 		if total < 2 {
 			continue
 		}
-		parent := elemAt(pfxElems, uElems, total-2).GetName()
-		last := elemAt(pfxElems, uElems, total-1).GetName()
+		parent := elemAt(prefixElems, uElems, total-2).GetName()
+		last := elemAt(prefixElems, uElems, total-1).GetName()
 		if parent != "state" {
 			continue
 		}
@@ -688,7 +715,7 @@ func (c *aftCache) upsertNH(idxStr string, pfxElems []*gnmipb.PathElem, updates 
 		case "lsp-name":
 			nh.LSPName = u.GetVal().GetStringVal()
 		case "interface":
-			if total >= 3 && elemAt(pfxElems, uElems, total-3).GetName() == "interface-ref" {
+			if total >= 3 && elemAt(prefixElems, uElems, total-3).GetName() == "interface-ref" {
 				nh.IntfName = u.GetVal().GetStringVal()
 			}
 		}
@@ -707,19 +734,19 @@ func shouldDelete(existingTS, delTS int64) bool {
 	return existingTS <= delTS
 }
 
-func isAFTAncestorDelete(pfxElems, dElems []*gnmipb.PathElem, defaultNI string) bool {
-	total := len(pfxElems) + len(dElems)
+func isAFTAncestorDelete(prefixElems, dElems []*gnmipb.PathElem, defaultNI string) bool {
+	total := len(prefixElems) + len(dElems)
 	if total == 0 {
 		return true
 	}
-	if elemAt(pfxElems, dElems, 0).GetName() != "network-instances" {
+	if elemAt(prefixElems, dElems, 0).GetName() != "network-instances" {
 		return false
 	}
 	if total == 1 {
 		return true
 	}
 	if total == 2 {
-		e := elemAt(pfxElems, dElems, 1)
+		e := elemAt(prefixElems, dElems, 1)
 		if e.GetName() != "network-instance" {
 			return false
 		}
@@ -729,18 +756,15 @@ func isAFTAncestorDelete(pfxElems, dElems []*gnmipb.PathElem, defaultNI string) 
 	return false
 }
 
-func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.Path, ts int64) error {
+func (c *aftCache) applyDeletes(prefixElems []*gnmipb.PathElem, deletes []*gnmipb.Path, ts int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var touchedNHGs []uint64
-	var touchedNHs []uint64
-
 	for _, d := range deletes {
 		dElems := d.GetElem()
-		aftIdx, niName := findAFTInPath(pfxElems, dElems)
+		aftIdx, niName := findAFTInPath(prefixElems, dElems)
 		if aftIdx < 0 {
-			if isAFTAncestorDelete(pfxElems, dElems, c.defaultNI) {
+			if isAFTAncestorDelete(prefixElems, dElems, c.defaultNI) {
 				c.updateCount++
 				c.deleteAllMatchingLocked(ts)
 			}
@@ -749,7 +773,7 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 		if !c.matchesNI(niName) {
 			continue
 		}
-		total := len(pfxElems) + len(dElems)
+		total := len(prefixElems) + len(dElems)
 		c.updateCount++
 
 		// Subtree delete of entire afts container.
@@ -758,52 +782,51 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 			continue
 		}
 
-		table := elemAt(pfxElems, dElems, aftIdx+1).GetName()
+		// Per gNMI spec Section 2.1.1, any delete at or below an atomic entry
+		// key removes the entire entry; table-level deletes remove all matching
+		// entries in that table.
+		table := elemAt(prefixElems, dElems, aftIdx+1).GetName()
 		switch table {
 		case "ipv4-unicast":
-			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(pfxElems, dElems, aftIdx+2).GetKey()["prefix"] == "") {
-				for pfx, rec := range c.prefixesV4 {
+			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(prefixElems, dElems, aftIdx+2).GetKey()["prefix"] == "") {
+				for prefix, rec := range c.prefixesV4 {
 					if shouldDelete(rec.ts, ts) {
-						delete(c.prefixesV4, pfx)
+						delete(c.prefixesV4, prefix)
 						c.leafCount--
 						c.delCount++
 					}
 				}
 				continue
 			}
-			if pfx := elemAt(pfxElems, dElems, aftIdx+2).GetKey()["prefix"]; pfx != "" {
-				if isPrefixEntryDelete(pfxElems, dElems, aftIdx, total) {
-					if rec, ok := c.prefixesV4[pfx]; ok && shouldDelete(rec.ts, ts) {
-						delete(c.prefixesV4, pfx)
-						c.leafCount--
-						c.delCount++
-					}
+			if prefix := elemAt(prefixElems, dElems, aftIdx+2).GetKey()["prefix"]; prefix != "" {
+				if rec, ok := c.prefixesV4[prefix]; ok && shouldDelete(rec.ts, ts) {
+					delete(c.prefixesV4, prefix)
+					c.leafCount--
+					c.delCount++
 				}
 			}
 
 		case "ipv6-unicast":
-			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(pfxElems, dElems, aftIdx+2).GetKey()["prefix"] == "") {
-				for pfx, rec := range c.prefixesV6 {
+			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(prefixElems, dElems, aftIdx+2).GetKey()["prefix"] == "") {
+				for prefix, rec := range c.prefixesV6 {
 					if shouldDelete(rec.ts, ts) {
-						delete(c.prefixesV6, pfx)
+						delete(c.prefixesV6, prefix)
 						c.leafCount--
 						c.delCount++
 					}
 				}
 				continue
 			}
-			if pfx := elemAt(pfxElems, dElems, aftIdx+2).GetKey()["prefix"]; pfx != "" {
-				if isPrefixEntryDelete(pfxElems, dElems, aftIdx, total) {
-					if rec, ok := c.prefixesV6[pfx]; ok && shouldDelete(rec.ts, ts) {
-						delete(c.prefixesV6, pfx)
-						c.leafCount--
-						c.delCount++
-					}
+			if prefix := elemAt(prefixElems, dElems, aftIdx+2).GetKey()["prefix"]; prefix != "" {
+				if rec, ok := c.prefixesV6[prefix]; ok && shouldDelete(rec.ts, ts) {
+					delete(c.prefixesV6, prefix)
+					c.leafCount--
+					c.delCount++
 				}
 			}
 
 		case "next-hop-groups":
-			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(pfxElems, dElems, aftIdx+2).GetKey()["id"] == "") {
+			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(prefixElems, dElems, aftIdx+2).GetKey()["id"] == "") {
 				for id, rec := range c.nextHopGroups {
 					if shouldDelete(rec.ts, ts) {
 						delete(c.nextHopGroups, id)
@@ -813,56 +836,19 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 				}
 				continue
 			}
-			idStr := elemAt(pfxElems, dElems, aftIdx+2).GetKey()["id"]
+			idStr := elemAt(prefixElems, dElems, aftIdx+2).GetKey()["id"]
 			nhgID, err := strconv.ParseUint(idStr, 10, 64)
 			if err != nil {
 				continue
 			}
-			if total == aftIdx+3 {
-				if rec, ok := c.nextHopGroups[nhgID]; ok && shouldDelete(rec.ts, ts) {
-					delete(c.nextHopGroups, nhgID)
-					c.leafCount--
-					c.delCount++
-				}
-				continue
-			}
-			// Handle deletion of the next-hops container or individual members/leaves inside an NHG.
-			if total >= aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "next-hops" {
-				rec, ok := c.nextHopGroups[nhgID]
-				if !ok || rec.data == nil || !shouldDelete(rec.ts, ts) {
-					continue
-				}
-				if total == aftIdx+4 || (total == aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "next-hop" && elemAt(pfxElems, dElems, aftIdx+4).GetKey()["index"] == "") {
-					rec.data.NHIDs = []uint64{}
-					rec.data.NHWeights = make(map[uint64]uint64)
-					touchedNHGs = append(touchedNHGs, nhgID)
-					continue
-				}
-				if total >= aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "next-hop" {
-					memberStr := elemAt(pfxElems, dElems, aftIdx+4).GetKey()["index"]
-					memberID, err := strconv.ParseUint(memberStr, 10, 64)
-					if err != nil {
-						continue
-					}
-					if total == aftIdx+5 || (total == aftIdx+6 && elemAt(pfxElems, dElems, aftIdx+5).GetName() == "state") {
-						rec.data.NHIDs = slices.DeleteFunc(rec.data.NHIDs, func(id uint64) bool { return id == memberID })
-						delete(rec.data.NHWeights, memberID)
-						touchedNHGs = append(touchedNHGs, nhgID)
-						continue
-					}
-					switch elemAt(pfxElems, dElems, total-1).GetName() {
-					case "weight":
-						delete(rec.data.NHWeights, memberID)
-						touchedNHGs = append(touchedNHGs, nhgID)
-					case "index":
-						rec.data.NHIDs = slices.DeleteFunc(rec.data.NHIDs, func(id uint64) bool { return id == memberID })
-						touchedNHGs = append(touchedNHGs, nhgID)
-					}
-				}
+			if rec, ok := c.nextHopGroups[nhgID]; ok && shouldDelete(rec.ts, ts) {
+				delete(c.nextHopGroups, nhgID)
+				c.leafCount--
+				c.delCount++
 			}
 
 		case "next-hops":
-			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(pfxElems, dElems, aftIdx+2).GetKey()["index"] == "") {
+			if total == aftIdx+2 || (total == aftIdx+3 && elemAt(prefixElems, dElems, aftIdx+2).GetKey()["index"] == "") {
 				for id, rec := range c.nextHops {
 					if shouldDelete(rec.ts, ts) {
 						delete(c.nextHops, id)
@@ -872,90 +858,31 @@ func (c *aftCache) applyDeletes(pfxElems []*gnmipb.PathElem, deletes []*gnmipb.P
 				}
 				continue
 			}
-			idxStr := elemAt(pfxElems, dElems, aftIdx+2).GetKey()["index"]
+			idxStr := elemAt(prefixElems, dElems, aftIdx+2).GetKey()["index"]
 			nhID, err := strconv.ParseUint(idxStr, 10, 64)
 			if err != nil {
 				continue
 			}
-			rec, ok := c.nextHops[nhID]
-			if !ok || !shouldDelete(rec.ts, ts) {
-				continue
-			}
-			if total == aftIdx+3 {
+			if rec, ok := c.nextHops[nhID]; ok && shouldDelete(rec.ts, ts) {
 				delete(c.nextHops, nhID)
 				c.leafCount--
 				c.delCount++
-				continue
-			}
-			if rec.data == nil {
-				continue
-			}
-			if total == aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "state" {
-				rec.data.IP = ""
-				rec.data.LSPName = ""
-				touchedNHs = append(touchedNHs, nhID)
-				continue
-			}
-			if (total == aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "interface-ref") ||
-				(total == aftIdx+5 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "interface-ref" && elemAt(pfxElems, dElems, aftIdx+4).GetName() == "state") {
-				rec.data.IntfName = ""
-				touchedNHs = append(touchedNHs, nhID)
-				continue
-			}
-			switch elemAt(pfxElems, dElems, total-1).GetName() {
-			case "ip-address":
-				rec.data.IP = ""
-				touchedNHs = append(touchedNHs, nhID)
-			case "lsp-name":
-				rec.data.LSPName = ""
-				touchedNHs = append(touchedNHs, nhID)
-			case "interface":
-				rec.data.IntfName = ""
-				touchedNHs = append(touchedNHs, nhID)
 			}
 		}
 	}
-
-	// Advance record timestamps after processing all deletes in the notification
-	// so multi-member/multi-field deletes sharing the same timestamp all apply
-	// while subsequent out-of-order updates older than ts are rejected as stale.
-	for _, nhgID := range touchedNHGs {
-		if rec, ok := c.nextHopGroups[nhgID]; ok && ts > rec.ts {
-			rec.ts = ts
-			c.nextHopGroups[nhgID] = rec
-		}
-	}
-	for _, nhID := range touchedNHs {
-		if rec, ok := c.nextHops[nhID]; ok && ts > rec.ts {
-			rec.ts = ts
-			c.nextHops[nhID] = rec
-		}
-	}
-	return nil
-}
-
-func isPrefixEntryDelete(pfxElems, dElems []*gnmipb.PathElem, aftIdx, total int) bool {
-	if total == aftIdx+3 {
-		return true
-	}
-	if total == aftIdx+4 && elemAt(pfxElems, dElems, aftIdx+3).GetName() == "state" {
-		return true
-	}
-	last := elemAt(pfxElems, dElems, total-1).GetName()
-	return last == "next-hop-group" || last == "prefix"
 }
 
 func (c *aftCache) deleteAllMatchingLocked(ts int64) {
-	for pfx, rec := range c.prefixesV4 {
+	for prefix, rec := range c.prefixesV4 {
 		if shouldDelete(rec.ts, ts) {
-			delete(c.prefixesV4, pfx)
+			delete(c.prefixesV4, prefix)
 			c.leafCount--
 			c.delCount++
 		}
 	}
-	for pfx, rec := range c.prefixesV6 {
+	for prefix, rec := range c.prefixesV6 {
 		if shouldDelete(rec.ts, ts) {
-			delete(c.prefixesV6, pfx)
+			delete(c.prefixesV6, prefix)
 			c.leafCount--
 			c.delCount++
 		}
@@ -1270,7 +1197,8 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			}
 			ss.missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
 
-			// Check next hops using O(H + N) memoization per unique (nhgID, isIPv6).
+			// Check next hops using O(H + N) memoization per unique
+			// (nhgID, isIPv6).
 			checkNHStart := time.Now()
 			nCorrect := 0
 			diffs := map[string]int{}
