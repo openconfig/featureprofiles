@@ -36,6 +36,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -54,6 +55,10 @@ const (
 	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
 	tgWaitDuration          = 30 * time.Second
+	minCaptureDuration      = 1 * time.Second
+	minCaptureFrames        = 200
+	minValidatedPackets     = 1
+	maxValidatedPackets     = 3
 	acceptableLossPercent   = 100.0
 	subInterfaceIndex       = 0
 	lineRatePrecentage      = 50
@@ -294,6 +299,7 @@ func getFTCompatibleComponentName(t *testing.T, vendor ondatra.Vendor, component
 func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal *packetValidation) {
 	td.otgConfig.Captures().Clear()
 	bytes := td.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
+	t.Logf("Captured PCAP size on %s: %d bytes (%.2f MiB)", packetVal.portName, len(bytes), float64(len(bytes))/(1024*1024))
 	f, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
@@ -349,9 +355,12 @@ func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal 
 				t.Errorf("FAIL: did not received ICMPv6 type-2, code-0")
 			}
 		}
-		if count == 3 {
+		if count == maxValidatedPackets {
 			break
 		}
+	}
+	if count < minValidatedPackets {
+		t.Errorf("captureAndValidateICMPPacketsReceived(%s, %s) validated %d ICMP packets, want >= %d", packetVal.portName, td.flowProto, count, minValidatedPackets)
 	}
 
 	td.otgConfig.Captures().Clear()
@@ -376,13 +385,23 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	time.Sleep(tgWaitDuration)
 	td.otg.StartProtocols(t)
 	waitF(t)
+	// Cap the PCAP window once enough return frames arrive to avoid exceeding OTG's per-port capture buffer limit.
+	baseInFrames := gnmi.Get(t, td.otg, gnmi.OTG().Port(ateSrc.Name).Counters().InFrames().State())
 	cs := otgutils.StartCapture(t, td.otg)
 	defer otgutils.StopCapture(t, td.otg, cs)
+	captureStart := time.Now()
 	td.otg.StartTraffic(t)
-	time.Sleep(trafficRunDuration)
+	time.Sleep(minCaptureDuration)
+	_, _ = gnmi.Watch(t, td.otg, gnmi.OTG().Port(ateSrc.Name).Counters().InFrames().State(), trafficRunDuration-minCaptureDuration, func(val *ygnmi.Value[uint64]) bool {
+		inFrames, ok := val.Val()
+		return ok && inFrames >= baseInFrames+minCaptureFrames
+	}).Await(t)
+	otgutils.StopCapture(t, td.otg, cs)
+	if remaining := trafficRunDuration - time.Since(captureStart); remaining > 0 {
+		time.Sleep(remaining)
+	}
 	td.otg.StopTraffic(t)
 	time.Sleep(trafficStopWaitDuration)
-	otgutils.StopCapture(t, td.otg, cs)
 	otgutils.LogFlowMetrics(t, td.otg, td.otgConfig)
 	otgutils.LogPortMetrics(t, td.otg, td.otgConfig)
 	flow := gnmi.OTG().Flow(tt.name)
