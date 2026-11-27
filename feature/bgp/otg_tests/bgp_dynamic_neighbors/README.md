@@ -33,7 +33,7 @@ graph LR;
 ### Configuration
 
 1.  Configure DUT with a global router-id and global AS `64500`.
-2.  Configure a peer-group for dynamic neighbors (e.g., `RM_DYNAMIC_PEERS`) with `peer-as 64510`, `local-as 64510` (no-prepend, replace-as), `transport/local-address` = DUT `Loopback0` and `send-community BOTH`.
+2.  Configure a peer-group for dynamic neighbors (e.g., `RM_DYNAMIC_PEERS`) with `peer-as 64510`, `local-as 64510` (no-prepend, replace-as), `transport/local-address` = DUT `Loopback0` and `send-community-type [STANDARD, EXTENDED]`.
 3.  Configure multiple dynamic neighbor prefixes (listen ranges, e.g., `2001:db8:1::/64`, `2001:db8:10::/47`, `2001:db8:20::/46`) associated with the peer-group.
 4.  Configure MD5 authentication on the peer-group.
 5.  Enable `L3VPN_IPV4_UNICAST` and `L3VPN_IPV6_UNICAST` address families on the peer-group (RT-Constraint behaviour is covered in RT-1.106).
@@ -96,7 +96,16 @@ Verifies that the DUT correctly evaluates BGP best-path parameters (e.g., MED) a
 *   **Step 2**: Initiate sessions from ATE peers in AS `64510`; verify the OPEN message received on ATE carries AS `64510` and the sessions transition to `ESTABLISHED` as **iBGP**.
 *   **Step 3**: Verify `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as` = `64510` and `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type` = `INTERNAL` for the dynamic peers, while `/network-instances/network-instance/protocols/protocol/bgp/global/state/as` remains `64500`.
 *   **Step 4**: Advertise a VPN prefix from the DUT to a dynamic peer and verify the AS-Path does **not** contain `64500` (replace-as) and that no additional AS is prepended (no-prepend).
-*   **Step 5**: Verify `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community` = `BOTH` on the dynamic peers and that both a standard and an extended community set on the advertised prefix are received by ATE.
+*   **Step 5**: Verify `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type` = `[STANDARD, EXTENDED]` on the dynamic peers and that both a standard and an extended community set on the advertised prefix are received by ATE.
+
+#### Cleanup
+
+*   Remove the dynamic neighbor prefixes, peer-group `RM_DYNAMIC_PEERS`
+    (including `local-as`, `transport/local-address`, authentication,
+    `send-community-type` and L3VPN address families) and the static neighbor /
+    `STATIC_PEERS` peer-group from the DUT.
+*   Stop all ATE BGP emulations and verify no dynamic or static neighbors remain
+    under `neighbors/neighbor` in DUT telemetry.
 
 ## Canonical OC
 
@@ -151,7 +160,7 @@ Verifies that the DUT correctly evaluates BGP best-path parameters (e.g., MED) a
                         "peer-group-name": "RM_DYNAMIC_PEERS",
                         "peer-as": 64510,
                         "local-as": 64510,
-                        "send-community": "BOTH",
+                        "send-community-type": ["STANDARD", "EXTENDED"],
                         "auth-password": "secret_md5_key"
                       },
                       "peer-group-name": "RM_DYNAMIC_PEERS",
@@ -237,7 +246,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/afi-safi-name:
 
@@ -247,7 +256,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-address:
 
 rpcs:
