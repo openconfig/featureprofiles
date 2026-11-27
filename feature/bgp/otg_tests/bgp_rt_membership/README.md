@@ -29,7 +29,7 @@ graph LR;
 
 ### Configuration
 
-1.  Configure DUT with iBGP peer group (e.g., `RM_DYNAMIC_PEERS`) with `auth-password` and `send-community BOTH` (standard and extended; RT and SoO are extended communities).
+1.  Configure DUT with iBGP peer group (e.g., `RM_DYNAMIC_PEERS`) with `auth-password` and `send-community-type [STANDARD, EXTENDED]` (standard and extended; RT and SoO are extended communities).
 2.  Enable `RT_MEMBERSHIP`, `L3VPN_IPV4_UNICAST`, and `L3VPN_IPV6_UNICAST` address families for the peer group; enable `add-paths send` on both L3VPN address families.
 3.  Disable the implicit default route-target on the peer group (vendor: `no neighbor <peer-group> default-route-target`): the DUT must **not** assume interest in all VPN routes for peers that have not advertised RT membership.
 4.  Configure two VRFs on DUT:
@@ -71,7 +71,17 @@ graph LR;
 *   **Step 2**: Inject two paths for the same prefix (`198.51.100.10/32`) into `VRF_100` (e.g., via two eBGP/ATE sources or two connected next-hops).
 *   **Step 3**: Verify ATE Peer 2 receives **both** paths for `198.51.100.10/32` with distinct path-ids, each carrying RT `64496:100`.
 *   **Step 4**: Verify ATE Peer 1 (no RT membership advertised, default route-target disabled) still receives no paths.
-*   **Step 5**: Verify a standard community and an extended community attached to the VRF route are both present on the paths received by ATE Peer 2 (`send-community BOTH`).
+*   **Step 5**: Verify a standard community and an extended community attached to the VRF route are both present on the paths received by ATE Peer 2 (`send-community-type [STANDARD, EXTENDED]`).
+
+#### Cleanup
+
+*   Re-enable the default route-target on the peer group if it was changed
+    during the test, then remove peer-group `RM_DYNAMIC_PEERS`, the iBGP
+    neighbors, and VRFs `VRF_100` / `VRF_200` with their RD/RT and loopback
+    prefixes from the DUT.
+*   Stop all ATE BGP emulations and verify the DUT returns to its baseline
+    operational state (no residual BGP sessions, VRFs or RT membership
+    advertisements).
 
 ## Canonical OC
 
@@ -119,7 +129,7 @@ graph LR;
                       "config": {
                         "peer-group-name": "RM_DYNAMIC_PEERS",
                         "peer-as": 64496,
-                        "send-community": "BOTH",
+                        "send-community-type": ["STANDARD", "EXTENDED"],
                         "auth-password": "ibgp_internal_secret"
                       },
                       "peer-group-name": "RM_DYNAMIC_PEERS",
@@ -482,8 +492,8 @@ paths:
   # Add-Paths and Communities (New in this version)
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type:
 
   # MD5 Auth (New in this version)
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/auth-password:
