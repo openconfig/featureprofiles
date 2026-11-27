@@ -1,0 +1,46 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "9b7914a7-002d-4676-9010-4323e7ea5a9d"
+plan_id: "P4RT-1.4"
+description: "P4RT PacketIn and gRIBI Get Continuity across Supervisor Switchover"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    aggregate_atomic_update: true
+    interface_enabled: true
+    gnoi_subcomponent_path: true
+    gnoi_switchover_reason_missing_user_initiated: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    system_mount_point_state_ft: "ciscoxr-mount-ft"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    cli_takes_precedence_over_oc: true
+  }
+}
