@@ -1639,6 +1639,19 @@ message Metadata {
     // Cisco: https://issuetracker.google.com/issues/372605838
     bool controller_card_primary_power_disable_unsupported = 491;
 
+    // Device omits EXTENDED_NEXTHOP_ENCODING from
+    // /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+    // even when RFC 8950 Extended Next-Hop Encoding is negotiated.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/591033881
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/579933676
+    bool bgp_extended_nexthop_supported_capabilities_unsupported = 492;
+
+    // Device reports 0 for BGP IPV4_UNICAST prefixes/state/installed telemetry
+    // on IPv6 neighbors using RFC 8950 Extended Next-Hop Encoding even when the
+    // routes are installed in the AFT.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/591033565
+    bool bgp_extended_nexthop_installed_prefixes_unsupported = 493;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }

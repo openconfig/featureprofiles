@@ -1,0 +1,64 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "760edecc-7d8f-467e-b3f1-fb55f6168522"
+plan_id: "RT-1.112"
+description: "BGP Extended Next-Hop Encoding"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    bgp_rib_streaming_config_required: true
+    network_instance_table_deletion_required: true
+    missing_value_for_defaults: true
+    skip_setting_allow_multiple_as: true
+    enable_multipath_under_afi_safi: true
+    rib_wecmp: true
+    omit_l2_mtu: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    bgp_global_extended_next_hop_encoding_unsupported: true
+    enable_multipath_under_afi_safi: true
+    skip_setting_allow_multiple_as: true
+    bgp_explicit_extended_community_enable: true
+    bgp_rib_oc_path_unsupported: true
+    skip_bgp_send_community_type: true
+    link_local_instead_of_nh: true
+    skip_interface_name_check: true
+    bgp_extended_nexthop_supported_capabilities_unsupported: true
+    bgp_extended_nexthop_installed_prefixes_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    multipath_unsupported_neighbor_or_afisafi: true
+    bgp_max_multipath_paths_unsupported: true
+    bgp_rib_oc_path_unsupported: true
+    route_policy_under_afi_unsupported: true
+    bgp_extended_nexthop_supported_capabilities_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    skip_interface_name_check: true
+    enable_multipath_under_afi_safi: true
+  }
+}

@@ -2602,3 +2602,21 @@ func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
 }
+
+// BgpExtendedNexthopSupportedCapabilitiesUnsupported returns true if the device
+// omits EXTENDED_NEXTHOP_ENCODING from BGP neighbor supported-capabilities
+// telemetry even when RFC 8950 Extended Next-Hop Encoding is negotiated.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/591033881
+// Cisco: https://partnerissuetracker.corp.google.com/issues/579933676
+func BgpExtendedNexthopSupportedCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedNexthopSupportedCapabilitiesUnsupported()
+}
+
+// BgpExtendedNexthopInstalledPrefixesUnsupported returns true if the device
+// reports 0 for BGP IPV4_UNICAST prefixes/state/installed telemetry on IPv6
+// neighbors using RFC 8950 Extended Next-Hop Encoding even when the routes are
+// installed in the AFT.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/591033565
+func BgpExtendedNexthopInstalledPrefixesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedNexthopInstalledPrefixesUnsupported()
+}

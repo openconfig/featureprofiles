@@ -867,6 +867,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/confederation/otg_tests/bgp_confederation_test/bgp_confederation_test.go"
 }
 test: {
+  id: "RT-1.112"
+  description: "BGP Extended Next-Hop Encoding"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_extended_nexthop_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_extended_nexthop_test/bgp_extended_nexthop_test.go"
+}
+test: {
   id: "RT-1.12"
   description: "BGP always compare MED"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_always_compare_med/README.md"
