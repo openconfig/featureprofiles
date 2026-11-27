@@ -1887,23 +1887,22 @@ func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdr
 		if ipLayer == nil {
 			continue
 		}
-		if packetCheckCount >= 5 {
-			break
-		}
-		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
 		if ipInnerLayer != nil {
+			ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
+			if ipInnerPacket.DstIP.String() != inHdrIP {
+				continue
+			}
+			packetCheckCount++
 			if ipPacket.DstIP.String() != outDstIP {
 				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
 			}
-			ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
-			if ipInnerPacket.DstIP.String() != inHdrIP {
-				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
-			}
 			t.Logf("Traffic for non decap routes passed")
-			break
+			if packetCheckCount >= 5 {
+				break
+			}
 		}
 	}
 	if packetCheckCount == 0 {
@@ -1926,16 +1925,17 @@ func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string,
 		if ipLayer == nil {
 			continue
 		}
-		if packetCheckCount >= 5 {
-			break
-		}
-		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
 		if ipInnerLayer != nil {
+			ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
+			if ipInnerPacket.DstIP.String() != innerIP {
+				continue
+			}
+			packetCheckCount++
 			if len(outDstIP) == 2 {
-				if ipPacket.DstIP.String() != outDstIP[0] || ipPacket.DstIP.String() != outDstIP[1] {
+				if ipPacket.DstIP.String() != outDstIP[0] && ipPacket.DstIP.String() != outDstIP[1] {
 					t.Errorf("Packets are not encapsulated as expected")
 				}
 			} else {
@@ -1944,7 +1944,9 @@ func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string,
 				}
 			}
 			t.Logf("Traffic for encap routes passed")
-			break
+			if packetCheckCount >= 5 {
+				break
+			}
 		}
 	}
 	if packetCheckCount == 0 {

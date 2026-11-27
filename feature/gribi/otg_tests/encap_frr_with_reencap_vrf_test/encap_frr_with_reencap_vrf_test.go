@@ -888,12 +888,16 @@ func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDst
 
 func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, headerDstIP map[string][]string, index int) {
 	t.Helper()
+	matched := false
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
 		ipPacket, _ := ipLayer.(*layers.IPv4)
+		if ipPacket.DstIP.String() == otgIsisPort8LoopV4 {
+			continue
+		}
 		encapHeaderListLength := len(headerDstIP["outerIP"])
 		if index <= encapHeaderListLength-1 {
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
@@ -911,22 +915,36 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 					t.Errorf("Packets are not encapsulated")
 				}
 				t.Logf("Traffic for encap routes passed.")
+				matched = true
 				break
-			} else {
-				t.Errorf("Packet is not encapsulated")
 			}
-		} else if index >= encapHeaderListLength || encapHeaderListLength == 0 {
-			if ipPacket.DstIP.String() == otgIsisPort8LoopV4 {
-				continue
-			} else if ipPacket.DstIP.String() != headerDstIP["innerIP"][0] {
-				destIP := ipPacket.DstIP.String()
-				t.Logf("Dest ip in received packet %s", destIP)
-				t.Errorf("Packets are encapsulated which is not expected")
-			} else {
-				t.Logf("Traffic for non-encap routes passed.")
+			if ipPacket.DstIP.String() == headerDstIP["innerIP"][index] {
+				t.Errorf("Packet is not encapsulated")
+				matched = true
 				break
+			}
+			continue
+		} else if index >= encapHeaderListLength || encapHeaderListLength == 0 {
+			innerDestIP := headerDstIP["innerIP"][0]
+			if ipPacket.DstIP.String() == innerDestIP {
+				t.Logf("Traffic for non-encap routes passed.")
+				matched = true
+				break
+			}
+			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+			if ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4); ipInnerLayer != nil {
+				ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
+				if ipInnerPacket.DstIP.String() == innerDestIP {
+					t.Logf("Outer dest ip in received packet %s, inner dest ip %s", ipPacket.DstIP, ipInnerPacket.DstIP)
+					t.Errorf("Packets are encapsulated which is not expected")
+					matched = true
+					break
+				}
 			}
 		}
+	}
+	if !matched {
+		t.Errorf("No matching test traffic packets found in capture")
 	}
 }
 
