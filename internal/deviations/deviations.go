@@ -2591,6 +2591,18 @@ func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
 }
 
+// ControllerCardPrimaryPowerDisableUnsupported returns true if the device
+// rejects setting controller-card power-admin-state to POWER_DISABLED on the
+// PRIMARY controller card and only accepts it on the SECONDARY. Rule 1 of
+// https://github.com/openconfig/public/blob/master/doc/controller-card_poweroff.md
+// instead requires the configuration to be accepted on the PRIMARY and the
+// power-off to be deferred until the card is SECONDARY or reboots.
+// Arista: https://issuetracker.google.com/issues/582304398
+// Cisco: https://issuetracker.google.com/issues/372605838
+func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
+}
+
 // PipelineDropTTLExpiredPunted returns true if the device punts IPv4 packets
 // with TTL 1 and IPv6 packets with hop limit 1 to the control plane instead of
 // counting them as pipeline drops under
