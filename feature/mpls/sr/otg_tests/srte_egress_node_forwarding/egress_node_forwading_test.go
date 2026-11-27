@@ -381,15 +381,18 @@ func validatePackets(t *testing.T, filename string, protocolType protocolType) e
 	defer handle.Close()
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	foundDataPacket := false
 
 	for packet := range packetSource.Packets() {
 		if protocolType.String() == "ipv4" {
 			if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 				ip, _ := ipLayer.(*layers.IPv4)
-				if ip.DstIP.Equal(net.ParseIP(ateTrafficDstIPv4)) {
-					if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
-						mplsPacketCount++
-					}
+				if !ip.DstIP.Equal(net.ParseIP(ateTrafficDstIPv4)) {
+					continue
+				}
+				foundDataPacket = true
+				if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
+					mplsPacketCount++
 				}
 				if ip.TTL == mplsOuterTTL-1 {
 					t.Logf("TTL decremented by 1")
@@ -400,10 +403,12 @@ func validatePackets(t *testing.T, filename string, protocolType protocolType) e
 		} else {
 			if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 				ip, _ := ipLayer.(*layers.IPv6)
-				if ip.DstIP.Equal(net.ParseIP(ateTrafficDstIPv6)) {
-					if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
-						mplsPacketCount++
-					}
+				if !ip.DstIP.Equal(net.ParseIP(ateTrafficDstIPv6)) {
+					continue
+				}
+				foundDataPacket = true
+				if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
+					mplsPacketCount++
 				}
 				if ip.HopLimit == mplsOuterTTL-1 {
 					t.Logf("TTL decremented by 1")
@@ -414,6 +419,9 @@ func validatePackets(t *testing.T, filename string, protocolType protocolType) e
 		}
 	}
 
+	if !foundDataPacket {
+		return fmt.Errorf("no %s test traffic packets found in capture", protocolType.String())
+	}
 	if mplsPacketCount != 0 {
 		return fmt.Errorf("mpls label is not popped by the DUT")
 	}
