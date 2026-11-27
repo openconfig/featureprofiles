@@ -95,9 +95,6 @@ func TestRouteReflector(t *testing.T) {
 
 	t.Run("Verify ISIS session status on DUT", func(t *testing.T) {
 		dutIsisPeerIntf := []string{bs.OndatraDUTPorts[1].Name(), bs.OndatraDUTPorts[2].Name()}
-		if deviations.ExplicitInterfaceInDefaultVRF(bs.DUT) {
-			dutIsisPeerIntf = []string{bs.OndatraDUTPorts[1].Name() + ".0", bs.OndatraDUTPorts[2].Name() + ".0"}
-		}
 		verifyISISTelemetry(t, bs.DUT, dutIsisPeerIntf)
 	})
 
@@ -158,10 +155,14 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	if !deviations.PrefixLimitConfigUnsupported(bs.DUT) {
 		afiSafiV4 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
-		afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
+		if !deviations.BGPExplicitPrefixLimitReceived(bs.DUT) {
+			afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
+		}
 		afiSafiV6 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
-		afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
+		if !deviations.BGPExplicitPrefixLimitReceived(bs.DUT) {
+			afiSafiV6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
+		}
 	}
 	localAddressLeaf := dutLoopback.IPv4
 	if bs.DUT.Vendor() == ondatra.CISCO {
