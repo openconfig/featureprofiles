@@ -803,17 +803,18 @@ func testNeighborLevel(t *testing.T, env *testEnv) {
 	t.Log("Stop the capture")
 	otgutils.StopCapture(t, otg, cs)
 	t.Run("Capture", func(t *testing.T) {
-		verifyCapture(t, env)
+		verifyCapture(t, env, mssNeighbor, true)
 	})
 }
 
 // testPeerGroupLevel implements the peer-group-level steps of RT-1.22.1. The
 // last README step, which removes the peer-group MSS, is registered with
-// t.Cleanup, so that it also runs when a step fails. The peer groups and the
-// neighbors are checked in separate subtests, so that a DUT that cannot stream
-// one of the two paths still has the other one checked.
+// t.Cleanup, so that it also runs when a step fails. The peer groups, the
+// neighbors, and the packet capture are checked in separate subtests, so that
+// a DUT that cannot stream one of the two paths still has the other one and
+// the wire-level TCP MSS checked.
 func testPeerGroupLevel(t *testing.T, env *testEnv) {
-	dut := env.dut
+	dut, otg := env.dut, env.otg
 	peerGroups := []string{ebgpPeerGroup, ibgpPeerGroup}
 
 	t.Logf("Set transport/config/tcp-mss to %d on the peer groups %s and %s, with no MSS configured on the neighbors", mssPeerGroup, ebgpPeerGroup, ibgpPeerGroup)
@@ -822,7 +823,16 @@ func testPeerGroupLevel(t *testing.T, env *testEnv) {
 		removeTCPMSS(t, dut, nil, peerGroups)
 	})
 	setTCPMSS(t, dut, mssPeerGroup, nil, peerGroups)
+
+	t.Log("Start a packet capture on ATE port-1 and ATE port-2")
+	cs := otgutils.StartCapture(t, otg)
+	defer otgutils.StopCapture(t, otg, cs)
+
 	reestablishSessions(t, env)
+
+	t.Log("Stop the capture")
+	otgutils.StopCapture(t, otg, cs)
+
 	t.Run("Peer-group TCP MSS state", func(t *testing.T) {
 		checks := peerGroupChecks(dut, mssPeerGroup)
 		logTCPMSSOnce(t, dut, checks)
@@ -830,6 +840,9 @@ func testPeerGroupLevel(t *testing.T, env *testEnv) {
 	})
 	t.Run("Neighbors inherit the peer-group TCP MSS", func(t *testing.T) {
 		verifyTCPMSS(t, dut, neighborChecks(dut, mssPeerGroup))
+	})
+	t.Run("Capture", func(t *testing.T) {
+		verifyCapture(t, env, mssPeerGroup, false)
 	})
 }
 
@@ -1216,14 +1229,15 @@ func (seg bgpSegment) synKind() string {
 	return "SYN"
 }
 
-// verifyCapture verifies the capture of ATE port-1 and port-2 from the
-// neighbor-level step: the MSS option of every TCP SYN or SYN-ACK that the DUT
-// sends to each of the four ATE peers is mssNeighbor, and no TCP segment
-// between the DUT and the ATE, in either direction, has more than mssNeighbor
-// bytes of payload.
-func verifyCapture(t *testing.T, env *testEnv) {
+// verifyCapture verifies the capture of ATE port-1 and port-2: the MSS option
+// of every TCP SYN or SYN-ACK that the DUT sends to each of the four ATE peers
+// is wantMSS, and no TCP segment between the DUT and the ATE, in either
+// direction, has more than wantMSS bytes of payload. When checkBulkUpdates is
+// true, it also verifies that the capture holds at least the NLRI bytes of the
+// routeCount prefixes sent to the iBGP peers on ATE port-2.
+func verifyCapture(t *testing.T, env *testEnv, wantMSS uint16, checkBulkUpdates bool) {
 	t.Helper()
-	t.Logf("Verify in the capture that the MSS option in the TCP SYN or SYN-ACK that the DUT sends to each of the four ATE peers is %d, and that no TCP segment between the DUT and the ATE, in either direction, has more than %d bytes of payload", mssNeighbor, mssNeighbor)
+	t.Logf("Verify in the capture that the MSS option in the TCP SYN or SYN-ACK that the DUT sends to each of the four ATE peers is %d, and that no TCP segment between the DUT and the ATE, in either direction, has more than %d bytes of payload", wantMSS, wantMSS)
 	var segments []bgpSegment
 	for _, l := range links {
 		segments = append(segments, readBGPSegments(t, env.otg, env.ate.Port(t, l.port).ID())...)
@@ -1250,7 +1264,7 @@ func verifyCapture(t *testing.T, env *testEnv) {
 		if seg.fromDUT {
 			sentBytes[seg.s] += seg.payload
 		}
-		if seg.payload > int(mssNeighbor) {
+		if seg.payload > int(wantMSS) {
 			oversized = append(oversized, fmt.Sprintf("%s with %d bytes", seg.desc, seg.payload))
 		}
 	}
@@ -1258,41 +1272,43 @@ func verifyCapture(t *testing.T, env *testEnv) {
 	for _, s := range sessions {
 		got := synSegments[s]
 		if len(got) == 0 {
-			t.Errorf("Capture: no TCP SYN or SYN-ACK from the DUT to the ATE peer of the %v, want one with MSS option %d", s, mssNeighbor)
+			t.Errorf("Capture: no TCP SYN or SYN-ACK from the DUT to the ATE peer of the %v, want one with MSS option %d", s, wantMSS)
 			continue
 		}
 		var options []string
 		for _, seg := range got {
 			if !seg.hasMSS {
 				options = append(options, seg.synKind()+" without MSS option")
-				t.Errorf("Capture: TCP %s from the DUT to the ATE peer of the %v (%s) has no MSS option, want %d", seg.synKind(), s, seg.desc, mssNeighbor)
+				t.Errorf("Capture: TCP %s from the DUT to the ATE peer of the %v (%s) has no MSS option, want %d", seg.synKind(), s, seg.desc, wantMSS)
 				continue
 			}
 			options = append(options, fmt.Sprintf("%s %d", seg.synKind(), seg.mss))
-			if seg.mss != mssNeighbor {
-				t.Errorf("Capture: TCP %s from the DUT to the ATE peer of the %v (%s) has MSS option %d, want %d", seg.synKind(), s, seg.desc, seg.mss, mssNeighbor)
+			if seg.mss != wantMSS {
+				t.Errorf("Capture: TCP %s from the DUT to the ATE peer of the %v (%s) has MSS option %d, want %d", seg.synKind(), s, seg.desc, seg.mss, wantMSS)
 			}
 		}
 		t.Logf("Capture: MSS options of the TCP SYN and SYN-ACK segments from the DUT to the ATE peer of the %v, in capture order: %s", s, strings.Join(options, ", "))
 	}
 
 	t.Logf("Capture: %d TCP segments with payload from the DUT, the largest with %d bytes; %d to the DUT, the largest with %d bytes", withPayload[true], largest[true], withPayload[false], largest[false])
-	// The UPDATE messages that the DUT sends to the iBGP peers on ATE port-2
-	// hold at least the NLRI of all prefixes: a length byte and the prefix
-	// bytes for each. Less payload means that the capture misses the UPDATE
-	// messages, and the payload check below would not cover them.
-	for _, r := range routeRanges {
-		s := session{link2, r.f}
-		nlri := routeCount * (1 + (r.start.Bits()+7)/8)
-		if sentBytes[s] < nlri {
-			t.Errorf("Capture: the TCP segments from the DUT to the ATE peer of the %v carry %d bytes of payload, want at least the %d bytes of NLRI of the %d prefixes", s, sentBytes[s], nlri, routeCount)
+	if checkBulkUpdates {
+		// The UPDATE messages that the DUT sends to the iBGP peers on ATE port-2
+		// hold at least the NLRI of all prefixes: a length byte and the prefix
+		// bytes for each. Less payload means that the capture misses the UPDATE
+		// messages, and the payload check below would not cover them.
+		for _, r := range routeRanges {
+			s := session{link2, r.f}
+			nlri := routeCount * (1 + (r.start.Bits()+7)/8)
+			if sentBytes[s] < nlri {
+				t.Errorf("Capture: the TCP segments from the DUT to the ATE peer of the %v carry %d bytes of payload, want at least the %d bytes of NLRI of the %d prefixes", s, sentBytes[s], nlri, routeCount)
+			}
 		}
 	}
 	if withPayload[false] == 0 {
 		t.Log("Capture: no TCP segment with payload to the DUT; an ATE port capture can hold only the frames that the port receives, so only the segments from the DUT are checked")
 	}
 	if len(oversized) > 0 {
-		t.Errorf("Capture: %d TCP segments have more than %d bytes of payload, want none; for example %s", len(oversized), mssNeighbor, strings.Join(oversized[:min(len(oversized), 5)], "; "))
+		t.Errorf("Capture: %d TCP segments have more than %d bytes of payload, want none; for example %s", len(oversized), wantMSS, strings.Join(oversized[:min(len(oversized), 5)], "; "))
 	}
 }
 

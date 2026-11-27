@@ -99,10 +99,16 @@ graph LR
 *   Peer-group level:
     *   Set `transport/config/tcp-mss` to 4000 on the peer groups `EBGP-PEERS`
         and `IBGP-PEERS`, with no MSS configured on the neighbors.
+    *   Start a packet capture on ATE port-1 and ATE port-2.
     *   Re-establish the four sessions.
+    *   Stop the capture.
     *   Verify that all four sessions are `ESTABLISHED`, that
         `transport/state/tcp-mss` is 4000 for both peer groups, and that all
         four neighbors inherit it (`transport/state/tcp-mss` is 4000).
+    *   Verify in the capture that the MSS option in the TCP SYN or SYN-ACK
+        that the DUT sends to each of the four ATE peers is 4000, and that no
+        TCP segment between the DUT and the ATE, in either direction, has more
+        than 4000 bytes of payload.
     *   Remove `transport/config/tcp-mss` from both peer groups.
 *   Remove the MTU configuration from the four ports so that they return to the
     default MTU.
@@ -237,8 +243,12 @@ groups have no MSS.
         IPv6 prefixes received from the eBGP peers, the iBGP peers on ATE
         port-2 do not receive all of them, or a session does not stay
         `ESTABLISHED`
-    5.  The capture has a TCP SYN or SYN-ACK from the DUT whose MSS option is
-        not 4096, or a TCP segment with more than 4096 bytes of payload
+    5.  At the neighbor level, the capture has a TCP SYN or SYN-ACK from the
+        DUT whose MSS option is not 4096, or a TCP segment with more than 4096
+        bytes of payload
+    6.  At the peer-group level, the capture has a TCP SYN or SYN-ACK from the
+        DUT whose MSS option is not 4000, or a TCP segment with more than 4000
+        bytes of payload
 
 ### Cleanup
 
