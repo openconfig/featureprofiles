@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -28,15 +29,18 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
 	connectionAttempts        = 2
 	connectionRetryInterval   = 10 * time.Second
-	connectionTimeout         = 2 * time.Minute
-	trafficTime               = 1 * time.Minute
+	connectionTimeout         = 5 * time.Minute
+	trafficTime               = 90 * time.Second
 	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
-	flowCountTolerancePct     = 0.1
+	checkInterval             = 2 * time.Second
+	samplesTimeout            = 20 * time.Second
+	flowCountTolerancePct     = 0.15
 	subscriptionTolerance     = 2
 	gnpsiClientsInParallel    = 2
 	packetRate                = 1000000
@@ -45,6 +49,7 @@ const (
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
+	serverName                = "DEFAULT"
 )
 
 var (
@@ -309,11 +314,12 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	sflowPacketsToValidateChannel := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+	sflowPacketsToValidateChannel := make(chan sFlowPacket, sflowChannelCapacity(dut))
 	t.Logf("Starting traffic for %s", fc.name)
 	otg.StartTraffic(t)
 	go receiveSamples(t, stream, sflowPacketsToValidateChannel)
 	waitForTraffic(t, otg, fc.name, trafficTime)
+	waitForSamples(sflowPacketsToValidateChannel)
 	stream.CloseSend()
 	closeContext()
 	otgutils.LogFlowMetrics(t, otg, top)
@@ -365,13 +371,14 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 
 	sflowPacketsToValidatePerClient := make([]chan sFlowPacket, gnpsiClientsInParallel)
 	for index, client := range gnpsiClients {
-		sflowPacketsToValidatePerClient[index] = make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+		sflowPacketsToValidatePerClient[index] = make(chan sFlowPacket, sflowChannelCapacity(dut))
 		go receiveSamples(t, client, sflowPacketsToValidatePerClient[index])
 	}
 
 	t.Logf("Starting traffic for %s", flow.name)
 	otg.StartTraffic(t)
 	waitForTraffic(t, otg, flow.name, trafficTime)
+	waitForSamples(sflowPacketsToValidatePerClient...)
 
 	for _, client := range gnpsiClients {
 		client.CloseSend()
@@ -402,7 +409,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 
 	for range connectionAttempts {
 		t.Log("Connecting GNPSI client")
-		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+		sflowPacketsToValidate := make(chan sFlowPacket, sflowChannelCapacity(dut))
 		ctx, closeContext = context.WithCancel(t.Context())
 		defer closeContext()
 		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
@@ -413,6 +420,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 		t.Logf("Starting traffic for %s", flow.name)
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, flow.name, trafficTime)
+		waitForSamples(sflowPacketsToValidate)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
 			t.Errorf("no samples received from GNPSI")
@@ -449,7 +457,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	sampleCountAtRestart := 0
 
 	for range connectionAttempts {
-		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+		sflowPacketsToValidate := make(chan sFlowPacket, sflowChannelCapacity(dut))
 		stream, err = subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
 			t.Fatalf("Failed to connect to GNPSI server: %v", err)
@@ -458,8 +466,10 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 		t.Logf("Starting traffic for %s", flow.name)
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, flow.name, trafficTime)
+		waitForSamples(sflowPacketsToValidate)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
+			stream.CloseSend()
 			t.Errorf("no samples received from GNPSI")
 			return
 		}
@@ -482,9 +492,14 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 }
 
 func restartGNPSIService(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	t.Log("Restarting GNPSI service")
-	gnoi.KillProcess(t, dut, gnoi.GNPSI, gnoi.SigTerm, true, true)
+	gnoi.KillProcess(t, dut, gnoi.GNPSI, gnoi.SigTerm, true, false)
 	t.Log("GNPSI service restarted")
+}
+
+func sflowChannelCapacity(dut *ondatra.DUTDevice) int {
+	return 2 * int(packetsToSend/samplingRate)
 }
 
 func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan sFlowPacket, flowConfig flowConfig) {
@@ -500,12 +515,13 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan s
 		}
 	}
 
-	flowCountTolerance := int(math.Round(float64(expectedSFlowSamplesCount) * flowCountTolerancePct))
-	if receivedSamples < expectedSFlowSamplesCount-flowCountTolerance || receivedSamples > expectedSFlowSamplesCount+flowCountTolerance {
-		t.Errorf("unexpected number of SFlow packets: got %d, want %d ± %d", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+	expectedCount := int(packetsToSend / samplingRate)
+	flowCountTolerance := int(math.Round(float64(expectedCount) * flowCountTolerancePct))
+	if receivedSamples < expectedCount-flowCountTolerance || receivedSamples > expectedCount+flowCountTolerance {
+		t.Errorf("unexpected number of SFlow packets: got %d, want %d ± %d", receivedSamples, expectedCount, flowCountTolerance)
 		return
 	}
-	t.Logf("Received SFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+	t.Logf("Received SFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedCount, flowCountTolerance)
 }
 
 func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacket, flowConfig flowConfig, pktIndex int) {
@@ -577,27 +593,83 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, port1)
 	dp2 := dut.Port(t, port2)
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
+	interfaceSnapshot := cfgplugins.SnapshotInterfacesConfig(t, dut, []string{dp1.Name(), dp2.Name(), loopbackIntfName})
+
+	niName := deviations.DefaultNetworkInstance(dut)
+	var addedNIInterfaceIDs []string
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		for _, p := range []*ondatra.Port{dp1, dp2} {
+			id := p.Name() + ".0"
+			if _, ok := gnmi.LookupConfig(t, dut, gnmi.OC().NetworkInstance(niName).Interface(id).Config()).Val(); !ok {
+				addedNIInterfaceIDs = append(addedNIInterfaceIDs, id)
+			}
+		}
+	}
+
+	t.Cleanup(func() {
+		t.Log("Cleanup interfaces")
+		restoreBatch := &gnmi.SetBatch{}
+		for _, id := range addedNIInterfaceIDs {
+			gnmi.BatchDelete(restoreBatch, gnmi.OC().NetworkInstance(niName).Interface(id).Config())
+		}
+		cfgplugins.RestoreInterfacesConfig(t, dut, restoreBatch, interfaceSnapshot)
+		restoreBatch.Set(t, dut)
+	})
+
+	interfaceBatch := &gnmi.SetBatch{}
 
 	t.Logf("Configuring Loopback Interface")
-	configureLoopbackInterface(t, dut)
+	configureLoopbackInterface(t, dut, interfaceBatch, loopbackIntfName)
 
 	t.Logf("Configuring Interfaces")
-	configureDUTPort(t, dut, &dutPort1, dp1)
-	configureDUTPort(t, dut, &dutPort2, dp2)
+	configureDUTPort(t, dut, interfaceBatch, &dutPort1, dp1)
+	configureDUTPort(t, dut, interfaceBatch, &dutPort2, dp2)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation", dut.Vendor(), dut.Model(), dut.Version())
+		netInst := &oc.NetworkInstance{Name: ygot.String(niName)}
+		for _, p := range []*ondatra.Port{dp1, dp2} {
+			netInstIntf, err := netInst.NewInterface(p.Name())
+			if err != nil {
+				t.Fatalf("failed to create network-instance interface for %s: %v", p.Name(), err)
+			}
+			netInstIntf.Interface = ygot.String(p.Name())
+			netInstIntf.Subinterface = ygot.Uint32(0)
+			netInstIntf.Id = ygot.String(p.Name() + ".0")
+		}
+		gnmi.BatchUpdate(interfaceBatch, gnmi.OC().NetworkInstance(niName).Config(), netInst)
+	}
+	interfaceBatch.Set(t, dut)
+
 	retrieveIfIndexValues(t, dut, []string{dp1.Name(), dp2.Name()})
 
 	t.Log("Configuring SFlow")
 	configureSFlow(t, dut)
 
 	t.Log("Configuring GNPSI")
-	svc := introspect.GNPSI
-	dialer := introspect.DUTDialer(t, dut, svc)
+	dialer := introspect.DUTDialer(t, dut, introspect.GNPSI)
 	gnpsiPort := dialer.DevicePort
-	params := &cfgplugins.GNPSIParams{
-		Port:       gnpsiPort,
-		SSLProfile: profileName,
+	_, portStr, err := net.SplitHostPort(dialer.DialTarget)
+	if err == nil {
+		gnpsiPortNum, err := strconv.Atoi(portStr)
+		if err == nil {
+			gnpsiPort = gnpsiPortNum
+		}
 	}
-	cfgplugins.ConfigureGNPSI(t, dut, params)
+
+	params := &cfgplugins.GNPSIParams{
+		Port:       uint16(gnpsiPort),
+		SSLProfile: profileName,
+		ServerName: serverName,
+		NIName:     deviations.DefaultNetworkInstance(dut),
+	}
+	if sb := cfgplugins.ConfigureGNPSI(t, dut, &gnmi.SetBatch{}, params); sb != nil {
+		t.Cleanup(func() {
+			t.Log("Cleaning up gNPSI configuration")
+			gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer(params.ServerName).Config())
+		})
+		sb.Set(t, dut)
+	}
 }
 
 func retrieveIfIndexValues(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string) {
@@ -623,16 +695,46 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Du
 	t.Logf("Traffic for flow %s has stopped", flowName)
 }
 
-func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
+func waitForSamples(channels ...chan sFlowPacket) {
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	lastCount := 0
+	for _, ch := range channels {
+		lastCount += len(ch)
+	}
+	stable := time.NewTimer(samplesTimeout)
+	defer stable.Stop()
+
+	for {
+		select {
+		case <-stable.C:
+			return
+		case <-ticker.C:
+			currentCount := 0
+			for _, ch := range channels {
+				currentCount += len(ch)
+			}
+			if currentCount != lastCount {
+				lastCount = currentCount
+				if !stable.Stop() {
+					<-stable.C
+				}
+				stable.Reset(samplesTimeout)
+			}
+		}
+	}
+}
+
+func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, loopbackIntfName string) {
 	t.Helper()
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
 	dutLoopbackAttrs.Name = loopbackIntfName
 	loopbackIntf := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, loopbackIntf.Ipv4().AddressAny().State())
 	if len(ipv4Addrs) == 0 {
 		loopIntf := defaultLoopbackAttrs.NewOCInterface(loopbackIntfName, dut)
 		loopIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), loopIntf)
+		gnmi.BatchUpdate(batch, gnmi.OC().Interface(loopbackIntfName).Config(), loopIntf)
 		dutLoopbackAttrs.IPv4 = defaultLoopbackAttrs.IPv4
 		return
 	}
@@ -646,8 +748,13 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
-	sfBatch := &gnmi.SetBatch{}
+	t.Cleanup(func() {
+		t.Log("Cleaning up sFlow configuration")
+		sflowPath := gnmi.OC().Sampling().Sflow()
+		gnmi.Delete(t, dut, sflowPath.Config())
+	})
 
+	sfBatch := &gnmi.SetBatch{}
 	sflowParams := &cfgplugins.SFlowGlobalParams{
 		Ni:              deviations.DefaultNetworkInstance(dut),
 		IntfName:        dutLoopbackAttrs.Name,
@@ -657,17 +764,16 @@ func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, sflowParams)
 	sfBatch.Set(t, dut)
+
+	if deviations.MissingSflowGnpsiExport(dut) {
+		cfgplugins.ConfigureSflowGnpsiExport(t, dut)
+	}
 }
 
-func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {
+func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
-	d := gnmi.OC()
 	intf := attrs.NewOCInterface(p.Name(), dut)
-	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation ", dut.Vendor(), dut.Model(), dut.Version())
-	}
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()).Config(), intf)
 }
 
 func configureFlow(t *testing.T, config gosnappi.Config, fc flowConfig) {

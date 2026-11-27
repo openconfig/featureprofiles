@@ -16,4 +16,14 @@ platform_exceptions:  {
     gnpsi_oc_unsupported: true
   }
 }
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    default_network_instance:  "default"
+    missing_sflow_gnpsi_export: true
+  }
+}
 tags:  TAGS_AGGREGATION
