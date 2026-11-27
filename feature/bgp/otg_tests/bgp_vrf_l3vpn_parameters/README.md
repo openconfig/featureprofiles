@@ -26,6 +26,14 @@ graph LR;
 *   **DUT ASN**: `64496`
 *   **ATE Port 1 (Customer Peer)**: `64497`
 *   **ATE Port 2 (Core Peer)**: `64496`
+*   **DUT Local AS presented to the Customer Peer** (`local-as`, no-prepend /
+    replace-as): `64498`
+
+#### Session Parameters (Customer eBGP)
+
+*   **Timers**: keepalive `30` s, hold-time `90` s
+*   **Communities**: `send-community` = `BOTH` (standard **and** extended;
+    extended carries RT, standard preserves customer communities end-to-end)
 
 #### VRF & L3VPN Parameters
 
@@ -59,10 +67,19 @@ graph LR;
 1.  Configure DUT with tenant VRFs `VRF_100` and `VRF_200`.
 2.  Configure DUT Port 1 and assign it to `VRF_100`.
 3.  Configure dual-stack (IPv4/IPv6) eBGP sessions on DUT Port 1 within
-    `VRF_100`.
+    `VRF_100` with per-neighbor `local-as 64498` (no-prepend, replace-as),
+    timers `30/90` and `send-community BOTH`.
 4.  Configure L3VPN parameters (RD/RT) associated with the tenant VRFs.
 5.  Configure iBGP sessions on DUT Port 2 in the Default Network Instance
     (`"DEFAULT"`) supporting `L3VPN_IPV4_UNICAST` and `L3VPN_IPV6_UNICAST`.
+
+> [!NOTE]
+> In the EdgeBGP Phase 1 profile the core peers are **dynamic** (listen-range)
+> iBGP peers over IPv6-only transport with RT-Constraint enabled; those aspects
+> are covered by RT-1.103 and RT-1.106 and are not repeated here. Customer
+> eBGP routes in that profile are kept in the BGP RIB but are **not installed
+> into the VRF FIB** (vendor `skip rib-install`, see RT-1.107); FIB-related
+> assertions below apply only when FIB installation is enabled.
 
 --------------------------------------------------------------------------------
 
@@ -105,6 +122,10 @@ graph LR;
     (`"DEFAULT"`) Unicast RIB.
 *   **Step 2 (Inter-Tenant Isolation)**: Verify customer prefixes injected into
     `VRF_100` are **NOT** visible in `VRF_200` RIB.
+*   **Step 3 (Expected VRF AFT content)**: Verify the `VRF_100` AFT
+    (`/network-instances/network-instance[name=VRF_100]/afts/`) contains only the
+    locally configured entries (connected subnets and, where configured, a static
+    default route) and no entries originating from `VRF_200`.
 
 ### RT-1.102.5 - BGP Graceful Restart Verification in VRF
 
@@ -137,6 +158,37 @@ graph LR;
     from `VRF_100` RIB/FIB (Fail-Fast/No Retention).
 *   **Step 5**: Verify that the withdrawals are immediately propagated to the
     iBGP peer (ATE Port 2).
+
+### RT-1.102.7 - Per-Neighbor Local-AS Substitution
+
+*   **Step 1**: Configure `local-as 64498` (no-prepend, replace-as) on both
+    customer eBGP neighbors in `VRF_100`.
+*   **Step 2**: Verify on ATE Port 1 that the BGP OPEN received from the DUT
+    carries AS `64498` (not the DUT global AS `64496`).
+*   **Step 3**: Verify
+    `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as`
+    reports `64498` for both neighbors while
+    `/network-instances/network-instance/protocols/protocol/bgp/global/state/as`
+    in `VRF_100` remains `64496`.
+*   **Step 4**: Verify prefixes advertised to the customer peer carry AS-Path
+    `[64498]` only (no `64496`), and prefixes learned from the customer are
+    propagated to the iBGP peer (ATE Port 2) with AS-Path `[64497]` unchanged.
+
+### RT-1.102.8 - Session Timers and Community Propagation
+
+*   **Step 1**: Configure keepalive `30` s / hold-time `90` s on the customer
+    eBGP neighbors; ATE advertises hold-time `180` s.
+*   **Step 2**: Verify
+    `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time`
+    = `90`.
+*   **Step 3**: With `send-community BOTH` configured, ATE Port 1 advertises
+    `203.0.113.10/32` with standard community `64497:100` and extended
+    community `route-origin:64497:100`.
+*   **Step 4**: Verify both communities are present on the VPNv4 update received
+    by ATE Port 2, alongside the VRF export RT `64496:100`.
+*   **Step 5**: Verify
+    `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community`
+    = `BOTH` for both customer neighbors.
 
 --------------------------------------------------------------------------------
 
@@ -323,9 +375,17 @@ graph LR;
                       "config": {
                         "neighbor-address": "192.0.2.2",
                         "peer-as": 64497,
+                        "local-as": 64498,
+                        "send-community": "BOTH",
                         "auth-password": "customer_secret_v4"
                       },
                       "neighbor-address": "192.0.2.2",
+                      "timers": {
+                        "config": {
+                          "keepalive-interval": 30,
+                          "hold-time": 90
+                        }
+                      },
                       "graceful-restart": {
                         "config": {
                           "enabled": true,
@@ -355,9 +415,17 @@ graph LR;
                       "config": {
                         "neighbor-address": "2001:DB8:1::2",
                         "peer-as": 64497,
+                        "local-as": 64498,
+                        "send-community": "BOTH",
                         "auth-password": "customer_secret_v6"
                       },
                       "neighbor-address": "2001:DB8:1::2",
+                      "timers": {
+                        "config": {
+                          "keepalive-interval": 30,
+                          "hold-time": 90
+                        }
+                      },
                       "graceful-restart": {
                         "config": {
                           "enabled": true,
@@ -459,6 +527,16 @@ paths:
   # Prefix Limit (New in this version)
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/config/max-prefixes:
+
+  # Local-AS, Timers and Communities (New in this version)
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/state/as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community:
 
 rpcs:
   gnmi:
