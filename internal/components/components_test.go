@@ -17,6 +17,7 @@ package components
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -39,5 +40,26 @@ func TestFindMatchingStrings(t *testing.T) {
 	got := FindMatchingStrings(args, r)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("FindMatchingStrings(%s) returned unexpected diff (-want +got):\n%s", args, diff)
+	}
+}
+
+func TestWaitUntil(t *testing.T) {
+	tests := []struct {
+		desc    string
+		offset  time.Duration
+		wantMin time.Duration
+		wantMax time.Duration
+	}{
+		{desc: "deadline passed", offset: -time.Minute, wantMin: minPerComponentWait, wantMax: minPerComponentWait},
+		{desc: "deadline sooner than minimum", offset: 10 * time.Second, wantMin: minPerComponentWait, wantMax: minPerComponentWait},
+		{desc: "deadline later than minimum", offset: 10 * time.Minute, wantMin: 9 * time.Minute, wantMax: 10 * time.Minute},
+	}
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := waitUntil(time.Now().Add(tc.offset))
+			if got < tc.wantMin || got > tc.wantMax {
+				t.Errorf("waitUntil(now%+v) = %v, want between %v and %v", tc.offset, got, tc.wantMin, tc.wantMax)
+			}
+		})
 	}
 }
