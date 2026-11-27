@@ -69,6 +69,17 @@ graph LR;
 * **Step 2**: Verify that the BGP session seamlessly resumes normal route advertisement with default `local-pref` (`100`) and unprepended AS-Path without session flapping.
 * **Step 3**: Measure convergence latency: verify routes `198.51.100.0/24` and `2001:db8:100::/64` are re-advertised with restored attributes to ATE RR1 in less than 5 seconds.
 
+### Cleanup
+
+*   Restore the per-attachment export policies to their pass-through content
+    (if not already done in RT-1.107.5), then remove the policy bindings, the
+    eBGP neighbors in `ce1` / `ce2`, the iBGP neighbors in `DEFAULT`, the
+    "skip RIB install" setting, `advertise-inactive-routes`, the static default
+    routes / next-hop-groups and the tenant VRFs `ce1` / `ce2`.
+*   Stop all ATE BGP emulations and traffic flows; verify the DUT returns to its
+    baseline operational state with no residual BGP sessions, policies or VRF
+    AFT entries.
+
 ## Canonical OC
 
 ```json
