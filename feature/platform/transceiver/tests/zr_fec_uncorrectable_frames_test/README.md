@@ -47,19 +47,35 @@ The following setup applies to the base test and to every subtest below.
     *   OTN logical channels (`4000` and `4001`): `PROT_OTN`, trib protocol
         `PROT_400GE`, admin state `ENABLED`, and an `OPTICAL_CHANNEL` assignment
         (`index 0`) to `Ethernet1-Optical0` and `Ethernet2-Optical0`
-        respectively.
+        respectively. Where the platform requires it, also add a
+        `LOGICAL_CHANNEL` assignment (`index 1`) to Ethernet logical channel
+        `40000` and `40001` respectively.
     *   Ethernet logical channels (`40000` and `40001`): `PROT_ETHERNET`,
         `TRIB_RATE_400G`, `PROT_400GE`, ingress interface and transceiver of the
         port, and a `LOGICAL_CHANNEL` assignment (`index 0`) to OTN logical
         channel `4000` and `4001` respectively.
-    *   An optical channel or logical channel whose state already matches this
-        configuration is not replaced again, to avoid re-initializing the
-        coherent DSP between subtests.
+    *   When the link is already `UP`, an optical channel or logical channel
+        whose state already matches this configuration is not replaced again,
+        to avoid re-initializing the coherent DSP between subtests. A link that
+        is not `UP` is always fully reconfigured.
 *   All FEC uncorrectable blocks leaves below are subscribed with
     `gNMI.Subscribe` in `SAMPLE` mode with a 10-second host Performance
     Monitoring (PM) interval. They are of type `yang:gauge64`: each sample is the
     count over the prior PM interval. They must never stream invalid values such
     as `"nil"` or `"-inf"`, including while the module or device is booting.
+*   In TRANSCEIVER-10.1.1 and TRANSCEIVER-10.1.2, all subscribed leaves on both
+    ports are validated concurrently. Samples are checked in the order they are
+    streamed, starting with the first sample received after the step begins, so
+    every port is checked over the same PM intervals. A leaf with no new sample
+    within 60 seconds fails. The base TRANSCEIVER-10.1 test validates the OTN
+    leaf on each port in turn.
+*   Platforms with the `non_interval_fec_error_counter` deviation (currently
+    Juniper) report a cumulative counter instead of a per-PM-interval count. On
+    those platforms, a check that requires `0` instead requires that the value
+    does not increase on a stable link. This masks a constant stale non-zero
+    value, which cannot be told apart from a cumulative counter with no new
+    errors, so the deviation is expected to be removed once the platform
+    reports per-PM-interval counts.
 
 ### TRANSCEIVER-10.1: Validate FEC Uncorrectable Frames Streaming
 
@@ -449,7 +465,7 @@ paths:
     /components/component/config/name:
         platform_type: ["OPTICAL_CHANNEL", "TRANSCEIVER"]
     /components/component/transceiver/config/enabled:
-        platform_type: ["OPTICAL_CHANNEL", "TRANSCEIVER"]
+        platform_type: ["TRANSCEIVER"]
     /components/component/optical-channel/config/frequency:
         platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/config/operational-mode:
@@ -471,6 +487,9 @@ paths:
     /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
     /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
     # Telemetry Parameter coverage
+    /terminal-device/logical-channels/channel/state/logical-channel-type:
+    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
     /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
     /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks:
     /components/component/optical-channel/state/fec-uncorrectable-blocks:
@@ -481,6 +500,9 @@ paths:
         platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/target-output-power:
         platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/transceiver/physical-channels/channel/state/associated-optical-channel:
+        platform_type: ["TRANSCEIVER"]
+    /interfaces/interface/state/transceiver:
     /interfaces/interface/state/oper-status:
     /interfaces/interface/state/counters/in-fcs-errors:
     /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:

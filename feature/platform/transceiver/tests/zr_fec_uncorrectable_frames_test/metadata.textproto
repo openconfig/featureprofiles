@@ -13,6 +13,8 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     omit_l2_mtu: true
+    explicit_port_speed: true
+    otn_to_eth_assignment: true
     interface_counters_in_fcs_errors_unsupported: true
     missing_port_to_optical_channel_component_mapping: true
     channel_assignment_rate_class_parameters_unsupported: true

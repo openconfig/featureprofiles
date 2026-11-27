@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,9 +43,11 @@ const (
 	// subscriptions to the FEC uncorrectable blocks leaves.
 	sampleInterval = 10 * time.Second
 	sampleTimeout  = 60 * time.Second
-	intUpdateTime  = 10 * time.Minute
-	linkUpTimeout  = 5 * time.Minute
-	ipStateTimeout = 30 * time.Second
+	// samplePollInterval is how often a fecSampler checks its subscription for a new sample.
+	samplePollInterval = time.Second
+	intUpdateTime      = 10 * time.Minute
+	linkUpTimeout      = 5 * time.Minute
+	ipStateTimeout     = 30 * time.Second
 
 	targetOutputPowerdBm          = -10.0
 	targetOutputPowerTolerancedBm = 1.0
@@ -77,6 +80,10 @@ const (
 	plqReflectorPostSync = 30 * time.Second
 	plqStatePollInterval = 2 * time.Second
 	plqDeleteTimeout     = 30 * time.Second
+
+	otnFECPath = "/terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks"
+	ethFECPath = "/terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks"
+	ochFECPath = "/components/component/optical-channel/state/fec-uncorrectable-blocks"
 )
 
 var (
@@ -117,6 +124,66 @@ func (s *fecStreams) close() {
 	}
 }
 
+// samplers returns a fecSampler for every subscribed leaf of the port.
+func (s *fecStreams) samplers(step, port string) []*fecSampler {
+	fs := []*fecSampler{newFECSampler(s.otn, fmt.Sprintf("%s %s %s", step, port, otnFECPath))}
+	if s.eth != nil {
+		fs = append(fs, newFECSampler(s.eth, fmt.Sprintf("%s %s %s", step, port, ethFECPath)))
+	}
+	if s.och != nil {
+		fs = append(fs, newFECSampler(s.och, fmt.Sprintf("%s %s %s", step, port, ochFECPath)))
+	}
+	return fs
+}
+
+// fecSampler reads the samples of one FEC uncorrectable blocks subscription in the order they
+// were streamed, starting with the first sample received after the sampler is created. Because
+// samples are read from the subscription history, a sampler that is read later still checks the
+// PM intervals that followed its creation.
+type fecSampler struct {
+	s    *samplestream.SampleStream[uint64]
+	desc string
+	next int
+}
+
+func newFECSampler(s *samplestream.SampleStream[uint64], desc string) *fecSampler {
+	return &fecSampler{s: s, desc: desc, next: len(s.All())}
+}
+
+// await returns the next streamed sample. It polls every samplePollInterval for at most
+// sampleTimeout and starts no goroutine, so nothing keeps reading the stream after a timeout. It
+// reports an error and returns false if no new sample arrives.
+func (f *fecSampler) await(t *testing.T) (uint64, bool) {
+	t.Helper()
+	deadline := time.Now().Add(sampleTimeout)
+	for {
+		if all := f.s.All(); len(all) > f.next {
+			v, _ := all[f.next].Val()
+			f.next++
+			return v, true
+		}
+		if time.Now().After(deadline) {
+			t.Errorf("%s: no new sample was streamed within %v", f.desc, sampleTimeout)
+			return 0, false
+		}
+		time.Sleep(samplePollInterval)
+	}
+}
+
+// runConcurrently runs every check in its own goroutine and waits for all of them. Checks must
+// report failures with t.Errorf, never t.Fatalf.
+func runConcurrently(checks []func()) {
+	var wg sync.WaitGroup
+	for _, check := range checks {
+		wg.Add(1)
+		go func(check func()) {
+			defer wg.Done()
+			check()
+		}(check)
+	}
+	wg.Wait()
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -152,7 +219,7 @@ func newZRInterface(t *testing.T, dut *ondatra.DUTDevice, name string) *oc.Inter
 		// PLQ uses 8184-byte frames.
 		i.Mtu = ygot.Uint16(9000)
 	}
-	if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) && (dut.Vendor() == ondatra.ARISTA || deviations.ExplicitPortSpeed(dut)) {
+	if !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) && deviations.ExplicitPortSpeed(dut) {
 		eth := i.GetOrCreateEthernet()
 		if !deviations.PortSpeedUnsupported(dut) {
 			eth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
@@ -236,10 +303,13 @@ func configureETHChannel(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) {
 }
 
 // configureLink applies the 400ZR interface, transceiver, optical channel and logical channel
-// configuration described in the Procedure. Optical and logical channels are only replaced when
-// their state does not already match the target configuration.
+// configuration described in the Procedure. Optical and logical channels are only skipped when the
+// link is UP and their state already matches the target configuration, so a link that is down is
+// always fully reconfigured.
 func configureLink(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) {
 	t.Helper()
+	st, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.name).OperStatus().State()).Val()
+	linkUp := ok && st == oc.Interface_OperStatus_UP
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.name).Config(), newZRInterface(t, dut, p.name))
 	if deviations.ExplicitDcoConfig(dut) {
 		gnmi.Replace(t, dut, gnmi.OC().Component(p.tr).Config(), &oc.Component{
@@ -250,17 +320,21 @@ func configureLink(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) {
 		})
 	}
 	setTransceiverEnabled(t, dut, p.tr, true)
-	if opticalChannelAtTarget(t, dut, p.och) {
+	if linkUp && opticalChannelAtTarget(t, dut, p.och) {
 		t.Logf("Optical channel %s already matches the target configuration", p.och)
 	} else {
 		cfgplugins.ConfigOpticalChannel(t, dut, p.och, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
 	}
-	if logicalChannelAtTarget(t, dut, p.otnIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN, p.och, 0) {
+	otnAtTarget := linkUp && logicalChannelAtTarget(t, dut, p.otnIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN, p.och, 0)
+	if otnAtTarget && deviations.OTNToETHAssignment(dut) {
+		otnAtTarget = logicalChannelAtTarget(t, dut, p.otnIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN, "", p.ethIdx)
+	}
+	if otnAtTarget {
 		t.Logf("OTN logical channel %d already matches the target configuration", p.otnIdx)
 	} else {
 		cfgplugins.ConfigOTNChannel(t, dut, p.och, p.otnIdx, p.ethIdx)
 	}
-	if logicalChannelAtTarget(t, dut, p.ethIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET, "", p.otnIdx) {
+	if linkUp && logicalChannelAtTarget(t, dut, p.ethIdx, oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET, "", p.otnIdx) {
 		t.Logf("Ethernet logical channel %d already matches the target configuration", p.ethIdx)
 	} else {
 		configureETHChannel(t, dut, p)
@@ -344,75 +418,56 @@ func openFECStreams(t *testing.T, dut *ondatra.DUTDevice, p *zrPort) *fecStreams
 	return s
 }
 
-// awaitFECSample waits for the next PM interval sample. Only a sample received after the call
-// starts counts, so a leaf that stops streaming cannot pass on a stale value. It reports an error
-// and returns false if no new sample arrives.
-func awaitFECSample(t *testing.T, s *samplestream.SampleStream[uint64], desc string) (uint64, bool) {
-	t.Helper()
-	received := len(s.All())
-	v, ok := s.AwaitNext(sampleTimeout, func(v *ygnmi.Value[uint64]) bool {
-		return v.IsPresent() && len(s.All()) > received
-	})
-	if !ok || v == nil {
-		t.Errorf("%s: no new sample was streamed within %v", desc, sampleTimeout)
-		return 0, false
-	}
-	val, _ := v.Val()
-	return val, true
-}
-
 // settleAndValidateFEC discards one full PM interval sample, which may still cover an optical
 // lock transition, and then verifies count consecutive PM interval samples. Each sample must be 0,
 // or must not exceed the settling sample when deviations.NonIntervalFecErrorCounter is set.
-func settleAndValidateFEC(t *testing.T, dut *ondatra.DUTDevice, s *samplestream.SampleStream[uint64], desc string, count int) {
+func settleAndValidateFEC(t *testing.T, dut *ondatra.DUTDevice, f *fecSampler, count int) {
 	t.Helper()
-	settled, ok := awaitFECSample(t, s, desc+" (settling interval)")
+	settled, ok := f.await(t)
 	if !ok {
 		return
 	}
-	t.Logf("%s: settling interval sample = %d (discarded)", desc, settled)
+	t.Logf("%s: settling interval sample = %d (discarded)", f.desc, settled)
 	nonInterval := deviations.NonIntervalFecErrorCounter(dut)
 	for i := 1; i <= count; i++ {
-		got, ok := awaitFECSample(t, s, desc)
+		got, ok := f.await(t)
 		if !ok {
 			return
 		}
-		t.Logf("%s [PM interval %d/%d]: got %d", desc, i, count, got)
+		t.Logf("%s [PM interval %d/%d]: got %d", f.desc, i, count, got)
 		switch {
 		case nonInterval && got > settled:
-			t.Errorf("%s [PM interval %d/%d]: cumulative counter increased on a stable link: got %d, want <= %d", desc, i, count, got, settled)
+			t.Errorf("%s [PM interval %d/%d]: cumulative counter increased on a stable link: got %d, want <= %d", f.desc, i, count, got, settled)
 		case !nonInterval && got != 0:
-			t.Errorf("%s [PM interval %d/%d]: got %d, want 0", desc, i, count, got)
+			t.Errorf("%s [PM interval %d/%d]: got %d, want 0", f.desc, i, count, got)
 		}
 	}
 }
 
 // validateFECStreamed verifies that count consecutive PM interval samples are streamed for the
 // leaf. Any value, including non-zero, is allowed; a missing (nil) sample fails.
-func validateFECStreamed(t *testing.T, s *samplestream.SampleStream[uint64], desc string, count int) {
+func validateFECStreamed(t *testing.T, f *fecSampler, count int) {
 	t.Helper()
 	for i := 1; i <= count; i++ {
-		got, ok := awaitFECSample(t, s, desc)
+		got, ok := f.await(t)
 		if !ok {
 			return
 		}
-		t.Logf("%s [PM interval %d/%d]: got %d", desc, i, count, got)
+		t.Logf("%s [PM interval %d/%d]: got %d", f.desc, i, count, got)
 	}
 }
 
-// validateAllFEC runs validateFECStreamed on every subscribed FEC leaf of every port.
+// validateAllFEC runs validateFECStreamed concurrently on every subscribed FEC leaf of every
+// port, starting with the first sample streamed after the call.
 func validateAllFEC(t *testing.T, ports []*zrPort, streams map[string]*fecStreams, step string, count int) {
 	t.Helper()
+	var checks []func()
 	for _, p := range ports {
-		s := streams[p.name]
-		validateFECStreamed(t, s.otn, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", step, p.name), count)
-		if s.eth != nil {
-			validateFECStreamed(t, s.eth, fmt.Sprintf("%s %s /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks", step, p.name), count)
-		}
-		if s.och != nil {
-			validateFECStreamed(t, s.och, fmt.Sprintf("%s %s /components/component/optical-channel/state/fec-uncorrectable-blocks", step, p.name), count)
+		for _, f := range streams[p.name].samplers(step, p.name) {
+			checks = append(checks, func() { validateFECStreamed(t, f, count) })
 		}
 	}
+	runConcurrently(checks)
 }
 
 // TestZrUncorrectableFrames validates the baseline TRANSCEIVER-10.1 Procedure.
@@ -430,15 +485,15 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, intUpdateTime)
 			stream := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(p.otnIdx).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			t.Cleanup(stream.Close)
-			desc := p.name + " /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks"
-			settleAndValidateFEC(t, dut, stream, desc+" (before flap)", 1)
+			desc := p.name + " " + otnFECPath
+			settleAndValidateFEC(t, dut, newFECSampler(stream, desc+" (before flap)"), 1)
 
 			setInterfaceEnabled(t, dut, p.name, false)
 			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_DOWN, intUpdateTime)
 			setInterfaceEnabled(t, dut, p.name, true)
 			awaitOperStatus(t, dut, p.name, oc.Interface_OperStatus_UP, intUpdateTime)
 
-			settleAndValidateFEC(t, dut, stream, desc+" (after flap)", 1)
+			settleAndValidateFEC(t, dut, newFECSampler(stream, desc+" (after flap)"), 1)
 		})
 	}
 }
@@ -675,6 +730,16 @@ func awaitPLQStates(t *testing.T, dut *ondatra.DUTDevice, want plqpb.Qualificati
 	}
 }
 
+// plqState returns the current state of the qualification session id.
+func plqState(t *testing.T, dut *ondatra.DUTDevice, id string) plqpb.QualificationState {
+	t.Helper()
+	resp, err := dut.RawAPIs().GNOI(t).LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{id}})
+	if err != nil {
+		t.Fatalf("LinkQualification.Get(%s) failed: %v", id, err)
+	}
+	return resp.GetResults()[id].GetState()
+}
+
 func verifyPLQResults(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ids := []string{nearEndQualID, farEndQualID}
@@ -774,6 +839,18 @@ func verifyIPState(t *testing.T, dut *ondatra.DUTDevice, p *zrPort, phase string
 	}
 }
 
+// validateOTNFECConcurrently runs settleAndValidateFEC on the OTN FEC leaf of every port at the
+// same time, so that every port is checked over the same PM intervals.
+func validateOTNFECConcurrently(t *testing.T, dut *ondatra.DUTDevice, ports []*zrPort, streams map[string]*samplestream.SampleStream[uint64], step string) {
+	t.Helper()
+	var checks []func()
+	for _, p := range ports {
+		f := newFECSampler(streams[p.name], step+" "+p.name+" "+otnFECPath)
+		checks = append(checks, func() { settleAndValidateFEC(t, dut, f, 1) })
+	}
+	runConcurrently(checks)
+}
+
 // TestZrLinkQualification validates TRANSCEIVER-10.1.2: Validate 400ZR Link Qualification and
 // Post-Qualification Link Health.
 func TestZrLinkQualification(t *testing.T) {
@@ -814,9 +891,10 @@ func TestZrLinkQualification(t *testing.T) {
 	}
 	// Check FEC only once the generator is sending packets.
 	awaitPLQStates(t, dut, plqpb.QualificationState_QUALIFICATION_STATE_RUNNING, plqGeneratorPreSync+plan.setup+time.Minute, nearEndQualID)
-	for _, p := range ports {
-		settleAndValidateFEC(t, dut, otnStreams[p.name], "Step 2 (during PLQ) "+p.name+" /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", 1)
+	if got := plqState(t, dut, nearEndQualID); got != plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+		t.Errorf("PLQ session %s state before the during-PLQ FEC check: got %v, want QUALIFICATION_STATE_RUNNING", nearEndQualID, got)
 	}
+	validateOTNFECConcurrently(t, dut, ports, otnStreams, "Step 2 (during PLQ)")
 	awaitPLQStates(t, dut, plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED, plan.completedBy, nearEndQualID, farEndQualID)
 	verifyPLQResults(t, dut)
 	cleanupPLQ(t, dut, ports)
@@ -827,9 +905,9 @@ func TestZrLinkQualification(t *testing.T) {
 		verifyIPState(t, dut, p, "After PLQ")
 		if !deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
 			if got := gnmi.Get(t, dut, gnmi.OC().Interface(p.name).Counters().InFcsErrors().State()); got != inFcsBaseline[p.name] {
-				t.Errorf("Port %s in-fcs-errors changed across PLQ: before=%d, after=%d", p.name, inFcsBaseline[p.name], got)
+				t.Errorf("Port %s in-fcs-errors after PLQ: got %d, want %d", p.name, got, inFcsBaseline[p.name])
 			}
 		}
-		settleAndValidateFEC(t, dut, otnStreams[p.name], "Step 3 (after PLQ) "+p.name+" /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks", 1)
 	}
+	validateOTNFECConcurrently(t, dut, ports, otnStreams, "Step 3 (after PLQ)")
 }
