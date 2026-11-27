@@ -18,5 +18,6 @@ platform_exceptions: {
     qos_classification_unsupported: true
     load_balance_policy_oc_unsupported: true
     static_route_to_nhg_oc_unsupported: true
+    nexthop_group_pseudowire_counters_oc_unsupported: true
   }
 }
