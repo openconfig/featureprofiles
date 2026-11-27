@@ -263,29 +263,41 @@ func TestBGPSetup(t *testing.T) {
 			if deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
 				tc.expectedPaths = 3
 			} else {
-				val, ok := gnmi.Watch(t, bs.DUT, aftsPath.Ipv4Entry(prefix).State(), time.Minute,
-					func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-						ipv4Entry, present := val.Val()
+				batch := gnmi.OCBatch()
+				batch.AddPaths(aftsPath.Ipv4Entry(prefix), aftsPath.NextHopGroupAny())
+				val, ok := gnmi.Watch(t, bs.DUT, batch.State(), time.Minute,
+					func(val *ygnmi.Value[*oc.Root]) bool {
+						root, present := val.Val()
 						if !present {
 							return false
 						}
 
-						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-						got := len(hopGroup.NextHop)
-						want := tc.expectedPaths
-						return got == want
+						afts := root.GetNetworkInstance(dni).GetAfts()
+						ipv4Entry := afts.GetIpv4Entry(prefix)
+						if ipv4Entry == nil || ipv4Entry.NextHopGroup == nil {
+							return false
+						}
+						hopGroup := afts.GetNextHopGroup(ipv4Entry.GetNextHopGroup())
+						return hopGroup != nil && len(hopGroup.NextHop) == tc.expectedPaths
 					}).Await(t)
 
 				if !ok {
-					ipv4Entry, present := val.Val()
-					if !present {
-						t.Errorf("prefix: %s, found no aft entry", ipv4Entry.GetPrefix())
+					var afts *oc.NetworkInstance_Afts
+					if val != nil {
+						root, _ := val.Val()
+						afts = root.GetNetworkInstance(dni).GetAfts()
+					}
+					ipv4Entry := afts.GetIpv4Entry(prefix)
+					if ipv4Entry == nil {
+						t.Errorf("prefix: %s, found no aft entry", prefix)
+					} else if ipv4Entry.NextHopGroup == nil {
+						t.Errorf("prefix: %s, next-hop-group reference not present", prefix)
 					} else {
-						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-						got := len(hopGroup.NextHop)
-						want := tc.expectedPaths
-						if got != want {
-							t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+						hopGroup := afts.GetNextHopGroup(ipv4Entry.GetNextHopGroup())
+						if hopGroup == nil {
+							t.Errorf("prefix: %s, next-hop-group %d not present", prefix, ipv4Entry.GetNextHopGroup())
+						} else {
+							t.Errorf("prefix: %s, found %d hops, want %d", prefix, len(hopGroup.NextHop), tc.expectedPaths)
 						}
 					}
 				}
