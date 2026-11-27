@@ -1623,6 +1623,22 @@ message Metadata {
     // https://issuetracker.google.com/581463773
     bool bgp_gr_helper_hold_timer_expiry_requires_stale_policy = 489;
 
+    // https://partnerissuetracker.corp.google.com/issues/529388485
+    bool decap_nh_without_nexthop_ni_unsupported = 490;
+
+    // Device rejects setting
+    // /components/component/controller-card/config/power-admin-state to
+    // POWER_DISABLED on the PRIMARY controller card and only accepts it on a
+    // controller card whose redundant-role is SECONDARY. Rule 1 of
+    // https://github.com/openconfig/public/blob/master/doc/controller-card_poweroff.md
+    // instead requires the configuration to be accepted on the PRIMARY and the
+    // power-off to be deferred until the card is SECONDARY or reboots. Tests
+    // must switch over first (gNOI System.SwitchControlProcessor) and then
+    // power down the former PRIMARY.
+    // Arista: https://issuetracker.google.com/issues/582304398
+    // Cisco: https://issuetracker.google.com/issues/372605838
+    bool controller_card_primary_power_disable_unsupported = 491;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }

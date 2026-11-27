@@ -140,25 +140,6 @@ func (a *Attributes) NewOCInterface(name string, dut *ondatra.DUTDevice) *oc.Int
 	return a.ConfigOCInterface(&oc.Interface{Name: ygot.String(name)}, dut)
 }
 
-// AddToATE adds a new interface to an ATETopology with these attributes.
-func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *Attributes) *ondatra.Interface {
-	i := top.AddInterface(a.Name).WithPort(ap)
-	if a.MTU > 0 {
-		i.Ethernet().WithMTU(a.MTU)
-	}
-	if a.IPv4 != "" {
-		i.IPv4().
-			WithAddress(a.IPv4CIDR()).
-			WithDefaultGateway(peer.IPv4)
-	}
-	if a.IPv6 != "" {
-		i.IPv6().
-			WithAddress(a.IPv6CIDR()).
-			WithDefaultGateway(peer.IPv6)
-	}
-	return i
-}
-
 // AddToOTG adds basic elements to a gosnappi configuration
 func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) gosnappi.Device {
 	top.Ports().Add().SetName(ap.ID())
