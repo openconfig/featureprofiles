@@ -2602,3 +2602,11 @@ func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
 }
+
+// MixedAFPolicyForwardingUnsupported returns true if the device does not support IPv4 and IPv6
+// match conditions (rules) within a single policy-forwarding policy, e.g. a single
+// VRF_SELECTION_POLICY bound via apply-vrf-selection-policy.
+// Nokia: https://issuetracker.google.com/issues/575138433
+func MixedAFPolicyForwardingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMixedAfPolicyForwardingUnsupported()
+}

@@ -1237,6 +1237,7 @@ test: {
   id: "RT-3.6"
   description: "VRF Selection Policy Hardware Programming Across Multiple Linecards"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_multi_linecard_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection_multi_linecard_test/vrf_selection_multi_linecard_test.go"
 }
 test: {
   id: "RT-4.10"

@@ -28,6 +28,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -36,6 +37,8 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -274,15 +277,28 @@ func componentNameFromPath(p *gpb.Path) string {
 	return ""
 }
 
+// hardwarePortTimeout bounds how long LinecardsFromPorts waits for every port
+// to report /interfaces/interface/state/hardware-port. Some platforms only
+// report hardware-port shortly after an interface is configured.
+const hardwarePortTimeout = time.Minute
+
 // LinecardsFromPorts returns, keyed by DUT interface name, the name of the
 // LINECARD component that hosts each of the given ports.
 //
 // For each port it reads /interfaces/interface[name]/state/hardware-port and
 // then follows /components/component/state/parent up the component tree until
-// it reaches a component whose type is LINECARD. The data is fetched with three
-// gNMI requests in total (one batched Get for the hardware-ports and one
-// wildcard Get each for the component types and parents) and the tree is
-// walked in memory, regardless of the number of ports or the tree depth.
+// it reaches a component whose type is LINECARD. The component types and
+// parents are fetched with one wildcard Get each, the hardware-ports with one
+// batched gnmi.Watch (bounded by hardwarePortTimeout) that completes as soon as
+// every port reports one, and the tree is walked in memory, regardless of the
+// number of ports or the tree depth.
+//
+// Two platform variations are handled:
+//   - A breakout channel such as et-1/0/2:2 that reports no hardware-port of
+//     its own uses the hardware-port of its base port et-1/0/2.
+//   - An intermediate component that reports no parent, such as
+//     FPC0:PIC0:NPU0, continues the walk at the longest colon-separated prefix
+//     that is a known component (FPC0:PIC0).
 //
 // ErrNoLinecardComponents is returned (wrapped) when the device reports no
 // LINECARD component at all; any other error means a port could not be mapped
@@ -313,36 +329,234 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 		}
 	}
 
-	batch := gnmi.OCBatch()
-	for _, p := range ports {
-		batch.AddPaths(gnmi.OC().Interface(p.Name()).HardwarePort())
-	}
-	root, _ := gnmi.Lookup(t, dut, batch.State()).Val()
-
+	hwPorts := awaitHardwarePorts(t, dut, ports)
 	lcs := make(map[string]string)
 	for _, p := range ports {
-		hwPort := root.GetInterface(p.Name()).GetHardwarePort()
+		hwPort := hwPorts[p.Name()]
 		if hwPort == "" {
-			return nil, fmt.Errorf("hardware-port not reported for interface %s", p.Name())
+			return nil, fmt.Errorf("hardware-port not reported within %v for interface %s or its breakout base port", hardwarePortTimeout, p.Name())
 		}
-		visited := make(map[string]bool)
-		var lc string
-		for current := hwPort; current != ""; current = parents[current] {
-			if visited[current] {
-				return nil, fmt.Errorf("loop detected in component tree at %q while walking up from hardware-port %q", current, hwPort)
-			}
-			visited[current] = true
-			if types[current] == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
-				lc = current
-				break
-			}
-		}
-		if lc == "" {
-			return nil, fmt.Errorf("no LINECARD component found in the component tree above hardware-port %q of interface %s", hwPort, p.Name())
+		lc, err := linecardAncestor(hwPort, types, parents)
+		if err != nil {
+			return nil, fmt.Errorf("interface %s: %w", p.Name(), err)
 		}
 		lcs[p.Name()] = lc
 	}
 	return lcs, nil
+}
+
+// hardwarePortCandidates returns the interfaces to read hardware-port from, in
+// order of preference: the interface itself and, for a breakout channel such as
+// et-1/0/2:2, its base port et-1/0/2.
+func hardwarePortCandidates(name string) []string {
+	if base, _, ok := strings.Cut(name, ":"); ok && base != "" {
+		return []string{name, base}
+	}
+	return []string{name}
+}
+
+// awaitHardwarePorts watches, in one batched subscription, the hardware-port of
+// every port (and of its breakout base port) until each port has one or
+// hardwarePortTimeout passes. It returns the hardware-ports found, keyed by
+// interface name.
+func awaitHardwarePorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port) map[string]string {
+	t.Helper()
+	batch := gnmi.OCBatch()
+	seen := make(map[string]bool)
+	for _, p := range ports {
+		for _, c := range hardwarePortCandidates(p.Name()) {
+			if !seen[c] {
+				seen[c] = true
+				batch.AddPaths(gnmi.OC().Interface(c).HardwarePort())
+			}
+		}
+	}
+	got := make(map[string]string)
+	gnmi.Watch(t, dut, batch.State(), hardwarePortTimeout, func(v *ygnmi.Value[*oc.Root]) bool {
+		root, _ := v.Val()
+		for _, p := range ports {
+			for _, c := range hardwarePortCandidates(p.Name()) {
+				if hw := root.GetInterface(c).GetHardwarePort(); hw != "" {
+					got[p.Name()] = hw
+					break
+				}
+			}
+		}
+		return len(got) == len(ports)
+	}).Await(t)
+	return got
+}
+
+// linecardAncestor walks up the component tree from comp, using the component
+// types and parents reported by the device, and returns the first component of
+// type LINECARD. When a component reports no parent, the walk continues at the
+// longest colon-separated prefix of its name that is a known component (e.g.
+// FPC0:PIC0:NPU0 -> FPC0:PIC0).
+func linecardAncestor(comp string, types map[string]oc.Component_Type_Union, parents map[string]string) (string, error) {
+	known := func(name string) bool {
+		_, isType := types[name]
+		_, hasParent := parents[name]
+		return isType || hasParent
+	}
+	visited := make(map[string]bool)
+	for current := comp; current != ""; {
+		if visited[current] {
+			return "", fmt.Errorf("loop detected in component tree at %q while walking up from %q", current, comp)
+		}
+		visited[current] = true
+		if types[current] == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+			return current, nil
+		}
+		next := parents[current]
+		for i := strings.LastIndex(current, ":"); next == "" && i > 0; i = strings.LastIndex(current[:i], ":") {
+			if prefix := current[:i]; known(prefix) {
+				next = prefix
+			}
+		}
+		current = next
+	}
+	return "", fmt.Errorf("no LINECARD component found in the component tree above %q", comp)
+}
+
+// rebootRetryInterval bounds each WatchWithRetry attempt while the device
+// reboots and is the minimum time between two attempts.
+const rebootRetryInterval = 30 * time.Second
+
+// ColdRebootChassis issues a chassis-level gNOI System.Reboot (method COLD,
+// no subcomponents) and waits, with WatchWithRetry, until
+// /system/state/boot-time advances past its pre-reboot value or timeout
+// passes. The request is first sent without Force; it is retried with Force
+// only if it is rejected for a reason other than PermissionDenied or
+// Unavailable. An Unavailable error is tolerated because the device can drop
+// the connection as it starts rebooting.
+func ColdRebootChassis(t *testing.T, dut *ondatra.DUTDevice, message string, timeout time.Duration) {
+	t.Helper()
+	before := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	sys := dut.RawAPIs().GNOI(t).System()
+	req := &spb.RebootRequest{Method: spb.RebootMethod_COLD, Message: message}
+	_, err := sys.Reboot(t.Context(), req)
+	if c := status.Code(err); err != nil && c != codes.PermissionDenied && c != codes.Unavailable {
+		req.Force = true
+		_, err = sys.Reboot(t.Context(), req)
+	}
+	switch {
+	case err == nil:
+	case status.Code(err) == codes.Unavailable:
+		t.Logf("gNOI System.Reboot(COLD) returned %v; waiting for boot-time to advance", err)
+	default:
+		t.Fatalf("gNOI System.Reboot(COLD): %v", err)
+	}
+	if _, ok := WatchWithRetry(t, dut, gnmi.OC().System().BootTime().State(), timeout, rebootRetryInterval, func(v *ygnmi.Value[uint64]) bool {
+		bt, present := v.Val()
+		return present && bt > before
+	}); !ok {
+		t.Fatalf("/system/state/boot-time did not advance past %d within %v after the chassis reboot", before, timeout)
+	}
+}
+
+// RebootSubcomponents issues one gNOI System.Reboot (method COLD) for the
+// named subcomponents, e.g. linecards. The subcomponent paths honour the
+// GNOISubcomponentPath deviation (component name only vs. the full
+// /components/component[name] path). The RPC can return before the
+// subcomponents restart; use AwaitLinecardRebootRecovery to track them. The
+// test is failed fatally if no name, or an empty name, is given, since a
+// request without subcomponents would reboot the whole chassis.
+func RebootSubcomponents(t *testing.T, dut *ondatra.DUTDevice, message string, names ...string) {
+	t.Helper()
+	// A RebootRequest without subcomponents reboots the whole chassis, so never send one from here.
+	if len(names) == 0 {
+		t.Fatal("RebootSubcomponents: at least one subcomponent name is required")
+	}
+	req := &spb.RebootRequest{Method: spb.RebootMethod_COLD, Message: message}
+	for _, n := range names {
+		if n == "" {
+			t.Fatalf("RebootSubcomponents: empty subcomponent name in %q", names)
+		}
+		req.Subcomponents = append(req.Subcomponents, GetSubcomponentPath(n, deviations.GNOISubcomponentPath(dut)))
+	}
+	t.Logf("gNOI System.Reboot request: %v", req)
+	resp, err := dut.RawAPIs().GNOI(t).System().Reboot(t.Context(), req)
+	if err != nil {
+		t.Fatalf("gNOI System.Reboot(COLD) for subcomponents %v: %v", names, err)
+	}
+	t.Logf("gNOI System.Reboot response: %v", resp)
+}
+
+// AwaitLinecardRebootRecovery waits for linecard lc, rebooted after its
+// last-reboot-time was recorded as lastRebootBefore, to recover:
+//  1. lc leaves ACTIVE (or stops reporting oper-status), or its
+//     last-reboot-time advances, within leaveTimeout. The last-reboot-time
+//     check covers a linecard that reboots faster than its oper-status
+//     transition is streamed.
+//  2. lc returns to ACTIVE and reports a last-reboot-time greater than
+//     lastRebootBefore, both within activeTimeout.
+//
+// Each phase checks gnmi.Lookup before each bounded gnmi.Watch slice (via
+// WatchWithRetry) so missed STREAM notifications or transient gNMI errors
+// during linecard restart do not stall the wait. The test is failed fatally if
+// a step fails.
+func AwaitLinecardRebootRecovery(t *testing.T, dut *ondatra.DUTDevice, lc string, lastRebootBefore uint64, leaveTimeout, activeTimeout time.Duration) {
+	t.Helper()
+	comp := gnmi.OC().Component(lc)
+	batch := ygnmi.NewBatch[*oc.Root](gnmi.OC().State())
+	if err := batch.AddPaths(comp.OperStatus().State(), comp.LastRebootTime().State()); err != nil {
+		t.Fatalf("AwaitLinecardRebootRecovery: AddPaths for %s: %v", lc, err)
+	}
+	query := batch.Query()
+
+	t.Logf("Waiting up to %v for linecard %s to leave ACTIVE or advance last-reboot-time past %d", leaveTimeout, lc, lastRebootBefore)
+	leaveStatus, leaveReboot, ok := awaitLinecardState(t, dut, lc, query, leaveTimeout, func(status oc.E_PlatformTypes_COMPONENT_OPER_STATUS, lastReboot uint64) bool {
+		return status != oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE || lastReboot > lastRebootBefore
+	})
+	if !ok {
+		t.Fatalf("Linecard %s did not leave ACTIVE within %v after the reboot request (lastRebootBefore=%d, last oper-status=%v, last-reboot-time=%d)", lc, leaveTimeout, lastRebootBefore, leaveStatus, leaveReboot)
+	}
+	t.Logf("Linecard %s observed reboot transition (oper-status=%v, last-reboot-time=%d, before=%d); waiting up to %v for it to return to ACTIVE with last-reboot-time > %d", lc, leaveStatus, leaveReboot, lastRebootBefore, activeTimeout, lastRebootBefore)
+
+	// oper-status and last-reboot-time are watched together because a device can
+	// report ACTIVE before it updates last-reboot-time.
+	lastStatus, lastReboot, ok := awaitLinecardState(t, dut, lc, query, activeTimeout, func(status oc.E_PlatformTypes_COMPONENT_OPER_STATUS, lastReboot uint64) bool {
+		return status == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE && lastReboot > lastRebootBefore
+	})
+	if !ok {
+		t.Fatalf("Linecard %s did not return to ACTIVE with last-reboot-time > %d within %v (last oper-status=%v, last-reboot-time=%d)", lc, lastRebootBefore, activeTimeout, lastStatus, lastReboot)
+	}
+	t.Logf("Linecard %s returned to ACTIVE with last-reboot-time=%d (before=%d)", lc, lastReboot, lastRebootBefore)
+}
+
+// awaitLinecardState waits up to timeout for linecard lc's oper-status and
+// last-reboot-time to satisfy pred. It checks gnmi.Lookup before each bounded
+// WatchWithRetry slice so that a STREAM subscription that misses a component
+// removal or leaf-level delete still converges on the next lookup.
+func awaitLinecardState(t *testing.T, dut *ondatra.DUTDevice, lc string, query ygnmi.SingletonQuery[*oc.Root], timeout time.Duration, pred func(oc.E_PlatformTypes_COMPONENT_OPER_STATUS, uint64) bool) (oc.E_PlatformTypes_COMPONENT_OPER_STATUS, uint64, bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var lastStatus oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	var lastReboot uint64
+	for {
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			root, _ := gnmi.Lookup(t, dut, query).Val()
+			c := root.GetComponent(lc)
+			lastStatus, lastReboot = c.GetOperStatus(), c.GetLastRebootTime()
+		}); errMsg != nil {
+			t.Logf("Linecard %s state lookup failed, retrying: %s", lc, *errMsg)
+		} else if pred(lastStatus, lastReboot) {
+			return lastStatus, lastReboot, true
+		}
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			return lastStatus, lastReboot, false
+		}
+		slice := min(rem, rebootRetryInterval)
+		if _, ok := WatchWithRetry(t, dut, query, slice, slice, func(v *ygnmi.Value[*oc.Root]) bool {
+			root, _ := v.Val()
+			c := root.GetComponent(lc)
+			lastStatus, lastReboot = c.GetOperStatus(), c.GetLastRebootTime()
+			return pred(lastStatus, lastReboot)
+		}); ok {
+			return lastStatus, lastReboot, true
+		}
+	}
 }
 
 // WatchWithRetry watches a query until the predicate returns true, catching temporary connection errors
@@ -350,13 +564,16 @@ func LinecardsFromPorts(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.P
 //
 // The timeout is measured in wall-clock time. If a watch attempt fails before
 // its retryInterval slice has elapsed (e.g. the gNMI server is unreachable
-// during a controller card switchover and Subscribe fails immediately), the
-// remainder of the slice is waited out before re-subscribing. This back-off is
-// required because no gNMI Watch can be established while the server is
-// unreachable; without it, fast failures would either spin or exhaust the
-// timeout budget within seconds.
+// during a controller card switchover or reboot and Subscribe fails
+// immediately), the remainder of the slice is waited out before re-subscribing.
+// This back-off is required because no gNMI Watch can be established while the
+// server is unreachable; without it, fast failures would either spin or exhaust
+// the timeout budget within seconds.
 func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.SingletonQuery[T], timeout, retryInterval time.Duration, predicate func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	t.Helper()
+	if retryInterval <= 0 {
+		t.Fatalf("WatchWithRetry: retryInterval must be positive, got %v", retryInterval)
+	}
 	deadline := time.Now().Add(timeout)
 	for {
 		remaining := time.Until(deadline)
@@ -367,9 +584,11 @@ func WatchWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, query ygnmi.Sin
 		sliceEnd := time.Now().Add(waitDur)
 		var val *ygnmi.Value[T]
 		var ok bool
-		testt.CaptureFatal(t, func(t testing.TB) {
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			val, ok = gnmi.Watch(t, dut, query, waitDur, predicate).Await(t)
-		})
+		}); errMsg != nil {
+			t.Logf("WatchWithRetry: watch attempt failed, retrying: %s", *errMsg)
+		}
 		if ok {
 			return val, true
 		}
