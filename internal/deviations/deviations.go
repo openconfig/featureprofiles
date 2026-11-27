@@ -2590,3 +2590,12 @@ func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool 
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
 }
+
+// PipelineDropTTLExpiredPunted returns true if the device punts IPv4 packets
+// with TTL 1 and IPv6 packets with hop limit 1 to the control plane instead of
+// counting them as pipeline drops under
+// /components/component/integrated-circuit/pipeline-counters/drop/vendor.
+// Tracking: https://issuetracker.google.com/issues/511260823
+func PipelineDropTTLExpiredPunted(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPipelineDropTtlExpiredPunted()
+}

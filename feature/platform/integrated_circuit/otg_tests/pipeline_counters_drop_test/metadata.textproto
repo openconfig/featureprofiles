@@ -4,7 +4,7 @@
 uuid: "d0256233-8b9b-4b07-a40d-1e163eb0f47e"
 plan_id: "gNMI-1.29"
 description: "Pipeline Counters Drops Test"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
 tags: TAGS_TRANSIT
 
 # IOS-XR releases before 25.4.15 do not stream
@@ -19,5 +19,27 @@ platform_exceptions {
   }
   deviations {
     ciscoxr_vendordrop_ft: "ciscoxr-vendordrops-ft"
+  }
+}
+platform_exceptions {
+  platform {
+    vendor: ARISTA
+  }
+  deviations {
+    default_network_instance: "default"
+    interface_enabled: true
+    omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    pipeline_drop_ttl_expired_punted: true
+  }
+}
+platform_exceptions {
+  platform {
+    vendor: NOKIA
+  }
+  deviations {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    static_protocol_name: "static"
   }
 }
