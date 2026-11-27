@@ -224,7 +224,9 @@ func juniperFilterInterfaceLines(config, intfName string, removeLine func(trimme
 		trimmed := strings.TrimSpace(line)
 		delta := strings.Count(line, "{") - strings.Count(line, "}")
 		if !inInterfaces {
-			if trimmed == "interfaces {" {
+			// Only the top-level "interfaces" stanza is considered, not nested ones (e.g. under
+			// class-of-service or snmp).
+			if strings.TrimRight(line, " \r") == "interfaces {" {
 				inInterfaces = true
 				interfacesDepth = delta
 			}
@@ -318,10 +320,10 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 		// of the calling subtest pass or fail for the wrong reason.
 		if _, ok := gnmi.Watch(t, dut, mtuPath, awaitStateTimeOut, func(val *ygnmi.Value[uint16]) bool {
 			m, present := val.Val()
-			return present && (m == 1500 || m == 1514 || m == 9232)
+			return present && !slices.Contains(testMTUs, m)
 		}).Await(t); !ok {
 			got, present := gnmi.Lookup(t, dut, mtuPath).Val()
-			t.Fatalf("interface %s MTU state did not return to a default value (1500, 1514 or 9232) after its MTU configuration was removed: got %d (present=%v)", portName, got, present)
+			t.Fatalf("interface %s MTU state did not return to a non-test default value after its MTU configuration was removed: got %d (present=%v), test MTUs %v", portName, got, present, testMTUs)
 		}
 	}
 }
@@ -729,39 +731,6 @@ func cliInterface(dut *ondatra.DUTDevice, cli, intfName string) string {
 			}
 		}
 	}
-	if dut.Vendor() == ondatra.JUNIPER {
-		sb.WriteString(juniperInterfaceStanza(cli, intfName))
-	}
-	return sb.String()
-}
-
-// juniperInterfaceStanza returns the statements configured directly under the top-level
-// "interfaces { <intfName> { ... } }" stanza of the hierarchical Junos configuration, one per
-// line. Nested "interfaces" stanzas (e.g. under class-of-service or snmp) are not considered.
-func juniperInterfaceStanza(config, intfName string) string {
-	var sb strings.Builder
-	interfacesDepth := 0 // brace depth inside the top-level "interfaces" stanza, 0 when outside.
-	targetDepth := 0     // brace depth inside the intfName stanza, 0 when outside.
-	for _, line := range strings.Split(config, "\n") {
-		trimmed := strings.TrimSpace(line)
-		delta := strings.Count(line, "{") - strings.Count(line, "}")
-		switch {
-		case targetDepth > 0:
-			if targetDepth == 1 && trimmed != "}" {
-				sb.WriteString(trimmed)
-				sb.WriteByte('\n')
-			}
-			targetDepth += delta
-			interfacesDepth += delta
-		case interfacesDepth > 0:
-			if interfacesDepth == 1 && trimmed == intfName+" {" {
-				targetDepth = delta
-			}
-			interfacesDepth += delta
-		case strings.TrimRight(line, " \r") == "interfaces {":
-			interfacesDepth = delta
-		}
-	}
 	return sb.String()
 }
 
@@ -840,19 +809,18 @@ func verifyCLIMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantMTU
 }
 
 // verifyInterfaceConfigRemoved checks that the interface configuration (description) is removed.
-// Physical interfaces remain present in state on most DUTs even when unconfigured, and some DUTs
-// (e.g. Juniper) keep reporting the description state leaf with an empty value once the configured
-// description is deleted, so both an absent leaf and an empty description mean it was removed.
+// Physical interfaces remain present in state on most DUTs even when unconfigured.
 func verifyInterfaceConfigRemoved(t *testing.T, dut *ondatra.DUTDevice, intfName string) error {
 	t.Helper()
-	descPath := gnmi.OC().Interface(intfName).Description().State()
-	_, ok := gnmi.Watch(t, dut, descPath, awaitStateTimeOut, func(v *ygnmi.Value[string]) bool {
-		desc, present := v.Val()
-		return !present || desc == ""
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(intfName).Description().State(), awaitStateTimeOut, func(v *ygnmi.Value[string]) bool {
+		return !v.IsPresent()
 	}).Await(t)
 	if !ok {
-		got, present := gnmi.Lookup(t, dut, descPath).Val()
-		return fmt.Errorf("interface %s configuration should not be present after deletion: description state is %q (present=%v)", intfName, got, present)
+		if dut.Vendor() == ondatra.JUNIPER {
+			got, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).Description().State()).Val()
+			return fmt.Errorf("interface %s configuration should not be present after deletion: description state is %q (present=%v)", intfName, got, present)
+		}
+		return fmt.Errorf("interface %s configuration should not be present after deletion", intfName)
 	}
 	return nil
 }
@@ -1113,18 +1081,6 @@ func verifyCLIBreakout(t *testing.T, dut *ondatra.DUTDevice, intfName string, br
 			return true
 		}
 		return false
-	case ondatra.JUNIPER:
-		// Junos keeps CLI configuration out of the OC config tree; the breakout is the
-		// number-of-sub-ports and speed statements of the parent interface.
-		stanza := cliInterface(dut, cliConfig(t, dut), intfName)
-		wantSubPorts := fmt.Sprintf("number-of-sub-ports %d;", breakout.numBreakouts)
-		wantSpeed := fmt.Sprintf("speed %sg;", speedValueG(breakout.speed))
-		if hasCLILine(stanza, wantSubPorts) && hasCLILine(stanza, wantSpeed) {
-			t.Logf("Breakout for %s verified in CLI running-config: %q, %q", intfName, wantSubPorts, wantSpeed)
-			return true
-		}
-		t.Logf("Breakout for %s not found in CLI running-config: want %q and %q, got:\n%s", intfName, wantSubPorts, wantSpeed, stanza)
-		return false
 	case ondatra.CISCO:
 	default:
 		return false
@@ -1138,35 +1094,7 @@ func verifyCLIBreakout(t *testing.T, dut *ondatra.DUTDevice, intfName string, br
 	return false
 }
 
-// verifyCLIPortSpeed checks the port speed of intfName in the CLI running-config on DUTs that
-// do not reflect CLI-configured port speed in the OC config tree.
-func verifyCLIPortSpeed(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantSpeed oc.E_IfEthernet_ETHERNET_SPEED) bool {
-	t.Helper()
-	if dut.Vendor() != ondatra.JUNIPER {
-		return false
-	}
-	want := fmt.Sprintf("speed %sg;", speedValueG(wantSpeed))
-	if hasCLILine(cliInterface(dut, cliConfig(t, dut), intfName), want) {
-		t.Logf("interface %s port-speed verified in CLI running-config: %q", intfName, want)
-		return true
-	}
-	return false
-}
-
-// hasCLILine reports whether config contains want as a whole (trimmed) line.
-func hasCLILine(config, want string) bool {
-	for _, line := range strings.Split(config, "\n") {
-		if strings.TrimSpace(line) == want {
-			return true
-		}
-	}
-	return false
-}
-
-// verifyBreakoutModeConfig verifies the breakout-mode config leaves of hwPort. viaCLI reports
-// whether the breakout was pushed with CLI, in which case the CLI running-config is accepted as
-// the source of truth on DUTs that do not reflect CLI configuration in the OC config tree.
-func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, hwPort, intfName string, breakout breakoutConfig, viaCLI bool) error {
+func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, hwPort, intfName string, breakout breakoutConfig) error {
 	t.Helper()
 	if hwPort == "" {
 		t.Logf("Skipping breakout-mode config verification: no hardware-port")
@@ -1187,9 +1115,8 @@ func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, hwPort, intf
 			errs = append(errs, fmt.Errorf("component %s breakout group num-physical-channels: got %v (present=%v), want %d", hwPort, got, ok, breakout.numChannels))
 		}
 	}
-	// Juniper falls back to the CLI running-config only for CLI-pushed breakout: OC-pushed
-	// breakout must be present in the OC config tree.
-	if len(errs) > 0 && (viaCLI || dut.Vendor() != ondatra.JUNIPER) && verifyCLIBreakout(t, dut, intfName, breakout) {
+	// Juniper is validated on the OC paths only, without a CLI fallback.
+	if len(errs) > 0 && dut.Vendor() != ondatra.JUNIPER && verifyCLIBreakout(t, dut, intfName, breakout) {
 		return nil
 	}
 	return errors.Join(errs...)
@@ -1425,8 +1352,11 @@ func TestUnionReplace(t *testing.T) {
 				time.Sleep(5 * time.Second)
 
 				if dut.Vendor() == ondatra.JUNIPER {
-					// Juniper is validated on the OC configuration tree only, not on CLI text.
-					return ocConfigDiff(ocCfg2, gnmi.Get[*oc.Root](t, dut, gnmi.OC().Config()))
+					// Junos keeps the OC configuration in a tree separate from the CLI configuration, so
+					// the OC configuration tree is verified in addition to the CLI configuration below.
+					if err := ocConfigDiff(ocCfg2, gnmi.Get[*oc.Root](t, dut, gnmi.OC().Config())); err != nil {
+						return err
+					}
 				}
 				// verify the CLI config has not changed.
 				clicfg3 := cliConfig(t, dut)
@@ -1808,7 +1738,7 @@ func TestUnionReplace(t *testing.T) {
 					setResult := sb.Set(t, dut)
 					t.Logf("SetResult:\n%s", prettyPrintYgnmiResult(setResult))
 
-					if err := verifyBreakoutModeConfig(t, dut, hwPort, baseIntf, mismatchBreakout, false); err != nil {
+					if err := verifyBreakoutModeConfig(t, dut, hwPort, baseIntf, mismatchBreakout); err != nil {
 						return err
 					}
 					operIntf := dp1.Name()
@@ -1944,7 +1874,7 @@ func TestUnionReplace(t *testing.T) {
 					setResult := sb.Set(t, dut)
 					t.Logf("SetResult:\n%s", prettyPrintYgnmiResult(setResult))
 
-					if err := verifyBreakoutModeConfig(t, dut, hwPort, baseIntf, mismatchBreakout, true); err != nil {
+					if err := verifyBreakoutModeConfig(t, dut, hwPort, baseIntf, mismatchBreakout); err != nil {
 						return err
 					}
 					operIntf := dp1.Name()
@@ -2444,7 +2374,7 @@ func TestUnionReplace(t *testing.T) {
 				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied and interface oper-status")
-				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout, false))
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout))
 				if !deviations.PortSpeedUnsupported(dut) && !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
 					checkIntf := interfaceWithoutTransceiver
 					if deviations.ExplicitBreakoutInterfaceConfig(dut) {
@@ -2479,17 +2409,13 @@ func TestUnionReplace(t *testing.T) {
 				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied")
-				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout, true))
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, noTransceiverHWPort, interfaceWithoutTransceiver, breakout))
 				if !deviations.PortSpeedUnsupported(dut) && !deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut) {
 					checkIntf := interfaceWithoutTransceiver
 					if deviations.ExplicitBreakoutInterfaceConfig(dut) {
 						checkIntf = breakoutOperIntf
 					}
-					// The port speed was pushed with CLI, so the CLI running-config is accepted on DUTs
-					// that do not reflect CLI configuration in the OC config tree.
-					if err := verifyPortSpeed(t, dut, checkIntf, breakout.speed); err != nil && !verifyCLIPortSpeed(t, dut, checkIntf, breakout.speed) {
-						errs = append(errs, err)
-					}
+					errs = append(errs, verifyPortSpeed(t, dut, checkIntf, breakout.speed))
 				}
 
 				errs = append(errs, verifyInterfaceOperStatus(t, dut, breakoutOperIntf, noTransceiverOperStatus))
