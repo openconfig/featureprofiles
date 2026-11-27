@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -280,62 +279,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		}
 	}
 	return d
-}
-
-// ConfigureATE function is to configure ate ports with ipv4 , bgp
-// and isis peers.
-func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
-	topo := ate.Topology().New()
-
-	for _, dp := range ate.Ports() {
-		ISISMetricList = append(ISISMetricList, ISISMetric)
-		ISISSetBitList = append(ISISSetBitList, true)
-		atePortAttr := attrs.Attributes{
-			Name:    "ate" + dp.ID(),
-			IPv4:    ATEIPList[dp.ID()].String(),
-			IPv4Len: plenIPv4,
-		}
-		iDut1 := topo.AddInterface(dp.Name()).WithPort(dp)
-		iDut1.IPv4().WithAddress(atePortAttr.IPv4CIDR()).WithDefaultGateway(DUTIPList[dp.ID()].String())
-
-		// Add BGP routes and ISIS routes , ate port1 is ingress port.
-		if dp.ID() == "port1" {
-			// Add BGP on ATE
-			bgpDut1 := iDut1.BGP()
-			bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs2).
-				WithTypeExternal()
-
-			// Add ISIS on ATE
-			isisDut1 := iDut1.ISIS()
-			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
-
-			netCIDR := fmt.Sprintf("%s/%d", AdvertiseBGPRoutesv4, 32)
-			bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
-			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
-
-			netCIDR = fmt.Sprintf("%s/%d", advertiseISISRoutesv4, 32)
-			isisnet1 := iDut1.AddNetwork("isisnet1")
-			isisnet1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			isisnet1.ISIS().WithActive(true).WithIPReachabilityMetric(20)
-
-			continue
-		}
-
-		// Add BGP on ATE
-		bgpDut1 := iDut1.BGP()
-		bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs).
-			WithTypeExternal()
-
-		// Add BGP on ATE
-		isisDut1 := iDut1.ISIS()
-		isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
-	}
-
-	t.Log("Pushing config to ATE...")
-	topo.Push(t)
-	t.Log("Starting protocols to ATE...")
-	topo.StartProtocols(t)
 }
 
 // ConfigureOTG function is to configure otg ports with ipv4, bgp and isis peers.
