@@ -132,7 +132,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 		tunnelIpv4address := incrementAddress(t, tunnelNhIpv4Network, step, "host")
 		t.Logf("unit : %d tunnel ipv4 address: %s/%d  tunnel source address: %s tunnel destination: %s", unit, tunnelIpv4address, tunnelPlen4, tunnelSrc, tunnelDst)
 		if deviations.TunnelConfigPathUnsupported(dut) {
-			configureTunnelInterface(t, tunnelInterface, unit, tunnelSrc, tunnelDst, tunnelIpv4address, tunnelPlen4, dut)
+			configureTunnelInterface(t, tunnelInterface, unit, tunnelSrc, tunnelDst, tunnelIpv4address, tunnelPlen4, dut, dutPort1.Name())
 		}
 		overlayIPv4Nh = append(overlayIPv4Nh, incrementAddress(t, tunnelIpv4address, 1, "host"))
 		step = step + 2
@@ -160,7 +160,8 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	time.Sleep(30 * time.Second)
 	t.Logf("Start Traffic flow configuraturation in OTG")
-	configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
+	dutPort1Mac := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).Ethernet().MacAddress().State())
+	configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutPort1Mac)
 	if json, err := top.Marshal().ToJson(); err != nil {
 		t.Errorf("trouble converting %v to json: %v", top, err)
 	} else {
@@ -257,9 +258,9 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	f1v4.Protocol().SetValue(6)
 	f1v4.Src().Increment().SetStart(peer.IPv4).SetCount(200)
 	f1v4.Dst().Increment().SetStart(encapInnerDesIpv4Network).SetCount(200)
-	flow1ipv4.Packet().Add().Tcp()
-	flow1ipv4.Packet().Add().Tcp().SrcPort().Increment().SetStart(9000).SetCount(28000)
-	flow1ipv4.Packet().Add().Tcp().DstPort().Increment().SetStart(37001).SetCount(28000)
+	tcp := flow1ipv4.Packet().Add().Tcp()
+	tcp.SrcPort().Increment().SetStart(9000).SetCount(28000)
+	tcp.DstPort().Increment().SetStart(37001).SetCount(28000)
 
 }
 
@@ -302,16 +303,25 @@ func incrementAddress(t *testing.T, address string, i int, part string) string {
 	return addr.String()
 }
 
-func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, tunnelIpv4address string, Ipv4Mask int, dut *ondatra.DUTDevice) {
+func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, tunnelIpv4address string, Ipv4Mask int, dut *ondatra.DUTDevice, srcIntf string) {
 	t.Logf("Push the IPv4 tunnel endpoint config:\n%s", dut.Vendor())
 	var config string
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelIpv4address, Ipv4Mask)
-		t.Logf("Push the CLI config:\n%s", config)
-
+	case ondatra.ARISTA:
+		tunnelName := fmt.Sprintf("Tunnel%d", unit+1)
+		config = fmt.Sprintf(`
+interface %s
+   ip address %s/%d
+   tunnel source interface %s
+   tunnel destination %s
+   tunnel mode gre`, tunnelName, tunnelIpv4address, Ipv4Mask, srcIntf, tunnelDst)
 	default:
 		t.Errorf("Tunnel endpoint configuration is not defined for \n%s", dut.Vendor())
+	}
+	if config != "" {
+		t.Logf("Push the CLI config:\n%s", config)
 	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	gpbSetRequest := buildCliConfigRequest(config)
