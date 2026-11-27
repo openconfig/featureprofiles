@@ -32,7 +32,7 @@ graph LR;
 #### Session Parameters (Customer eBGP)
 
 *   **Timers**: keepalive `30` s, hold-time `90` s
-*   **Communities**: `send-community` = `BOTH` (standard **and** extended;
+*   **Communities**: `send-community-type` = `[STANDARD, EXTENDED]` (standard **and** extended;
     extended carries RT, standard preserves customer communities end-to-end)
 
 #### VRF & L3VPN Parameters
@@ -68,7 +68,7 @@ graph LR;
 2.  Configure DUT Port 1 and assign it to `VRF_100`.
 3.  Configure dual-stack (IPv4/IPv6) eBGP sessions on DUT Port 1 within
     `VRF_100` with per-neighbor `local-as 64498` (no-prepend, replace-as),
-    timers `30/90` and `send-community BOTH`.
+    timers `30/90` and `send-community-type [STANDARD, EXTENDED]`.
 4.  Configure L3VPN parameters (RD/RT) associated with the tenant VRFs.
 5.  Configure iBGP sessions on DUT Port 2 in the Default Network Instance
     (`"DEFAULT"`) supporting `L3VPN_IPV4_UNICAST` and `L3VPN_IPV6_UNICAST`.
@@ -181,14 +181,24 @@ graph LR;
 *   **Step 2**: Verify
     `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time`
     = `90`.
-*   **Step 3**: With `send-community BOTH` configured, ATE Port 1 advertises
+*   **Step 3**: With `send-community-type [STANDARD, EXTENDED]` configured, ATE Port 1 advertises
     `203.0.113.10/32` with standard community `64497:100` and extended
     community `route-origin:64497:100`.
 *   **Step 4**: Verify both communities are present on the VPNv4 update received
     by ATE Port 2, alongside the VRF export RT `64496:100`.
 *   **Step 5**: Verify
-    `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community`
-    = `BOTH` for both customer neighbors.
+    `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type`
+    = `[STANDARD, EXTENDED]` for both customer neighbors.
+
+### Cleanup
+
+*   Remove the eBGP neighbors, prefix limits, `local-as`, timers and
+    community settings from `VRF_100`, the iBGP neighbors from `DEFAULT`, and
+    the tenant VRFs `VRF_100` / `VRF_200` with their RD/RT configuration.
+*   Restore DUT Port 1 / Port 2 to the baseline (no VRF assignment, no
+    addresses) and stop all ATE BGP emulations and traffic.
+*   Verify the DUT returns to its baseline operational state (no residual BGP
+    sessions or VRF entries in telemetry).
 
 --------------------------------------------------------------------------------
 
@@ -376,7 +386,7 @@ graph LR;
                         "neighbor-address": "192.0.2.2",
                         "peer-as": 64497,
                         "local-as": 64498,
-                        "send-community": "BOTH",
+                        "send-community-type": ["STANDARD", "EXTENDED"],
                         "auth-password": "customer_secret_v4"
                       },
                       "neighbor-address": "192.0.2.2",
@@ -416,7 +426,7 @@ graph LR;
                         "neighbor-address": "2001:DB8:1::2",
                         "peer-as": 64497,
                         "local-as": 64498,
-                        "send-community": "BOTH",
+                        "send-community-type": ["STANDARD", "EXTENDED"],
                         "auth-password": "customer_secret_v6"
                       },
                       "neighbor-address": "2001:DB8:1::2",
@@ -535,8 +545,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiated-hold-time:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type:
 
 rpcs:
   gnmi:
