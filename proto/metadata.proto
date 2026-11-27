@@ -1639,6 +1639,36 @@ message Metadata {
     // Cisco: https://issuetracker.google.com/issues/372605838
     bool controller_card_primary_power_disable_unsupported = 491;
 
+    // Devices that do not report
+    // /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks
+    // for 400ZR Ethernet logical channels.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/TBD_ARISTA_ETH_FEC
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/TBD_CISCO_ETH_FEC
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/TBD_JUNIPER_ETH_FEC
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/TBD_NOKIA_ETH_FEC
+    bool terminal_device_eth_fec_uncorrectable_blocks_unsupported = 492;
+
+    // Devices that do not report
+    // /components/component/optical-channel/state/fec-uncorrectable-blocks for
+    // 400ZR optical channels.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/TBD_JUNIPER_OCH_FEC
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/TBD_NOKIA_OCH_FEC
+    bool optical_channel_fec_uncorrectable_blocks_unsupported = 493;
+
+    // Devices whose packet link qualification (PLQ) generator max_bps is lower
+    // than 100 Gbps. The value is the minimum max_bps the device is expected to
+    // report. It only lowers the capabilities threshold; the generator rate is
+    // still capped by the reported max_bps and max_pps.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/TBD_CISCO_PLQ_BPS
+    uint64 plq_generator_capabilities_max_bps = 494;
+
+    // Devices that use one system MAC address on every routed port and need
+    // /interfaces/interface/ethernet/config/mac-address set to the port's
+    // hardware MAC address so that two ports looped back on the same device
+    // do not fail IPv6 duplicate address detection.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/TBD_ARISTA_MAC
+    bool interface_mac_address_from_hardware_required = 495;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }

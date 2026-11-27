@@ -2602,3 +2602,36 @@ func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
 }
+
+// TerminalDeviceEthFecUncorrectableBlocksUnsupported returns true for devices that do not report
+// /terminal-device/logical-channels/channel/ethernet/state/fec-uncorrectable-blocks.
+// Arista: https://partnerissuetracker.corp.google.com/issues/TBD_ARISTA_ETH_FEC
+// Cisco: https://partnerissuetracker.corp.google.com/issues/TBD_CISCO_ETH_FEC
+// Juniper: https://partnerissuetracker.corp.google.com/issues/TBD_JUNIPER_ETH_FEC
+// Nokia: https://partnerissuetracker.corp.google.com/issues/TBD_NOKIA_ETH_FEC
+func TerminalDeviceEthFecUncorrectableBlocksUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTerminalDeviceEthFecUncorrectableBlocksUnsupported()
+}
+
+// OpticalChannelFecUncorrectableBlocksUnsupported returns true for devices that do not report
+// /components/component/optical-channel/state/fec-uncorrectable-blocks.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/TBD_JUNIPER_OCH_FEC
+// Nokia: https://partnerissuetracker.corp.google.com/issues/TBD_NOKIA_OCH_FEC
+func OpticalChannelFecUncorrectableBlocksUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOpticalChannelFecUncorrectableBlocksUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxBPS returns the minimum PLQ generator max_bps expected from devices
+// whose generator cannot reach 100 Gbps. Zero means no deviation.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/TBD_CISCO_PLQ_BPS
+func PLQGeneratorCapabilitiesMaxBPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxBps()
+}
+
+// InterfaceMacAddressFromHardwareRequired returns true for devices that need the interface MAC
+// address set to the port's hardware MAC address so that two ports looped back on the same device
+// do not fail IPv6 duplicate address detection.
+// Arista: https://partnerissuetracker.corp.google.com/issues/TBD_ARISTA_MAC
+func InterfaceMacAddressFromHardwareRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceMacAddressFromHardwareRequired()
+}

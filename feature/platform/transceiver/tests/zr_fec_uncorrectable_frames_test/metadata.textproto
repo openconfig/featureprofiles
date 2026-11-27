@@ -12,9 +12,17 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    omit_l2_mtu: true
+    explicit_port_speed: true
+    otn_to_eth_assignment: true
+    interface_counters_in_fcs_errors_unsupported: true
     missing_port_to_optical_channel_component_mapping: true
     channel_assignment_rate_class_parameters_unsupported: true
     terminal_device_channel_admin_state_unsupported: true
+    transceiver_config_enable_unsupported: true
+    skip_plq_interface_oper_status_check: true
+    terminal_device_eth_fec_uncorrectable_blocks_unsupported: true
+    interface_mac_address_from_hardware_required: true
   }
 }
 platform_exceptions: {
@@ -22,10 +30,19 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
+    missing_port_to_optical_channel_component_mapping: true
     otn_channel_trib_unsupported: true
     eth_channel_ingress_parameters_unsupported: true
     eth_channel_assignment_cisco_numbering: true
+    otn_channel_assignment_cisco_numbering: true
     terminal_device_channel_admin_state_unsupported: true
+    transceiver_config_enable_unsupported: true
+    skip_plq_interface_oper_status_check: true
+    plq_reflector_stats_unsupported: true
+    plq_generator_capabilities_max_mtu: 512
+    plq_generator_capabilities_max_pps: 40000000
+    plq_generator_capabilities_max_bps: 50000000000
+    terminal_device_eth_fec_uncorrectable_blocks_unsupported: true
   }
 }
 platform_exceptions: {
@@ -36,6 +53,10 @@ platform_exceptions: {
     interface_enabled: true
     eth_channel_ingress_parameters_unsupported: true
     explicit_dco_config: true
+    transceiver_config_enable_unsupported: true
+    port_speed_duplex_mode_unsupported_for_interface_config: true
+    terminal_device_eth_fec_uncorrectable_blocks_unsupported: true
+    optical_channel_fec_uncorrectable_blocks_unsupported: true
   }
 }
 platform_exceptions: {
@@ -44,5 +65,9 @@ platform_exceptions: {
   }
   deviations: {
     non_interval_fec_error_counter: true
+    eth_channel_ingress_parameters_unsupported: true
+    operational_mode_unsupported: true
+    terminal_device_eth_fec_uncorrectable_blocks_unsupported: true
+    optical_channel_fec_uncorrectable_blocks_unsupported: true
   }
 }
