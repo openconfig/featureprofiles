@@ -23,9 +23,9 @@ graph LR;
 ### Test environment setup
 
 1. Configure tenant VRF `ce1` on DUT with assigned Route Distinguisher (e.g. `64500:100`) and Route Targets (`target:64500:100`).
-2. Establish eBGP peering on DUT Port 1 (`192.0.2.1/30`) with ATE CE1 (`192.0.2.2`, AS 65001) in VRF `ce1`, with `local-as 64510` (no-prepend, replace-as) and `send-community BOTH` on the DUT neighbor.
-3. Establish eBGP peering on DUT Port 2 (`192.0.2.5/30`) with ATE CE2 (`192.0.2.6`, AS 65002) in VRF `ce1`, with the same `local-as` / `send-community` settings.
-4. Establish dynamic or static iBGP peering over IPv6 transit on DUT Port 3/4 with ATE RR1/RR2 in default/transit VRF with `vpn-ipv4` and `vpn-ipv6` enabled, `send-community BOTH` and `add-paths send` on both L3VPN address families.
+2. Establish eBGP peering on DUT Port 1 (`192.0.2.1/30`) with ATE CE1 (`192.0.2.2`, AS 65001) in VRF `ce1`, with `local-as 64510` (no-prepend, replace-as) and `send-community-type [STANDARD, EXTENDED]` on the DUT neighbor.
+3. Establish eBGP peering on DUT Port 2 (`192.0.2.5/30`) with ATE CE2 (`192.0.2.6`, AS 65002) in VRF `ce1`, with the same `local-as` / `send-community-type` settings.
+4. Establish dynamic or static iBGP peering over IPv6 transit on DUT Port 3/4 with ATE RR1/RR2 in default/transit VRF with `vpn-ipv4` and `vpn-ipv6` enabled, `send-community-type [STANDARD, EXTENDED]` and `add-paths send` on both L3VPN address families.
 5. Apply the per-attachment policies on DUT (names follow the attachment: `PO<port>_<vlan>`):
    - Ingress eBGP (`TAG_CE_PO1_100_V4` / `TAG_CE_PO1_100_V6`, import policy on the CE1 neighbor): preserve customer-signaled MED and attach a Site-of-Origin (SoO) extended community that identifies the attachment (e.g. `route-origin:64500:5196`) to routes whose next-hop is the CE address.
    - Egress eBGP (`TO_CE_PO1_100`, export policy on the CE1 neighbor): pass received core MED to customer CE via metric preservation (`set-med +0`).
@@ -78,10 +78,21 @@ graph LR;
 ### RT-1.108.6 - Standard and Extended Community Transparency
 
 * **Step 1**: ATE CE1 advertises `198.51.100.0/24` with standard community `65001:100` and extended community `route-target:65001:1` (a customer-set RT-typed community, distinct from the VRF RT).
-* **Step 2**: Verify ATE RR1 receives the VPNv4 route carrying `65001:100`, `route-target:65001:1` **and** the VRF export RT `target:64500:100`, with the SoO marker removed (`send-community BOTH` on both legs).
+* **Step 2**: Verify ATE RR1 receives the VPNv4 route carrying `65001:100`, `route-target:65001:1` **and** the VRF export RT `target:64500:100`, with the SoO marker removed (`send-community-type [STANDARD, EXTENDED]` on both legs).
 * **Step 3**: ATE RR1 advertises `203.0.113.0/24` (RD `64500:100`, RT `target:64500:100`) with standard community `64500:999`.
 * **Step 4**: Verify ATE CE1 receives `203.0.113.0/24` with `64500:999` intact.
-* **Step 5**: Verify `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community` = `BOTH` for the CE neighbors and for the RR peers.
+* **Step 5**: Verify `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type` = `[STANDARD, EXTENDED]` for the CE neighbors and for the RR peers.
+
+### Cleanup
+
+*   Remove the policy bindings and the policy definitions
+    (`TAG_CE_PO1_100_V4/V6`, `TO_CE_PO1_100`, `VPNV4_NEXTHOP_OUT`,
+    `VPNV6_NEXTHOP_OUT`) and the ext-community set `CE_PO1_100_MARK`.
+*   Remove the eBGP neighbors in `ce1`, the iBGP RR peering in the transit
+    instance, the VRF import next-hop rewrite and static default route, and
+    the tenant VRF `ce1` with its RD/RT.
+*   Stop all ATE BGP emulations and traffic flows; verify the DUT returns to its
+    baseline operational state.
 
 ## Canonical OC
 
@@ -243,7 +254,7 @@ graph LR;
                         "neighbor-address": "192.0.2.2",
                         "peer-as": 65001,
                         "local-as": 64510,
-                        "send-community": "BOTH"
+                        "send-community-type": ["STANDARD", "EXTENDED"]
                       },
                       "afi-safis": {
                         "afi-safi": [
@@ -294,8 +305,8 @@ paths:
   # Neighbor Local-AS, Communities and Policy Binding
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
@@ -320,6 +331,7 @@ rpcs:
 
 ## TODO
 
+* OpenConfig has no `replace-as` / `no-prepend` leaves for `local-as` (vendor CLI only); the Canonical OC therefore carries `local-as` alone and the AS-Path expectations in RT-1.108.2 assume replace-as/no-prepend semantics on the DUT.
 * OpenConfig has no policy condition matching on the **received next-hop** of a route (needed to attach the SoO only to routes whose next-hop is the CE address when several CEs share a VRF); vendor policy languages provide this. Request a `bgp-conditions` addition.
 * Adj-RIB-Out verification for `L3VPN_IPV4_UNICAST` / `L3VPN_IPV6_UNICAST` depends on the pending addition of L3VPN address families to `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi` (see RT-1.107).
 
