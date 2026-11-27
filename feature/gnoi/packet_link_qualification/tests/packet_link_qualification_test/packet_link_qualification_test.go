@@ -15,656 +15,528 @@
 package packet_link_qualification_test
 
 import (
-	"context"
 	"fmt"
-	"math"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/plq"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
-	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/grpc/codes"
+)
+
+const (
+	generatorPacketRate = uint64(138888)
+	interfaceMTU        = uint16(9000)
+	ipv4PrefixLen       = uint8(30)
+	ipv6PrefixLen       = uint8(126)
+	plqRPCTimeout       = 60 * time.Second
+	intfConvergeTimeout = 2 * time.Minute
+	lagConvergeTimeout  = 12 * time.Minute
+	testingTimeout      = 30 * time.Second
+	runningMargin       = 60 * time.Second
+	completionMargin    = 2 * time.Minute
+	plqTolerancePct     = 0.0001
+	defaultMinBps       = uint64(1e11)
+)
+
+var (
+	dutPortNames = []string{"port1", "port2", "port3", "port4"}
+
+	// singletonInterfaces are the gNOI-2.1.2 singleton interfaces.
+	singletonInterfaces = cfgplugins.SingletonInterfacesConfig{
+		Interfaces: []cfgplugins.SingletonInterfaceParams{
+			{
+				PortName:    "port1",
+				Description: "Singleton 400G Generator Port 1",
+				MTU:         interfaceMTU,
+				IPv4:        "192.0.2.1",
+				IPv4Len:     ipv4PrefixLen,
+				IPv6:        "2001:db8::1",
+				IPv6Len:     ipv6PrefixLen,
+			},
+			{
+				PortName:    "port2",
+				Description: "Singleton 400G Reflector Port 2",
+				MTU:         interfaceMTU,
+				IPv4:        "192.0.2.5",
+				IPv4Len:     ipv4PrefixLen,
+				IPv6:        "2001:db8::5",
+				IPv6Len:     ipv6PrefixLen,
+			},
+			{
+				PortName:    "port3",
+				Description: "Singleton 100G Generator Port 3",
+				MTU:         interfaceMTU,
+				IPv4:        "192.0.2.9",
+				IPv4Len:     ipv4PrefixLen,
+				IPv6:        "2001:db8::9",
+				IPv6Len:     ipv6PrefixLen,
+			},
+			{
+				PortName:    "port4",
+				Description: "Singleton 100G Reflector Port 4",
+				MTU:         interfaceMTU,
+				IPv4:        "192.0.2.13",
+				IPv4Len:     ipv4PrefixLen,
+				IPv6:        "2001:db8::d",
+				IPv6Len:     ipv6PrefixLen,
+			},
+		},
+	}
+
+	// aggregates are the gNOI-2.1.3 logical aggregates lag1 through lag4. Their
+	// platform names are allocated when the subtest runs.
+	aggregates = []cfgplugins.StaticAggregateParams{
+		{
+			Description: "400G Aggregate Interface 1",
+			MTU:         interfaceMTU,
+			IPv4:        "198.51.100.1",
+			IPv4Len:     ipv4PrefixLen,
+			IPv6:        "2001:db8:1::1",
+			IPv6Len:     ipv6PrefixLen,
+			Members:     []cfgplugins.StaticAggregateMemberParams{{PortName: "port1", ID: 10, Description: "LAG Member Port 1"}},
+		},
+		{
+			Description: "400G Aggregate Interface 2",
+			MTU:         interfaceMTU,
+			IPv4:        "198.51.100.5",
+			IPv4Len:     ipv4PrefixLen,
+			IPv6:        "2001:db8:1::5",
+			IPv6Len:     ipv6PrefixLen,
+			Members:     []cfgplugins.StaticAggregateMemberParams{{PortName: "port2", ID: 11, Description: "LAG Member Port 2"}},
+		},
+		{
+			Description: "100G Aggregate Interface 3",
+			MTU:         interfaceMTU,
+			IPv4:        "198.51.100.9",
+			IPv4Len:     ipv4PrefixLen,
+			IPv6:        "2001:db8:1::9",
+			IPv6Len:     ipv6PrefixLen,
+			Members:     []cfgplugins.StaticAggregateMemberParams{{PortName: "port3", ID: 12, Description: "LAG Member Port 3"}},
+		},
+		{
+			Description: "100G Aggregate Interface 4",
+			MTU:         interfaceMTU,
+			IPv4:        "198.51.100.13",
+			IPv4Len:     ipv4PrefixLen,
+			IPv6:        "2001:db8:1::d",
+			IPv6Len:     ipv6PrefixLen,
+			Members:     []cfgplugins.StaticAggregateMemberParams{{PortName: "port4", ID: 13, Description: "LAG Member Port 4"}},
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Topology:
-//   dut1:port1 <--> port2:dut1 - 400g links (as singleton and memberlink)
-//   dut1:port3 <--> port4:dut1 - 100g links(as singleton and memberlink)
-//
-// Test notes:
-//
-//  - gnoi operation commands can be sent and tested using CLI command grpcurl.
-//    https://github.com/fullstorydev/grpcurl
-//
-
-type aggPortData struct {
-	port1IPV4     string
-	port2IPV4     string
-	dutPort1IPv4  string
-	dutPort2IPv4  string
-	dutPort3IPv4  string
-	dutPort4IPv4  string
-	dutAgg1Name   string
-	dutAgg2Name   string
-	aggPortIDDUT1 uint32
-	aggPortIDDUT2 uint32
-	aggPortIDDUT3 uint32
-	aggPortIDDUT4 uint32
-	aggPortID1    uint32
-	aggPortID2    uint32
-}
-
-type LinkQualificationDuration struct {
-	generatorsetupDuration    time.Duration
-	reflectorsetupDuration    time.Duration
-	generatorpreSyncDuration  time.Duration
-	reflectorpreSyncDuration  time.Duration
-	testDuration              time.Duration
-	generatorPostSyncDuration time.Duration
-	reflectorPostSyncDuration time.Duration
-	generatorTeardownDuration time.Duration
-	reflectorTeardownDuration time.Duration
-}
-
-const (
-	ipv4PLen = 30
-)
-
-var (
-	minRequiredGeneratorMTU = uint64(8184)
-	minRequiredGeneratorPPS = uint64(1e8)
-	agg1                    = &aggPortData{
-		port1IPV4:     "",
-		port2IPV4:     "",
-		aggPortID1:    0,
-		aggPortID2:    0,
-		dutPort1IPv4:  "192.0.2.1",
-		dutPort2IPv4:  "192.0.2.5",
-		dutPort3IPv4:  "192.0.2.9",
-		dutPort4IPv4:  "192.0.2.13",
-		dutAgg1Name:   "lag3",
-		dutAgg2Name:   "lag4",
-		aggPortIDDUT1: 10,
-		aggPortIDDUT2: 11,
-		aggPortIDDUT3: 12,
-		aggPortIDDUT4: 13,
+// requiredGeneratorBps returns the minimum generator max_bps capability: the
+// speed of the fastest port under test (4e11 with 400G ports), or 1e11 when
+// the port speeds are unknown. Capabilities describe the whole device, so the
+// fastest link sets the threshold.
+func requiredGeneratorBps(t *testing.T, dut *ondatra.DUTDevice) uint64 {
+	t.Helper()
+	var maxBps uint64
+	for _, name := range dutPortNames {
+		maxBps = max(maxBps, fptest.EthernetSpeedToUint64(fptest.GetIfSpeed(t, dut.Port(t, name))))
 	}
-)
+	if maxBps == 0 {
+		return defaultMinBps
+	}
+	return maxBps
+}
 
+// TestCapabilitiesResponse validates gNOI-2.1.1 Step 1: Capabilities RPC response fields.
 func TestCapabilitiesResponse(t *testing.T) {
-	dut1 := ondatra.DUT(t, "dut")
-	gnoiClient1 := dut1.RawAPIs().GNOI(t)
-	plqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	dut := ondatra.DUT(t, "dut")
+	plqResp := plq.Capabilities(t, dut, plqRPCTimeout)
+	t.Logf("LinkQualification.Capabilities: %v", plqResp)
 
-	t.Logf("LinkQualification().Capabilities(): %v, err: %v", plqResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
-	}
-
-	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
-		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
-	}
-
-	if deviations.PLQGeneratorCapabilitiesMaxPPS(dut1) != 0 {
-		minRequiredGeneratorPPS = deviations.PLQGeneratorCapabilitiesMaxPPS(dut1)
-	}
+	genCap := plqResp.GetGenerator().GetPacketGenerator()
 
 	cases := []struct {
 		desc string
 		got  uint64
 		min  uint64
-	}{{
-		desc: "Time",
-		got:  uint64(plqResp.GetTime().GetSeconds()),
-		min:  uint64(1),
-	}, {
-		desc: "MaxHistoricalResultsPerInterface",
-		got:  uint64(plqResp.GetMaxHistoricalResultsPerInterface()),
-		min:  uint64(2),
-	}, {
-		desc: "Generator MinSetupDuration",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds()),
-		min:  uint64(1),
-	}, {
-		desc: "Generator MinTeardownDuration",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds()),
-		min:  uint64(1),
-	}, {
-		desc: "Generator MinSampleInterval",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMinSampleInterval().GetSeconds()),
-		min:  uint64(10),
-	}, {
-		desc: "Generator MinMtu",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMinMtu()),
-		min:  uint64(64),
-	}, {
-		desc: "Generator MaxMtu",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxMtu()),
-		min:  minRequiredGeneratorMTU,
-	}, {
-		desc: "Generator MaxBps",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxBps()),
-		min:  uint64(1e11),
-	}, {
-		desc: "Generator MaxPps",
-		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxPps()),
-		min:  minRequiredGeneratorPPS,
-	}}
+	}{
+		{
+			desc: "Time",
+			got:  uint64(plqResp.GetTime().GetSeconds()),
+			min:  1,
+		},
+		{
+			desc: "MaxHistoricalResultsPerInterface",
+			got:  plqResp.GetMaxHistoricalResultsPerInterface(),
+			min:  2,
+		},
+		{
+			desc: "Generator MinSetupDuration",
+			got:  uint64(genCap.GetMinSetupDuration().GetSeconds()),
+			min:  1,
+		},
+		{
+			desc: "Generator MinTeardownDuration",
+			got:  uint64(genCap.GetMinTeardownDuration().GetSeconds()),
+			min:  1,
+		},
+		{
+			desc: "Generator MinSampleInterval",
+			got:  uint64(genCap.GetMinSampleInterval().GetSeconds()),
+			min:  10,
+		},
+		{
+			desc: "Generator MinMtu",
+			got:  uint64(genCap.GetMinMtu()),
+			min:  64,
+		},
+		{
+			desc: "Generator MaxMtu",
+			got:  uint64(genCap.GetMaxMtu()),
+			min:  plq.MinGeneratorMTU(dut),
+		},
+		{
+			desc: "Generator MaxBps",
+			got:  genCap.GetMaxBps(),
+			min:  requiredGeneratorBps(t, dut),
+		},
+		{
+			desc: "Generator MaxPps",
+			got:  genCap.GetMaxPps(),
+			min:  plq.MinGeneratorPPS(dut),
+		},
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if got, want := tc.got, tc.min; got < want {
-				t.Errorf("%s: got %v, want >= %v", tc.desc, got, want)
+			if tc.got < tc.min {
+				t.Errorf("%s: got %v, want >= %v", tc.desc, tc.got, tc.min)
 			}
 		})
 	}
 
 	t.Run("Reflector", func(t *testing.T) {
 		ref := plqResp.GetReflector()
-		if pmdLB := ref.GetPmdLoopback(); pmdLB.GetMinSetupDuration().GetSeconds() >= 1 && pmdLB.GetMinTeardownDuration().GetSeconds() >= 1 {
-			t.Logf("Device supports PMD loopback reflector mode")
-
-		} else if asicLB := ref.GetAsicLoopback(); asicLB.GetMinSetupDuration().GetSeconds() >= 1 && asicLB.GetMinTeardownDuration().GetSeconds() >= 1 {
-			t.Logf("Device supports ASIC loopback reflector mode")
-		} else {
-			t.Errorf("Reflector MinSetupDuration or MinTeardownDuration is not >=1 for supported mode. Device reflector capabilities: %v", plqResp.GetReflector())
+		asicLB := ref.GetAsicLoopback()
+		pmdLB := ref.GetPmdLoopback()
+		switch {
+		case asicLB.GetMinSetupDuration().GetSeconds() >= 1 && asicLB.GetMinTeardownDuration().GetSeconds() >= 1:
+			t.Logf("Device supports ASIC loopback reflector mode: %v", asicLB)
+		case pmdLB.GetMinSetupDuration().GetSeconds() >= 1 && pmdLB.GetMinTeardownDuration().GetSeconds() >= 1:
+			t.Logf("Device supports PMD loopback reflector mode: %v", pmdLB)
+		default:
+			t.Errorf("Reflector MinSetupDuration or MinTeardownDuration is not >= 1s for ASIC or PMD loopback: %v", ref)
 		}
 	})
 }
 
+// TestNonexistingID validates gNOI-2.1.1 Step 2: Get and Delete RPC error handling for a non-existent ID.
 func TestNonexistingID(t *testing.T) {
-	dut1 := ondatra.DUT(t, "dut")
-	id := "non-extsing-ID"
-	gnoiClient1 := dut1.RawAPIs().GNOI(t)
-	getResp, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{id}})
+	dut := ondatra.DUT(t, "dut")
+	id := "non-existing-ID"
 
-	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().Get(): %v", err)
-	}
+	getResp := plq.Get(t, dut, []string{id}, plqRPCTimeout)
+	t.Logf("LinkQualification.Get(%q): %v", id, getResp)
 
 	t.Run("GetResponse", func(t *testing.T) {
-		if got, want := getResp.GetResults()[id].GetStatus().GetCode(), int32(5); got != want {
-			t.Errorf("getResp.GetResults()[id].GetStatus().GetCode(): got %v, want %v", got, want)
+		res, ok := getResp.GetResults()[id]
+		if !ok {
+			t.Fatalf("GetResponse missing result entry for ID %q", id)
+		}
+		if got, want := res.GetStatus().GetCode(), int32(codes.NotFound); got != want {
+			t.Errorf("getResp.GetResults()[%q].GetStatus().GetCode(): got %v, want %v", id, got, want)
 		}
 	})
 
-	deleteResp, err := gnoiClient1.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{id}})
-
-	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
-	}
+	deleteResp := plq.Delete(t, dut, []string{id}, plqRPCTimeout)
+	t.Logf("LinkQualification.Delete(%q): %v", id, deleteResp)
 
 	t.Run("DeleteResp", func(t *testing.T) {
-		if got, want := deleteResp.GetResults()[id].GetCode(), int32(5); got != want {
-			t.Errorf("deleteResp.GetResults()[id].GetCode(): got %v, want %v", got, want)
+		res, ok := deleteResp.GetResults()[id]
+		if !ok {
+			t.Fatalf("DeleteResponse missing result entry for ID %q", id)
+		}
+		if got, want := res.GetCode(), int32(codes.NotFound); got != want {
+			t.Errorf("deleteResp.GetResults()[%q].GetCode(): got %v, want %v", id, got, want)
 		}
 	})
 }
 
+// TestListDelete validates gNOI-2.1.1 Step 3: Baseline List and Delete validation on the DUT.
 func TestListDelete(t *testing.T) {
-	dut1 := ondatra.DUT(t, "dut")
-	dut2 := ondatra.DUT(t, "dut")
-	gnoiClient1 := dut1.RawAPIs().GNOI(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI(t)
-
-	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
-	for i, client := range clients {
-		t.Logf("Check client: %d", i+1)
-		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
-		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
-		if err != nil {
-			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
-		}
-		if len(listResp.GetResults()) != 0 {
-			for j, result := range listResp.GetResults() {
-				t.Logf("Delete result %d: Result: %v", j, result)
-				id := result.GetId()
-				deleteResp, err := client.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{id}})
-
-				t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
-				if err != nil {
-					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
-				}
-			}
-			if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
-				time.Sleep(10 * time.Second)
-			}
-		} else {
-			t.Logf("The LinkQualification request was not found on client %d", i+1)
-			continue
-		}
-
-		t.Logf("Verify that the qualification has been deleted on client %d", i+1)
-		listResp, err = client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
-		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
-		if err != nil {
-			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
-		}
-		if got, want := len(listResp.GetResults()), 0; got != want {
-			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
-		}
-	}
+	dut := ondatra.DUT(t, "dut")
+	plq.ClearAll(t, dut, plqRPCTimeout)
 }
 
-func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	if !deviations.OmitL2MTU(dut) {
-		i.Mtu = ygot.Uint16(9000)
-	}
-
-	return i
+// testEnv holds the DUT state captured by setupEnvironment and restored by its
+// cleanup.
+type testEnv struct {
+	// physPorts are the platform names of port1 through port4.
+	physPorts    []string
+	portBaseline cfgplugins.InterfaceConfigSnapshot
+	// lags are the aggregate interfaces created by the test.
+	lags        []string
+	lagBaseline cfgplugins.InterfaceConfigSnapshot
 }
 
-func calculatePLQDurations(t *testing.T, generatorPlqResp *plqpb.CapabilitiesResponse, reflectorPlqResp *plqpb.CapabilitiesResponse, dut *ondatra.DUTDevice) *LinkQualificationDuration {
-
-	var refPblqMinSetup, refPblqMinTearDown float64
-	genPblqMinSetup := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
-	genPblqMinTearDown := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
-	asicLoopbackSupported := reflectorPlqResp.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration() > 0
-	pmdLoopbackSupported := reflectorPlqResp.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration() > 0
-	if asicLoopbackSupported {
-		refPblqMinSetup = float64(reflectorPlqResp.GetReflector().GetAsicLoopback().GetMinSetupDuration().GetSeconds())
-		refPblqMinTearDown = float64(reflectorPlqResp.GetReflector().GetAsicLoopback().GetMinTeardownDuration().GetSeconds())
-	} else if pmdLoopbackSupported {
-		refPblqMinSetup = float64(reflectorPlqResp.GetReflector().GetPmdLoopback().GetMinSetupDuration().GetSeconds())
-		refPblqMinTearDown = float64(reflectorPlqResp.GetReflector().GetPmdLoopback().GetMinTeardownDuration().GetSeconds())
-	} else {
-		t.Fatalf("Neither ASIC nor PMD loopback is supported by the DUT.")
-	}
-	return &LinkQualificationDuration{
-		generatorpreSyncDuration:  10 * time.Second,
-		reflectorpreSyncDuration:  0 * time.Second,
-		generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
-		reflectorsetupDuration:    time.Duration(math.Max(40, refPblqMinSetup)) * time.Second,
-		testDuration:              180 * time.Second,
-		generatorPostSyncDuration: 0 * time.Second,
-		reflectorPostSyncDuration: 30 * time.Second,
-		generatorTeardownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
-		reflectorTeardownDuration: time.Duration(math.Max(10, refPblqMinTearDown)) * time.Second,
-	}
-}
-
-// configures DUT port1 lag1ID <-----> lagID DUT port 2 with 1 member link.
-func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, speed string) {
+// setupEnvironment implements the README test environment setup: it
+// configures the default network instance, captures the baseline
+// configuration of port1 through port4, and registers the README Cleanup
+// section with t.Cleanup.
+func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice) *testEnv {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	var aggID1 string
-	var aggID2 string
-
-	if speed == "400g" {
-		agg1.port1IPV4 = agg1.dutPort1IPv4
-		agg1.port2IPV4 = agg1.dutPort2IPv4
-		agg1.aggPortID1 = agg1.aggPortIDDUT1
-		agg1.aggPortID2 = agg1.aggPortIDDUT2
-	} else {
-		agg1.port1IPV4 = agg1.dutPort3IPv4
-		agg1.port2IPV4 = agg1.dutPort4IPv4
-		agg1.aggPortID1 = agg1.aggPortIDDUT3
-		agg1.aggPortID2 = agg1.aggPortIDDUT4
+	env := &testEnv{lagBaseline: cfgplugins.InterfaceConfigSnapshot{}}
+	for _, name := range dutPortNames {
+		env.physPorts = append(env.physPorts, dut.Port(t, name).Name())
 	}
+	env.portBaseline = cfgplugins.SnapshotInterfacesConfig(t, dut, env.physPorts)
 
-	for _, dp := range []*ondatra.Port{dp1, dp2} {
-		b := &gnmi.SetBatch{}
-		d := &oc.Root{}
-		aggID := netutil.NextAggregateInterface(t, dut)
-
-		agg := d.GetOrCreateInterface(aggID)
-		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
-		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-		agg.Description = ygot.String(agg1.dutAgg1Name)
-
-		if !deviations.OmitL2MTU(dut) {
-			agg.Mtu = ygot.Uint16(9000)
-		}
-		if deviations.InterfaceEnabled(dut) {
-			agg.Enabled = ygot.Bool(true)
-		}
-
-		s := agg.GetOrCreateSubinterface(0)
-		s4 := s.GetOrCreateIpv4()
-		if deviations.InterfaceEnabled(dut) {
-			s4.Enabled = ygot.Bool(true)
-		}
-		var a4 *oc.Interface_Subinterface_Ipv4_Address
-		if dp == dp1 {
-			a4 = s4.GetOrCreateAddress(agg1.port1IPV4)
-			aggID1 = aggID
-		} else {
-			a4 = s4.GetOrCreateAddress(agg1.port2IPV4)
-			aggID2 = aggID
-		}
-		a4.PrefixLength = ygot.Uint8(ipv4PLen)
-
-		gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
-		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
-
-		gnmi.BatchDelete(b, gnmi.OC().Interface(dp.Name()).Ethernet().AggregateId().Config())
-		i := d.GetOrCreateInterface(dp.Name())
-		if dp == dp1 {
-			i.Id = ygot.Uint32(agg1.aggPortID1)
-		} else {
-			i.Id = ygot.Uint32(agg1.aggPortID2)
-		}
-		i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", dp.Name()))
-		e := i.GetOrCreateEthernet()
-		e.AggregateId = ygot.String(aggID)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
-		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
-		}
-		gnmi.BatchReplace(b, gnmi.OC().Interface(dp.Name()).Config(), i)
-
-		b.Set(t, dut)
-
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
-		}
-	}
-
-	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
+	// Cleanups run in reverse order: the qualification records are deleted
+	// first, and the configuration is restored even if that deletion fails.
+	t.Cleanup(func() { env.restoreConfig(t, dut) })
+	t.Cleanup(func() {
+		t.Log("Cleanup: Deleting any remaining link qualification records")
+		plq.ClearAll(t, dut, plqRPCTimeout)
+	})
+	return env
 }
 
-func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
-	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut) != 0 {
-		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut))
+// trackLags records aggregate interfaces before they are created, so that the
+// cleanup removes them even if the test fails part way through.
+func (e *testEnv) trackLags(t *testing.T, dut *ondatra.DUTDevice, names []string) {
+	t.Helper()
+	for name, cfg := range cfgplugins.SnapshotInterfacesConfig(t, dut, names) {
+		e.lagBaseline[name] = cfg
 	}
+	e.lags = append(e.lags, names...)
+}
 
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	capabilities, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-	if err != nil {
-		t.Logf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
-	}
-
-	generatorPlqResp, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-	t.Logf("LinkQualification().Capabilities(): %v, err: %v", generatorPlqResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
-	}
-
-	reflectorPlqResp, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-	t.Logf("LinkQualification().Capabilities(): %v, err: %v", reflectorPlqResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
-	}
-
-	// Create calculatePLQDuration function to get the duration of the PLQ test.
-	plqDuration := calculatePLQDurations(t, generatorPlqResp, reflectorPlqResp, dut)
-
-	// Create unique IDs for generator and reflector.
-	generatorPLQID := plqID + "-generator"
-	reflectorPLQID := plqID + "-reflector"
-
-	generatorCreateRequest := &plqpb.CreateRequest{
-		Interfaces: []*plqpb.QualificationConfiguration{
-			{
-				Id:            generatorPLQID,
-				InterfaceName: dp1.Name(),
-				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
-					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
-						PacketRate: uint64(138888),
-						PacketSize: uint32(minRequiredGeneratorMTU),
-					},
-				},
-				Timing: &plqpb.QualificationConfiguration_Rpc{
-					Rpc: &plqpb.RPCSyncedTiming{
-						Duration:         durationpb.New(plqDuration.testDuration),
-						PreSyncDuration:  durationpb.New(plqDuration.generatorpreSyncDuration),
-						SetupDuration:    durationpb.New(plqDuration.generatorsetupDuration),
-						PostSyncDuration: durationpb.New(plqDuration.generatorPostSyncDuration),
-						TeardownDuration: durationpb.New(plqDuration.generatorTeardownDuration),
-					},
-				},
-			},
-		},
-	}
-	t.Logf("generatorCreateRequest: %v", generatorCreateRequest)
-
-	intf := &plqpb.QualificationConfiguration{
-		Id:            reflectorPLQID,
-		InterfaceName: dp2.Name(),
-
-		Timing: &plqpb.QualificationConfiguration_Rpc{
-			Rpc: &plqpb.RPCSyncedTiming{
-				Duration:         durationpb.New(plqDuration.testDuration),
-				PreSyncDuration:  durationpb.New(plqDuration.reflectorpreSyncDuration),
-				SetupDuration:    durationpb.New(plqDuration.reflectorsetupDuration),
-				PostSyncDuration: durationpb.New(plqDuration.reflectorPostSyncDuration),
-				TeardownDuration: durationpb.New(plqDuration.reflectorTeardownDuration),
-			},
-		},
-	}
-
-	asicLoopbackSupported := capabilities.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration() > 0
-	pmdLoopbackSupported := capabilities.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration() > 0
-
-	if asicLoopbackSupported {
-		intf.EndpointType = &plqpb.QualificationConfiguration_AsicLoopback{
-			AsicLoopback: &plqpb.AsicLoopbackConfiguration{},
+// restoreConfig removes the aggregate interfaces created by the test, restores
+// the baseline configuration of port1 through port4 with a single gNMI Set,
+// and verifies that they are admin-status and oper-status UP.
+func (e *testEnv) restoreConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Log("Cleanup: Removing test aggregates and restoring the baseline configuration of port1..port4")
+	sb := &gnmi.SetBatch{}
+	cfgplugins.AssignInterfacesToDefaultNetworkInstance(t, dut, sb, cfgplugins.DefaultNetworkInstanceInterfacesConfig{
+		Interfaces: append(append([]string{}, e.lags...), e.physPorts...),
+		Delete:     true,
+	})
+	if len(e.lags) > 0 {
+		for _, port := range e.physPorts {
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(port).Ethernet().AggregateId().Config())
 		}
-	} else if pmdLoopbackSupported {
-		intf.EndpointType = &plqpb.QualificationConfiguration_PmdLoopback{
-			PmdLoopback: &plqpb.PmdLoopbackConfiguration{},
+		cfgplugins.RestoreInterfacesConfig(t, dut, sb, e.lagBaseline)
+	}
+	cfgplugins.RestoreInterfacesConfig(t, dut, sb, e.portBaseline)
+	sb.Set(t, dut)
+
+	t.Log("Cleanup: Verifying admin-status and oper-status UP on port1..port4")
+	helpers.ValidateAdminAndOperStatusUPIntfs(t, dut, e.physPorts, intfConvergeTimeout)
+}
+
+// qualification holds the state shared by the steps of one concurrent
+// multi-link qualification subtest.
+type qualification struct {
+	dut      *ondatra.DUTDevice
+	env      *testEnv
+	idSuffix string
+	// configured, created and running record whether the interface
+	// configuration, the Create RPC and the RUNNING state check succeeded;
+	// steps that depend on them are skipped otherwise.
+	configured    bool
+	created       bool
+	running       bool
+	recoveryIntfs []string
+	pairs         []plq.LinkPair
+	timing        *plq.Timing
+	mode          plq.ReflectorMode
+}
+
+// configureSingletons implements gNOI-2.1.2 Step 1.
+func (q *qualification) configureSingletons(t *testing.T) {
+	t.Log("Configuring port1..port4 as dual-stack L3 singleton interfaces")
+	sb := &gnmi.SetBatch{}
+	cfgplugins.NewSingletonInterfaces(t, q.dut, sb, singletonInterfaces)
+	sb.Set(t, q.dut)
+
+	t.Log("Verifying admin-status and oper-status UP on port1..port4")
+	helpers.ValidateAdminAndOperStatusUPIntfs(t, q.dut, q.env.physPorts, intfConvergeTimeout)
+	q.recoveryIntfs = q.env.physPorts
+	q.configured = true
+}
+
+// configureAggregates implements gNOI-2.1.3 Step 1.
+func (q *qualification) configureAggregates(t *testing.T) {
+	names := cfgplugins.NextAggregateInterfaces(t, q.dut, len(aggregates))
+	q.env.trackLags(t, q.dut, names)
+
+	cfg := cfgplugins.StaticAggregatesConfig{}
+	memberToLag := make(map[string]string)
+	for i, agg := range aggregates {
+		agg.Name = names[i]
+		cfg.Aggregates = append(cfg.Aggregates, agg)
+		for _, m := range agg.Members {
+			memberToLag[q.dut.Port(t, m.PortName).Name()] = agg.Name
 		}
-	} else {
-		// Handle case where neither loopback mode is supported
-		t.Fatalf("Neither ASIC nor PMD loopback is supported by the DUT.")
+		t.Logf("Logical aggregate lag%d is %s", i+1, agg.Name)
 	}
 
-	generatorCreateRequest.Interfaces = append(generatorCreateRequest.Interfaces, intf)
+	t.Log("Removing the singleton L3 configuration from port1..port4, configuring static LAGs lag1..lag4 and binding their member ports")
+	sb := &gnmi.SetBatch{}
+	cfgplugins.NewStaticAggregates(t, q.dut, sb, cfg)
+	sb.Set(t, q.dut)
 
-	generatorCreateResp, err := gnoiClient.LinkQualification().Create(context.Background(), generatorCreateRequest)
-	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
+	t.Log("Verifying oper-status UP on all LAG and member interfaces and ethernet/state/aggregate-id on the members")
+	helpers.ValidateAggregateMembersState(t, q.dut, memberToLag, lagConvergeTimeout)
+	q.recoveryIntfs = append(append([]string{}, q.env.physPorts...), names...)
+	q.configured = true
+}
+
+// create starts concurrent qualification of the port1->port2 (400G) and
+// port3->port4 (100G) links.
+func (q *qualification) create(t *testing.T) {
+	if !q.configured {
+		t.Skip("Skipping: the interface configuration step did not complete")
 	}
+	plq.ClearAll(t, q.dut, plqRPCTimeout)
 
-	// Check for errors on both created interfaces.
-	if status, ok := generatorCreateResp.GetStatus()[generatorPLQID]; ok {
-		if got, want := status.GetCode(), int32(0); got != want {
-			t.Errorf("generatorCreateResp (generator): got %v, want %v", got, want)
-		}
-	} else {
-		t.Fatalf("generatorCreateResp missing status for generator ID: %v", generatorPLQID)
+	caps := plq.Capabilities(t, q.dut, plqRPCTimeout)
+	q.timing, q.mode = plq.ComputeTiming(t, caps)
+	q.pairs = linkPairs(t, q.dut, q.idSuffix)
+	t.Logf("Creating concurrent link qualification on %d link pairs with %v reflectors: %+v", len(q.pairs), q.mode, q.timing)
+	plq.Create(t, q.dut, q.pairs, q.timing, q.mode, plqRPCTimeout)
+	if t.Failed() {
+		return
 	}
+	q.created = true
+}
 
-	if status, ok := generatorCreateResp.GetStatus()[reflectorPLQID]; ok {
-		if got, want := status.GetCode(), int32(0); got != want {
-			t.Errorf("reflectorCreateResp: got %v, want %v", got, want)
-		}
-	} else {
-		t.Fatalf("reflectorCreateResp missing status for reflector ID: %v", reflectorPLQID)
+// verifyRunning verifies that all qualification IDs reach
+// QUALIFICATION_STATE_RUNNING and that all participating ports report
+// oper-status TESTING.
+func (q *qualification) verifyRunning(t *testing.T) {
+	q.requireCreated(t)
+	t.Log("Verifying that all qualification IDs reach QUALIFICATION_STATE_RUNNING")
+	plq.AwaitState(t, q.dut, plq.IDs(q.pairs), plqpb.QualificationState_QUALIFICATION_STATE_RUNNING, q.timing.SetupTime()+runningMargin, plqRPCTimeout)
+	q.running = true
+
+	if deviations.SkipPlqInterfaceOperStatusCheck(q.dut) {
+		t.Log("Skipping the oper-status TESTING check (skip_plq_interface_oper_status_check deviation)")
+		return
 	}
+	t.Log("Verifying oper-status TESTING on all generator and reflector ports")
+	helpers.ValidateOperStatusIntfs(t, q.dut, plq.Ports(q.pairs), oc.Interface_OperStatus_TESTING, testingTimeout)
+}
 
-	listResp, err := gnoiClient.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+// verifyResults waits for all qualification IDs to complete and validates
+// their results.
+func (q *qualification) verifyResults(t *testing.T) {
+	q.requireCreated(t)
+	if !q.running {
+		t.Skip("Skipping: the qualifications did not reach QUALIFICATION_STATE_RUNNING")
 	}
+	maxWait := q.timing.MaxCompletionTime() + completionMargin
+	t.Logf("Waiting up to %v for all qualification IDs to reach QUALIFICATION_STATE_COMPLETED", maxWait)
+	plq.AwaitState(t, q.dut, plq.IDs(q.pairs), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED, maxWait, plqRPCTimeout)
 
-	var discoveredIDs []string
-	for _, result := range listResp.GetResults() {
-		// Check if the result's interface name matches either dp1 or dp2.
-		if result.GetInterfaceName() == dp1.Name() || result.GetInterfaceName() == dp2.Name() {
-			discoveredIDs = append(discoveredIDs, result.GetId())
-			t.Logf("Discovered Link Qualification ID: %v", result.GetId())
-		}
-	}
+	t.Log("Retrieving and validating all qualification results with a batched Get RPC")
+	plq.VerifyResults(t, q.dut, q.pairs, q.mode, plqTolerancePct, plqRPCTimeout)
+}
 
-	if len(discoveredIDs) == 0 {
-		t.Fatalf("Could not discover a Link Qualification ID after Create.  List response: %v", listResp)
-	}
-	sleepTime := 30 * time.Second
-	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration + plqDuration.generatorTeardownDuration
-	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
-	for i := 0; i <= counter; i++ {
-		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
-		time.Sleep(sleepTime)
-		testDone := true
-		t.Logf("Check client")
+// deleteAndRecover deletes the qualification records and verifies that the
+// interfaces recover to oper-status UP.
+func (q *qualification) deleteAndRecover(t *testing.T) {
+	q.requireCreated(t)
+	t.Log("Deleting all qualification IDs and verifying that no qualification records remain")
+	plq.DeleteAndVerify(t, q.dut, plq.IDs(q.pairs), plqRPCTimeout)
 
-		for j := 0; j < len(listResp.GetResults()); j++ {
-			if listResp.GetResults()[j].GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
-				t.Logf("LinkQualification in progress, current state: %v", listResp.GetResults()[j].GetState())
-				testDone = false
-			} else {
-				t.Logf("LinkQualification completed: %v", listResp.GetResults()[j])
-			}
+	t.Logf("Verifying oper-status UP on %v", q.recoveryIntfs)
+	helpers.ValidateOperStatusUPIntfs(t, q.dut, q.recoveryIntfs, lagConvergeTimeout)
+}
 
-			if !deviations.SkipPlqInterfaceOperStatusCheck(dut) {
-				if listResp.GetResults()[j].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
-					t.Logf("Checking link under qualificaton (generator) interface oper-status (dut: %v, dp: %v)", dut.Name(), dp1.Name())
-					if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
-						t.Errorf("Interface(%v) oper-status: got %v, want %v", dp1.Name(), got, want)
-					}
-
-					t.Logf("Checking link under qualificaton (reflector) interface oper-status (dut: %v, dp: %v)", dut.Name(), dp2.Name())
-					if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
-						t.Errorf("Interface(%v) oper-status: got %v, want %v", dp2.Name(), got, want)
-					}
-
-				}
-			}
-		}
-
-		if testDone {
-			t.Logf("Detected QualificationState_QUALIFICATION_STATE_COMPLETED.")
-			break
-		}
-	}
-
-	getRequest := &plqpb.GetRequest{
-		Ids: discoveredIDs,
-	}
-
-	t.Logf("Check client")
-	getResp, err := gnoiClient.LinkQualification().Get(context.Background(), getRequest)
-	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
-	}
-
-	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
-	tolerance := 0.0001
-
-	for _, result := range getResp.GetResults() {
-		if got, want := result.GetStatus().GetCode(), int32(0); got != want {
-			t.Errorf("result.GetStatus().GetCode(): got %v, want %v", got, want)
-		}
-		if got, want := result.GetState(), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED; got != want {
-			t.Errorf("result.GetState(): got %v, want %v", got, want)
-		}
-		if got, want := result.GetPacketsError(), uint64(0); got != want {
-			t.Errorf("result.GetPacketsError(): got %v, want %v", got, want)
-		}
-		if got, want := result.GetPacketsDropped(), uint64(0); got != want {
-			t.Errorf("result.GetPacketsDropped(): got %v, want %v", got, want)
-		}
-
-		generatorPktsSent := result.GetPacketsSent()
-		generatorPktsRxed := result.GetPacketsReceived()
-		reflectorPktsSent := result.GetPacketsSent()
-		reflectorPktsRxed := result.GetPacketsReceived()
-
-		if deviations.PLQReflectorStatsUnsupported(dut) {
-			if (math.Abs(float64(generatorPktsSent)-float64(generatorPktsRxed))/float64(generatorPktsSent))*100.00 > tolerance {
-				t.Errorf("The difference between packets sent count and packets received count at Generator is greater than %0.4f percent: generatorPktsSent %v, generatorPktsRxed %v", tolerance, generatorPktsSent, generatorPktsRxed)
-			}
-		} else {
-			if ((math.Abs(float64(generatorPktsSent)-float64(reflectorPktsRxed)))/(float64(generatorPktsSent)+float64(reflectorPktsRxed)+tolerance))*200.00 > tolerance {
-				t.Errorf("The difference between packets received count at Reflector and packets sent count at Generator is greater than %0.4f percent: generatorPktsSent %v, reflectorPktsRxed %v", tolerance, generatorPktsSent, reflectorPktsRxed)
-			}
-			if ((math.Abs(float64(reflectorPktsSent)-float64(generatorPktsRxed)))/(float64(reflectorPktsSent)+float64(generatorPktsRxed)+tolerance))*200.00 > tolerance {
-				t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
-			}
-		}
+// requireCreated skips the calling step if the Create step did not complete.
+func (q *qualification) requireCreated(t *testing.T) {
+	t.Helper()
+	if !q.created {
+		t.Skip("Skipping: the Create step did not complete")
 	}
 }
 
+// linkPairs returns the port1->port2 (400G) and port3->port4 (100G) generator
+// and reflector pairs, with qualification IDs ending in suffix.
+func linkPairs(t *testing.T, dut *ondatra.DUTDevice, suffix string) []plq.LinkPair {
+	t.Helper()
+	packetSize := uint32(plq.MinGeneratorMTU(dut))
+	pair := func(generator, reflector string) plq.LinkPair {
+		gen, ref := dut.Port(t, generator).Name(), dut.Port(t, reflector).Name()
+		id := fmt.Sprintf("%s:%s-%s:%s%s", dut.Name(), gen, dut.Name(), ref, suffix)
+		return plq.LinkPair{
+			GeneratorPort: gen,
+			ReflectorPort: ref,
+			GeneratorID:   id + "-generator",
+			ReflectorID:   id + "-reflector",
+			PacketRate:    generatorPacketRate,
+			PacketSize:    packetSize,
+		}
+	}
+	return []plq.LinkPair{pair("port1", "port2"), pair("port3", "port4")}
+}
+
+// TestLinkQualification validates gNOI-2.1.2 (Concurrent Multi-Link
+// Qualification on Singleton Interfaces), gNOI-2.1.3 (Concurrent Multi-Link
+// Qualification on Aggregate Member Links), and Cleanup.
 func TestLinkQualification(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	env := setupEnvironment(t, dut)
 
-	port1 := dut.Port(t, "port1")
-	port2 := dut.Port(t, "port2")
-	port3 := dut.Port(t, "port3")
-	port4 := dut.Port(t, "port4")
-	t.Logf("dut: %v", dut.Name())
-	t.Logf("PLQ will run on 400g links on dut port1 name: %v, dut port2 name : %v", port1.Name(), port2.Name())
-	t.Logf("PLQ will run on 100g links on dut port3 name: %v, dut port4 name : %v", port3.Name(), port4.Name())
-
-	d := gnmi.OC()
-
-	for _, p := range []string{"port1", "port2", "port3", "port4"} {
-		port := dut.Port(t, p)
-		i := &oc.Interface{Name: ygot.String(port.Name())}
-		gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), configInterfaceMTU(i, dut))
-		if deviations.ExplicitPortSpeed(dut) {
-			fptest.SetPortSpeed(t, port)
-		}
+	type phase func(*qualification, *testing.T)
+	type step struct {
+		name   string
+		phases []phase
+	}
+	cases := []struct {
+		name     string
+		idSuffix string
+		steps    []step
+	}{
+		{
+			name: "gNOI-2.1.2 Concurrent Multi-Link Qualification on Singleton Interfaces",
+			steps: []step{
+				{name: "Step 1 - Interface Configuration and Pre-Test Baseline", phases: []phase{(*qualification).configureSingletons}},
+				{name: "Step 2 - Concurrent Multi-Link Qualification Start (Create RPC)", phases: []phase{(*qualification).create}},
+				{name: "Step 3 - Concurrent Active State and Telemetry Verification (List RPC)", phases: []phase{(*qualification).verifyRunning}},
+				{name: "Step 4 - Concurrent Result Retrieval and Counter Validation (Get RPC)", phases: []phase{(*qualification).verifyResults}},
+				{name: "Step 5 - Cleanup and Interface State Restoration (Delete RPC)", phases: []phase{(*qualification).deleteAndRecover}},
+			},
+		},
+		{
+			name:     "gNOI-2.1.3 Concurrent Multi-Link Qualification on Aggregate Member Links",
+			idSuffix: "-aggregate",
+			steps: []step{
+				{name: "Step 1 - Aggregate and Member-Link Configuration", phases: []phase{(*qualification).configureAggregates}},
+				{name: "Step 2 - Concurrent Member-Link Qualification (Create, List, Get RPCs)", phases: []phase{(*qualification).create, (*qualification).verifyRunning, (*qualification).verifyResults}},
+				{name: "Step 3 - Cleanup and LAG Recovery Verification (Delete RPC)", phases: []phase{(*qualification).deleteAndRecover}},
+			},
+		},
 	}
 
-	cases := []struct {
-		desc      string
-		plqID     string
-		testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
-		aggregate bool
-		speed     string
-	}{{
-		desc:      "Singleton Interface LinkQualification on 400g links",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port1.Name(), dut.Name(), port2.Name()),
-		testFunc:  testLinkQualification,
-		aggregate: false,
-		speed:     "400g",
-	}, {
-		desc:      "Member Link LinkQualification on 400g links",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port1.Name(), dut.Name(), port2.Name()),
-		testFunc:  testLinkQualification,
-		aggregate: true,
-		speed:     "400g",
-	}, {
-		desc:      "Singleton Interface LinkQualification on 100g links",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port3.Name(), dut.Name(), port4.Name()),
-		testFunc:  testLinkQualification,
-		aggregate: false,
-		speed:     "100g",
-	}, {
-		desc:      "Member Link LinkQualification on 100g links",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port3.Name(), dut.Name(), port4.Name()),
-		testFunc:  testLinkQualification,
-		aggregate: true,
-		speed:     "100g",
-	}}
-
 	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			if tc.speed == "400g" {
-				if tc.aggregate {
-					configureDUTAggregate(t, dut, port1, port2, tc.speed)
-				}
-				tc.testFunc(t, dut, port1, port2, tc.plqID, tc.aggregate)
-			} else if tc.speed == "100g" {
-				if tc.aggregate {
-					configureDUTAggregate(t, dut, port3, port4, tc.speed)
-				}
-				tc.testFunc(t, dut, port3, port4, tc.plqID, tc.aggregate)
+		t.Run(tc.name, func(t *testing.T) {
+			q := &qualification{dut: dut, env: env, idSuffix: tc.idSuffix}
+			for _, s := range tc.steps {
+				t.Run(s.name, func(t *testing.T) {
+					for _, p := range s.phases {
+						p(q, t)
+					}
+				})
 			}
 		})
 	}

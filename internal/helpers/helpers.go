@@ -492,3 +492,95 @@ func (m *InterfaceCountersMonitor) Stop(t *testing.T) (int, error) {
 	}
 	return m.samples, nil
 }
+
+// ValidateOperStatusIntfs waits, with a single batched gNMI Watch, until every
+// interface in intfs reports /interfaces/interface/state/oper-status equal to
+// want, and fails the test if that does not happen within timeout.
+func ValidateOperStatusIntfs(t *testing.T, dut *ondatra.DUTDevice, intfs []string, want oc.E_Interface_OperStatus, timeout time.Duration) {
+	t.Helper()
+	if len(intfs) == 0 {
+		return
+	}
+	batch := gnmi.OCBatch()
+	for _, intf := range intfs {
+		batch.AddPaths(gnmi.OC().Interface(intf).OperStatus())
+	}
+	watch := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
+		}
+		for _, intf := range intfs {
+			if root.GetInterface(intf).GetOperStatus() != want {
+				return false
+			}
+		}
+		return true
+	})
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("Interfaces %v did not reach oper-status %v within %v: last state %v", intfs, want, timeout, val)
+	}
+}
+
+// ValidateAdminAndOperStatusUPIntfs waits, with a single batched gNMI Watch,
+// until every interface in intfs reports both admin-status UP and oper-status
+// UP, and fails the test if that does not happen within timeout.
+func ValidateAdminAndOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, intfs []string, timeout time.Duration) {
+	t.Helper()
+	if len(intfs) == 0 {
+		return
+	}
+	batch := gnmi.OCBatch()
+	for _, intf := range intfs {
+		batch.AddPaths(
+			gnmi.OC().Interface(intf).AdminStatus(),
+			gnmi.OC().Interface(intf).OperStatus(),
+		)
+	}
+	watch := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
+		root, present := val.Val()
+		if !present {
+			return false
+		}
+		for _, intf := range intfs {
+			i := root.GetInterface(intf)
+			if i.GetAdminStatus() != oc.Interface_AdminStatus_UP || i.GetOperStatus() != oc.Interface_OperStatus_UP {
+				return false
+			}
+		}
+		return true
+	})
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("Interfaces %v did not reach admin-status UP and oper-status UP within %v: last state %v", intfs, timeout, val)
+	}
+}
+
+// ValidateAggregateMembersState waits until every member port in memberToLag
+// (member port name to aggregate interface name) and its aggregate interface
+// report oper-status UP, and the member port reports
+// /interfaces/interface/ethernet/state/aggregate-id equal to its aggregate
+// interface. It fails the test if that does not happen within timeout.
+func ValidateAggregateMembersState(t *testing.T, dut *ondatra.DUTDevice, memberToLag map[string]string, timeout time.Duration) {
+	t.Helper()
+	if len(memberToLag) == 0 {
+		return
+	}
+	var intfs []string
+	for member, lag := range memberToLag {
+		intfs = append(intfs, lag, member)
+	}
+	ValidateOperStatusUPIntfs(t, dut, intfs, timeout)
+
+	// aggregate-id is both a config and a state leaf. Adding it to a gNMI batch
+	// sends its path with a '*' in place of config/state, which some targets
+	// reject, so each member's state leaf is watched explicitly instead.
+	for member, lag := range memberToLag {
+		watch := gnmi.Watch(t, dut, gnmi.OC().Interface(member).Ethernet().AggregateId().State(), timeout, func(val *ygnmi.Value[string]) bool {
+			got, present := val.Val()
+			return present && got == lag
+		})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("Interface %s did not report ethernet/state/aggregate-id %q within %v: last value %v", member, lag, timeout, val)
+		}
+	}
+}
