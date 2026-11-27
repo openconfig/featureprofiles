@@ -18,6 +18,7 @@ platform_exceptions: {
     missing_value_for_defaults: true
     state_path_unsupported: true
     interface_enabled: true
+    aggregate_atomic_update: true
   }
 }
 platform_exceptions: {
@@ -29,6 +30,7 @@ platform_exceptions: {
     subinterface_ifindex_unsupported: true
   }
 }
+# Cisco interface state rate telemetry is skipped across IOS XR versions.
 platform_exceptions: {
   platform: {
     vendor: CISCO
