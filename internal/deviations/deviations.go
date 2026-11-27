@@ -2595,7 +2595,7 @@ func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 // with TTL 1 and IPv6 packets with hop limit 1 to the control plane instead of
 // counting them as pipeline drops under
 // /components/component/integrated-circuit/pipeline-counters/drop/vendor.
-// Tracking: https://issuetracker.google.com/issues/511260823
+// Arista: https://partnerissuetracker.corp.google.com/issues/591012231
 func PipelineDropTTLExpiredPunted(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPipelineDropTtlExpiredPunted()
 }

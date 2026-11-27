@@ -1688,7 +1688,7 @@ type Metadata_Deviations struct {
 	// Device punts IPv4 packets with TTL 1 and IPv6 packets with hop limit 1
 	// to the control plane instead of counting them as pipeline drops under
 	// /components/component/integrated-circuit/pipeline-counters/drop/vendor.
-	// Tracking: https://issuetracker.google.com/issues/511260823
+	// Arista: https://partnerissuetracker.corp.google.com/issues/591012231
 	PipelineDropTtlExpiredPunted bool `protobuf:"varint,491,opt,name=pipeline_drop_ttl_expired_punted,json=pipelineDropTtlExpiredPunted,proto3" json:"pipeline_drop_ttl_expired_punted,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
