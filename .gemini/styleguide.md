@@ -56,6 +56,30 @@
     *   Environment setup code should be placed in a function named
         setupEnvironment and called from TestMain
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
+    *   **Banning Legacy ATE / IxNetwork APIs (CRITICAL / HIGH PRIORITY):**
+        *   **Anti-pattern:** Using the deprecated Ondatra legacy ATE / IxNetwork API (`ate.Topology()`, `ate.Traffic()`, `ate.Actions()`, `ondatra.New*Header`, `DialIxNetwork`, `github.com/openconfig/ondatra/ixnet` or `github.com/openconfig/ondatra/binding/ixweb` imports) or adding/modifying tests under `ate_tests/` directories. Legacy ATE / IxNetwork APIs are strictly banned in all tests and `internal/` helpers.
+        *   **Correction:** Use the Open Traffic Generator (OTG) API (`ate.OTG()` and `github.com/open-traffic-generator/snappi/gosnappi`) under `otg_tests/` (or `tests/` for non-traffic tests).
+        *   **BAD (Do not do this):**
+            ```go
+            topo := ate.Topology().New()
+            topo.AddInterface("port1").WithPort(ate.Port(t, "port1"))
+            topo.Push(t).StartProtocols(t)
+            flow := ate.Traffic().NewFlow("f1").WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header())
+            ate.Traffic().Start(t, flow)
+            ```
+        *   **GOOD (Do this instead):**
+            ```go
+            cfg := gosnappi.NewConfig()
+            cfg.Ports().Add().SetName("port1")
+            flow := cfg.Flows().Add().SetName("f1")
+            flow.TxRx().Port().SetTxName("port1")
+            flow.Packet().Add().Ethernet()
+            flow.Packet().Add().Ipv4()
+            ate.OTG().PushConfig(t, cfg)
+            ate.OTG().StartProtocols(t)
+            otgutils.WaitForARP(t, ate.OTG(), cfg, "IPv4")
+            ate.OTG().StartTraffic(t)
+            ```
     *   **Eliminating Polling Loops and Static Sleeps (CRITICAL / HIGH PRIORITY):**
         *   **Anti-pattern:** Relying on static `time.Sleep` calls, or building custom `for` loops that poll telemetry state with `time.Sleep(pollInterval)`.
         *   **Correction:** The use of `gnmi.Watch` with `.Await(t)` is mandatory to detect desired states in real-time. Custom polling loops are banned.
