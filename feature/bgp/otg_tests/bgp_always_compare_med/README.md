@@ -3,9 +3,9 @@
 ## Summary
 
 Verify BGP `always-compare-med` route selection across different neighboring
-autonomous systems and validate BGP routing-policy MED operations (`SET`,
-`ADD`, `SUBTRACT`, underflow saturation at `0`, and MED policy removal) for
-both IPv4 and IPv6 unicast traffic.
+autonomous systems (including BGP confederation peers) and validate BGP
+routing-policy MED operations (`SET`, `ADD`, `SUBTRACT`, underflow saturation at
+`0`, and MED policy removal) for both IPv4 and IPv6 unicast traffic.
 
 ## Testbed type
 
@@ -15,9 +15,11 @@ both IPv4 and IPv6 unicast traffic.
 
 ### Test environment setup
 
-Connect 3 links between the DUT and ATE (`DUT:port-1` to `ATE:port-1`,
-`DUT:port-2` to `ATE:port-2`, and `DUT:port-3` to `ATE:port-3`) and configure
-dual-stack IPv4 and IPv6 addresses:
+Connect 4 links between the DUT and ATE (`DUT:port-1` to `ATE:port-1`,
+`DUT:port-2` to `ATE:port-2`, `DUT:port-3` to `ATE:port-3`, and `DUT:port-4` to
+`ATE:port-4`) and configure dual-stack IPv4 and IPv6 addresses. Links 1 through
+3 are used in non-confederated subtests (`RT-1.12.1` through `RT-1.12.5`), and
+Link 4 is added as a confederation-eBGP (`cBGP`) peer in `RT-1.12.6`:
 
 *   Link 1 (iBGP, `BGP-PEER-GROUP1`, AS `65501`):
     *   `DUT:port-1`: `192.0.2.1/30`, `2001:db8::192:0:2:1/126`
@@ -28,6 +30,10 @@ dual-stack IPv4 and IPv6 addresses:
 *   Link 3 (eBGP #2, `BGP-PEER-GROUP3`, ATE AS `65503`):
     *   `DUT:port-3`: `192.0.2.9/30`, `2001:db8::192:0:2:9/126`
     *   `ATE:port-3`: `192.0.2.10/30`, `2001:db8::192:0:2:10/126`
+*   Link 4 (cBGP, `BGP-PEER-GROUP4`, ATE member-AS `65504`, used in
+    `RT-1.12.6`):
+    *   `DUT:port-4`: `192.0.2.13/30`, `2001:db8::192:0:2:d/126`
+    *   `ATE:port-4`: `192.0.2.14/30`, `2001:db8::192:0:2:e/126`
 
 Configure the DUT BGP process in the `DEFAULT` network instance with local AS
 `65501` and router ID `192.0.2.9`. Establish separate IPv4 (`IPV4_UNICAST`) and
@@ -532,18 +538,293 @@ their unmodified incoming MED and normal BGP tie-breaking.
     `ATE:port-2` (0% loss on `flowPort1toPort2` / `flowPort1toPort2V6`, 100%
     loss on `flowPort1toPort3` / `flowPort1toPort3V6`).
 
+### RT-1.12.6: BGP confederation (cBGP) MED comparison with always-compare-med
+
+Validate that enabling global `always-compare-med` compares MED values across
+BGP confederation (`cBGP`) peers in addition to external eBGP and iBGP peers for
+both IPv4 and IPv6 unicast traffic. This subtest runs in isolation so that
+`RT-1.12.1` through `RT-1.12.5` preserve non-confederated BGP coverage.
+
+1.  Reconfigure the DUT BGP global process inside confederation `65510` (local
+    member-AS `65501`, confederation `identifier: 65510`,
+    `member-as: [65504]`), keeping Link 1 (`ATE:port-1`, iBGP member-AS `65501`)
+    and Link 2 (`ATE:port-2`, external eBGP AS `65502`), adding Link 4
+    (`ATE:port-4`, `BGP-PEER-GROUP4`, cBGP member-AS `65504`), and withdrawing
+    or disabling Link 3 during this subtest.
+2.  Verify DUT confederation state telemetry:
+    *   `/network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/identifier`
+        reports `65510`.
+    *   `/network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/member-as`
+        includes `65504`.
+    *   All IPv4 and IPv6 BGP sessions on Links 1, 2, and 4 reach `ESTABLISHED`.
+3.  Advertise two separate dual-stack prefix ranges from ATE and attach MED
+    import policies on the DUT (`SET-MED-100` on `BGP-PEER-GROUP2`, `SET-MED-50`
+    on `BGP-PEER-GROUP4`, `ALLOW` on `BGP-PEER-GROUP1`):
+    *   **Prefix Set A (`eBGP` vs `cBGP`):** 254 IPv4 prefixes
+        (`203.0.113.1/32` to `203.0.113.254/32`) and 254 IPv6 prefixes
+        (`2001:db8:203:113::1/128` to `2001:db8:203:113::fe/128`):
+        *   `ATE:port-2` (eBGP, AS `65502`) advertises with `AS_SEQUENCE
+            [65502]` (AS-path length `1`); DUT assigns `MED = 100`.
+        *   `ATE:port-4` (cBGP, member-AS `65504`) advertises with
+            `AS_CONFED_SEQUENCE (65504), AS_SEQUENCE [65505]` (AS-path length
+            `1`, matching `ATE:port-2`); DUT assigns `MED = 50`.
+    *   **Prefix Set B (`iBGP` vs `cBGP`, pure confederation path):** 254 IPv4
+        prefixes (`198.51.100.1/32` to `198.51.100.254/32`) and 254 IPv6
+        prefixes (`2001:db8:198:51::1/128` to `2001:db8:198:51::fe/128`):
+        *   `ATE:port-1` (iBGP, member-AS `65501`) advertises with an empty
+            `AS_PATH` (AS-path length `0`) and incoming `MED = 100`.
+        *   `ATE:port-4` (cBGP, member-AS `65504`) advertises with pure
+            `AS_CONFED_SEQUENCE (65504)` (AS-path length `0`, no external AS);
+            DUT assigns `MED = 50`.
+4.  **Verify `always-compare-med: false` (Prefix Set A `eBGP` vs `cBGP`):**
+    *   Set global `always-compare-med` to `false` and verify
+        `state/always-compare-med` reports `false`.
+    *   Verify control plane on `ATE:port-1`: all 254 IPv4 and 254 IPv6 Prefix
+        Set A routes carry `MED == 100` (MED is skipped across differing ASes
+        and external eBGP `ATE:port-2` beats confederation cBGP `ATE:port-4`).
+    *   Send IPv4 and IPv6 traffic from `ATE:port-1` to Prefix Set A
+        (`flowPort1toPort2` / `flowPort1toPort2V6` and `flowPort1toPort4` /
+        `flowPort1toPort4V6`) and validate 0% loss on `ATE:port-2` and 100% loss
+        on `ATE:port-4`.
+5.  **Verify `always-compare-med: true` (Prefix Set A `eBGP` vs `cBGP` and
+    Prefix Set B `iBGP` vs `cBGP`):**
+    *   Set global `always-compare-med` to `true` and verify
+        `state/always-compare-med` reports `true`.
+    *   **Prefix Set A:** Verify control plane on `ATE:port-1` reports
+        `MED == 50` for all 254 IPv4 and 254 IPv6 Prefix Set A routes, and
+        traffic from `ATE:port-1` flips to `ATE:port-4` (0% loss on
+        `flowPort1toPort4` / `flowPort1toPort4V6`, 100% loss on
+        `flowPort1toPort2` / `flowPort1toPort2V6`).
+    *   **Prefix Set B:** Send IPv4 and IPv6 traffic from `ATE:port-2` to Prefix
+        Set B (`flowPort2toPort4` / `flowPort2toPort4V6` and `flowPort2toPort1`
+        / `flowPort2toPort1V6`) and validate 0% loss on `ATE:port-4` and 100%
+        loss on `ATE:port-1`, confirming MED comparison across pure
+        `AS_CONFED_SEQUENCE` and iBGP routes.
+
+#### Canonical OC
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV4_UNICAST",
+                          "enabled": true
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV6_UNICAST",
+                          "enabled": true
+                        }
+                      }
+                    ]
+                  },
+                  "confederation": {
+                    "config": {
+                      "identifier": 65510,
+                      "member-as": [
+                        65504
+                      ]
+                    }
+                  },
+                  "config": {
+                    "as": 65501,
+                    "router-id": "192.0.2.9"
+                  },
+                  "route-selection-options": {
+                    "config": {
+                      "always-compare-med": true
+                    }
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "SET-MED-100"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          },
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "SET-MED-100"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "peer-as": 65502,
+                        "peer-group-name": "BGP-PEER-GROUP2"
+                      },
+                      "peer-group-name": "BGP-PEER-GROUP2"
+                    },
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "SET-MED-50"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          },
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "SET-MED-50"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "peer-as": 65504,
+                        "peer-group-name": "BGP-PEER-GROUP4"
+                      },
+                      "peer-group-name": "BGP-PEER-GROUP4"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "SET-MED-100"
+          },
+          "name": "SET-MED-100",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 100,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "20"
+                },
+                "name": "20"
+              }
+            ]
+          }
+        },
+        {
+          "config": {
+            "name": "SET-MED-50"
+          },
+          "name": "SET-MED-50",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": 50,
+                      "set-med-action": "SET"
+                    }
+                  },
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "config": {
+                  "name": "20"
+                },
+                "name": "20"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ### Cleanup
 
 *   DUT: Re-enable any BGP neighbors modified during session-refresh steps,
-    restore `always-compare-med` settings and routing policies, and delete test
-    BGP protocol and routing-policy configuration upon test completion (via
-    `t.Cleanup()`).
+    restore `always-compare-med`, confederation, and routing-policy settings,
+    and delete test BGP protocol, Link 4, and routing-policy configuration upon
+    test completion (via `t.Cleanup()`).
 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
   ## Config Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/bgp/global/confederation/config/identifier:
+  /network-instances/network-instance/protocols/protocol/bgp/global/confederation/config/member-as:
   /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/always-compare-med:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
@@ -551,6 +832,8 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
 
   ## Telemetry Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/identifier:
+  /network-instances/network-instance/protocols/protocol/bgp/global/confederation/state/member-as:
   /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/always-compare-med:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
@@ -567,4 +850,4 @@ rpcs:
 
 ## Required DUT platform
 
-*   FFF
+*   vRX
