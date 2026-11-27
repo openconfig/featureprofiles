@@ -759,12 +759,10 @@ func lookupOpticalChannelName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.P
 // lookupLinePortName returns the line port name for the given port.
 func lookupLinePortName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.JUNIPER:
+	case ondatra.ARISTA, ondatra.JUNIPER, ondatra.NOKIA:
 		return lookupHWPortName(t, dut, p)
 	case ondatra.CISCO:
 		return lookupTransceiverName(t, dut, p)
-	case ondatra.NOKIA:
-		return ""
 	default:
 		return ""
 	}
