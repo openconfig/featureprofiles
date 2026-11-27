@@ -239,6 +239,7 @@ func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.R
 	}
 
 	accompaniedPath := gnmi.OC().Config().PathStruct()
+	fptest.PruneUnpushableNetworkInstances(baselineConfig)
 	gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, baselineConfig))
 	return gpbSetRequest
 }
