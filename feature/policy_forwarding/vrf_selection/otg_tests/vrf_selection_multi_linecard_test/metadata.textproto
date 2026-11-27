@@ -5,3 +5,45 @@ uuid: "a129d966-063d-4099-afd1-98942399ec79"
 plan_id: "RT-3.6"
 description: "VRF Selection Policy Hardware Programming Across Multiple Linecards"
 testbed: TESTBED_DUT_ATE_8LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_id_format_required_for_policy_forwarding: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    static_protocol_name: "static"
+    interface_enabled: true
+    mixed_af_policy_forwarding_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    static_protocol_name: "STATIC"
+    interface_config_vrf_before_address: true
+    interface_enabled: true
+    default_network_instance: "default"
+    gnoi_subcomponent_path: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+  }
+}

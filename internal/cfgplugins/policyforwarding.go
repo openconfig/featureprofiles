@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -1051,6 +1052,101 @@ func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_P
 	iface.ApplyVrfSelectionPolicy = ygot.String(appliedPolicyName)
 	iface.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceID)
 	iface.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+}
+
+// PolicyForwardingInterfaceID returns the
+// /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id
+// used for subinterface subif of interface intf: "<intf>.<subif>" when the
+// InterfaceRefInterfaceIDFormat or InterfaceIDFormatRequiredForPolicyForwarding
+// deviation is set, otherwise "<intf>".
+func PolicyForwardingInterfaceID(dut *ondatra.DUTDevice, intf string, subif uint32) string {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
+		return fmt.Sprintf("%s.%d", intf, subif)
+	}
+	return intf
+}
+
+// VrfSelectionDstRule is one VRF_SELECTION_POLICY rule that steers packets
+// whose destination address matches DestinationAddress (an IPv4 or IPv6
+// prefix) into network instance NetworkInstance.
+type VrfSelectionDstRule struct {
+	SeqID              uint32
+	DestinationAddress string
+	NetworkInstance    string
+}
+
+// VrfSelectionPolicyConfig is the configuration of NewVrfSelectionPolicy.
+type VrfSelectionPolicyConfig struct {
+	// NetworkInstance is the network instance holding the policy, normally
+	// deviations.DefaultNetworkInstance(dut).
+	NetworkInstance string
+	PolicyName      string
+	Rules           []VrfSelectionDstRule
+	// Interfaces are the interfaces whose subinterface 0 the policy is bound
+	// to with apply-vrf-selection-policy.
+	Interfaces []string
+}
+
+// NewVrfSelectionPolicy appends to sb a gNMI update that configures a
+// VRF_SELECTION_POLICY whose rules match the IPv4 or IPv6 destination address
+// and steer into a network instance, and binds it to subinterface 0 of each of
+// cfg.Interfaces. The policy-forwarding interface-id honours the
+// InterfaceRefInterfaceIDFormat and InterfaceIDFormatRequiredForPolicyForwarding
+// deviations (see PolicyForwardingInterfaceID), interface-ref is omitted when
+// the InterfaceRefConfigUnsupported deviation is set, and explicit IPv4/IPv6
+// default rules targeting cfg.NetworkInstance are appended when the
+// PfRequireMatchDefaultRule deviation is set. The caller applies the batch.
+func NewVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg VrfSelectionPolicyConfig) *gnmi.SetBatch {
+	t.Helper()
+	_, ni, pf := SetupPolicyForwardingInfraOC(cfg.NetworkInstance)
+	policy := pf.GetOrCreatePolicy(cfg.PolicyName)
+	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	var maxSeq uint32
+	var hasIPv4, hasIPv6 bool
+	for _, r := range cfg.Rules {
+		pfx, err := netip.ParsePrefix(r.DestinationAddress)
+		if err != nil {
+			t.Fatalf("NewVrfSelectionPolicy: rule %d destination-address %q: %v", r.SeqID, r.DestinationAddress, err)
+		}
+		rule := policy.GetOrCreateRule(r.SeqID)
+		if pfx.Addr().Is4() {
+			hasIPv4 = true
+			rule.GetOrCreateIpv4().SetDestinationAddress(r.DestinationAddress)
+		} else {
+			hasIPv6 = true
+			rule.GetOrCreateIpv6().SetDestinationAddress(r.DestinationAddress)
+		}
+		rule.GetOrCreateAction().SetNetworkInstance(r.NetworkInstance)
+		if r.SeqID > maxSeq {
+			maxSeq = r.SeqID
+		}
+	}
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		// Append default fallback rules per configured address family so unmatched
+		// packets are routed in cfg.NetworkInstance instead of dropped. IPv6 uses
+		// source-address "::/0" rather than l2/ethertype (rejected on PTX10008).
+		nextSeq := maxSeq
+		if hasIPv4 {
+			nextSeq += seqIDBase
+			policy.GetOrCreateRule(nextSeq).GetOrCreateAction().SetNetworkInstance(cfg.NetworkInstance)
+		}
+		if hasIPv6 {
+			nextSeq += seqIDBase
+			r6 := policy.GetOrCreateRule(nextSeq)
+			r6.GetOrCreateIpv6().SetSourceAddress("::/0")
+			r6.GetOrCreateAction().SetNetworkInstance(cfg.NetworkInstance)
+		}
+	}
+	for _, name := range cfg.Interfaces {
+		intf := pf.GetOrCreateInterface(PolicyForwardingInterfaceID(dut, name, 0))
+		intf.SetApplyVrfSelectionPolicy(cfg.PolicyName)
+		if !deviations.InterfaceRefConfigUnsupported(dut) {
+			intf.GetOrCreateInterfaceRef().Interface = ygot.String(name)
+			intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
+	}
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(cfg.NetworkInstance).Config(), ni)
+	return sb
 }
 
 func NewPolicyForwardingEncapGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) {

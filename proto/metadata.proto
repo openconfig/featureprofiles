@@ -1639,6 +1639,12 @@ message Metadata {
     // Cisco: https://issuetracker.google.com/issues/372605838
     bool controller_card_primary_power_disable_unsupported = 491;
 
+    // Device does not support IPv4 and IPv6 match conditions (rules) within a
+    // single policy-forwarding policy (e.g. a single VRF_SELECTION_POLICY bound
+    // via apply-vrf-selection-policy).
+    // Nokia: https://issuetracker.google.com/issues/575138433
+    bool mixed_af_policy_forwarding_unsupported = 492;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }
