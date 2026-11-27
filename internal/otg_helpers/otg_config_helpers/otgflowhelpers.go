@@ -41,6 +41,7 @@ type Flow struct {
 	PpsRate           uint64
 	PacketsToSend     uint32
 	IsTxRxPort        bool
+	Bidirectional     bool
 	SizeWeightProfile *[]SizeWeightPair
 	VLANFlow          *VLANFlowParams
 	GREFlow           *GREFlowParams
@@ -145,9 +146,13 @@ func (f *Flow) CreateFlow(top gosnappi.Config) {
 			SetTxName(f.TxPort).
 			SetRxNames(f.RxPorts)
 	} else {
-		f.flow.TxRx().Device().
+		device := f.flow.TxRx().Device().
 			SetTxNames(f.TxNames).
 			SetRxNames(f.RxNames)
+		// Only set when requested so existing unidirectional callers are unaffected.
+		if f.Bidirectional {
+			device.SetBidirectional(true)
+		}
 	}
 	if f.FrameSize != 0 {
 		f.flow.Size().SetFixed(f.FrameSize)
