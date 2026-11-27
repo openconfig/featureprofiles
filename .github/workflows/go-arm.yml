@@ -96,6 +96,8 @@ jobs:
 
     - name: Go vet
       run: go vet ./...
+    - name: Check for legacy ATE / IxNetwork APIs
+      run: go run ./tools/legacyatecheck ./...
     - name: Gofmt
       run: |
         # gofmt always returns true, so we use grep '^' which returns
