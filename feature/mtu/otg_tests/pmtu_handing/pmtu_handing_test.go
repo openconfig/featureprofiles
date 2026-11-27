@@ -17,6 +17,7 @@ package pmtu_handing_test
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"regexp"
 	"strings"
@@ -36,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -54,6 +56,10 @@ const (
 	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
 	tgWaitDuration          = 30 * time.Second
+	minCaptureDuration      = 1 * time.Second
+	minCaptureFrames        = 200
+	minValidatedPackets     = 1
+	maxValidatedPackets     = 3
 	acceptableLossPercent   = 100.0
 	subInterfaceIndex       = 0
 	lineRatePrecentage      = 50
@@ -294,6 +300,7 @@ func getFTCompatibleComponentName(t *testing.T, vendor ondatra.Vendor, component
 func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal *packetValidation) {
 	td.otgConfig.Captures().Clear()
 	bytes := td.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
+	t.Logf("Captured PCAP size on %s: %d bytes (%.2f MiB)", packetVal.portName, len(bytes), float64(len(bytes))/(1024*1024))
 	f, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
@@ -310,6 +317,11 @@ func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	t.Helper()
 
+	ateSrcIPv4 := net.ParseIP(ateSrc.IPv4)
+	ateSrcIPv6 := net.ParseIP(ateSrc.IPv6)
+	wantICMPv4TypeCode := layers.CreateICMPv4TypeCode(layers.ICMPv4TypeDestinationUnreachable, layers.ICMPv4CodeFragmentationNeeded)
+	wantICMPv6TypeCode := layers.CreateICMPv6TypeCode(layers.ICMPv6TypePacketTooBig, 0)
+
 	count := 0
 	for packet := range packetSource.Packets() {
 		if td.flowProto == ipv4 {
@@ -318,17 +330,20 @@ func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal 
 				continue
 			}
 			ipPacket, _ := ipLayer.(*layers.IPv4)
+			if !ipPacket.DstIP.Equal(ateSrcIPv4) {
+				continue
+			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeICMPv4)
 			if ipInnerLayer == nil {
-				t.Error("No ICMPv4 Echo Reply found")
+				continue
 			}
 			ipInnerPacket, _ := ipInnerLayer.(*layers.ICMPv4)
-			if ipInnerPacket.TypeCode != layers.ICMPv4TypeDestinationUnreachable && ipInnerPacket.TypeCode != layers.ICMPv4CodeFragmentationNeeded {
+			if ipInnerPacket.TypeCode == wantICMPv4TypeCode {
 				t.Logf("PASS: received ICMPv4 type-3, code-4")
 				count = count + 1
 			} else {
-				t.Errorf("FAIL: did not received ICMPv4 type-3, code-4")
+				t.Errorf("FAIL: did not receive ICMPv4 type-3, code-4 (got %s)", ipInnerPacket.TypeCode)
 			}
 		} else if td.flowProto == ipv6 {
 			ipLayer := packet.Layer(layers.LayerTypeIPv6)
@@ -336,22 +351,32 @@ func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal 
 				continue
 			}
 			ipPacket, _ := ipLayer.(*layers.IPv6)
+			if !ipPacket.DstIP.Equal(ateSrcIPv6) {
+				continue
+			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeICMPv6)
 			if ipInnerLayer == nil {
-				t.Error("No ICMPv6 Echo Reply found")
+				continue
 			}
 			ipInnerPacket, _ := ipInnerLayer.(*layers.ICMPv6)
-			if ipInnerPacket.TypeCode != layers.ICMPv6TypePacketTooBig && ipInnerPacket.TypeCode != layers.ICMPv6CodeNoRouteToDst {
+			icmpType := ipInnerPacket.TypeCode.Type()
+			if icmpType >= layers.ICMPv6TypeRouterSolicitation && icmpType <= layers.ICMPv6TypeNeighborAdvertisement {
+				continue
+			}
+			if ipInnerPacket.TypeCode == wantICMPv6TypeCode {
 				t.Logf("PASS: received ICMPv6 type-2, code-0")
 				count = count + 1
 			} else {
-				t.Errorf("FAIL: did not received ICMPv6 type-2, code-0")
+				t.Errorf("FAIL: did not receive ICMPv6 type-2, code-0 (got %s)", ipInnerPacket.TypeCode)
 			}
 		}
-		if count == 3 {
+		if count == maxValidatedPackets {
 			break
 		}
+	}
+	if count < minValidatedPackets {
+		t.Errorf("captureAndValidateICMPPacketsReceived(%s, %s) validated %d ICMP packets, want >= %d", packetVal.portName, td.flowProto, count, minValidatedPackets)
 	}
 
 	td.otgConfig.Captures().Clear()
@@ -376,13 +401,23 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	time.Sleep(tgWaitDuration)
 	td.otg.StartProtocols(t)
 	waitF(t)
+	// Cap the PCAP window once enough return frames arrive to avoid exceeding OTG's per-port capture buffer limit.
+	baseInFrames := gnmi.Get(t, td.otg, gnmi.OTG().Port(ateSrc.Name).Counters().InFrames().State())
 	cs := otgutils.StartCapture(t, td.otg)
 	defer otgutils.StopCapture(t, td.otg, cs)
+	captureStart := time.Now()
 	td.otg.StartTraffic(t)
-	time.Sleep(trafficRunDuration)
+	time.Sleep(minCaptureDuration)
+	_, _ = gnmi.Watch(t, td.otg, gnmi.OTG().Port(ateSrc.Name).Counters().InFrames().State(), trafficRunDuration-minCaptureDuration, func(val *ygnmi.Value[uint64]) bool {
+		inFrames, ok := val.Val()
+		return ok && inFrames >= baseInFrames+minCaptureFrames
+	}).Await(t)
+	otgutils.StopCapture(t, td.otg, cs)
+	if remaining := trafficRunDuration - time.Since(captureStart); remaining > 0 {
+		time.Sleep(remaining)
+	}
 	td.otg.StopTraffic(t)
 	time.Sleep(trafficStopWaitDuration)
-	otgutils.StopCapture(t, td.otg, cs)
 	otgutils.LogFlowMetrics(t, td.otg, td.otgConfig)
 	otgutils.LogPortMetrics(t, td.otg, td.otgConfig)
 	flow := gnmi.OTG().Flow(tt.name)

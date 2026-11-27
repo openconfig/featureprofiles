@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -250,18 +249,6 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, topo, "IPv6")
 
-	// Disable hardware nexthop proxying for Arista devices to ensure FIB-ACK works correctly.
-	// See: https://partnerissuetracker.corp.google.com/issues/422275961
-	if deviations.DisableHardwareNexthopProxy(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			const aristaDisableNHGProxyCLI = "ip hardware fib next-hop proxy disabled"
-			helpers.GnmiCLIConfig(t, dut, aristaDisableNHGProxyCLI)
-		default:
-			t.Errorf("Deviation DisableHardwareNexthopProxy is not handled for the dut: %v", dut.Vendor())
-		}
-	}
-
 	// Configure gRIBI client
 	c := gribi.Client{
 		DUT:         dut,
@@ -272,7 +259,12 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	if err := c.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	defer c.Close(t)
+	t.Cleanup(func() {
+		c.Close(t)
+	})
+	t.Cleanup(func() {
+		c.FlushAll(t)
+	})
 	c.BecomeLeader(t)
 
 	// Flush all existing AFT entries and set up basic routing infrastructure
@@ -571,12 +563,18 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 			continue
 		}
 
+		// Filter out link-local and multicast UDP-IPv6 control packets (e.g., DHCPv6/mDNS).
+		// Note: UDP destination port is not filtered here because some platforms
+		// emit DstPort 0 in the outer MPLS-in-UDP header.
+		v6Packet := ipv6Layer.(*layers.IPv6)
+		if v6Packet.DstIP.IsLinkLocalUnicast() || v6Packet.DstIP.IsMulticast() || v6Packet.SrcIP.IsLinkLocalUnicast() {
+			continue
+		}
+
 		mplsPacketCount++
 		t.Logf("Packet %d: Found UDP-IPv6 packet for validation", packetCount)
 		packetValid := true
 
-		// Validate IPv6 outer header
-		v6Packet := ipv6Layer.(*layers.IPv6)
 		t.Logf("Packet %d: IPv6 src=%s, dst=%s, hopLimit=%d", packetCount,
 			v6Packet.SrcIP.String(), v6Packet.DstIP.String(), v6Packet.HopLimit)
 

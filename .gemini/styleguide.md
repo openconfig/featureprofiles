@@ -56,6 +56,30 @@
     *   Environment setup code should be placed in a function named
         setupEnvironment and called from TestMain
     *   Use `t.Run` for subtests so output clearly reflects passed/failed steps.
+    *   **Banning Legacy ATE / IxNetwork APIs (CRITICAL / HIGH PRIORITY):**
+        *   **Anti-pattern:** Using the deprecated Ondatra legacy ATE / IxNetwork API (`ate.Topology()`, `ate.Traffic()`, `ate.Actions()`, `ondatra.New*Header`, `DialIxNetwork`, `github.com/openconfig/ondatra/ixnet` or `github.com/openconfig/ondatra/binding/ixweb` imports) or adding/modifying tests under `ate_tests/` directories. Legacy ATE / IxNetwork APIs are strictly banned in all tests and `internal/` helpers.
+        *   **Correction:** Use the Open Traffic Generator (OTG) API (`ate.OTG()` and `github.com/open-traffic-generator/snappi/gosnappi`) under `otg_tests/` (or `tests/` for non-traffic tests).
+        *   **BAD (Do not do this):**
+            ```go
+            topo := ate.Topology().New()
+            topo.AddInterface("port1").WithPort(ate.Port(t, "port1"))
+            topo.Push(t).StartProtocols(t)
+            flow := ate.Traffic().NewFlow("f1").WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header())
+            ate.Traffic().Start(t, flow)
+            ```
+        *   **GOOD (Do this instead):**
+            ```go
+            cfg := gosnappi.NewConfig()
+            cfg.Ports().Add().SetName("port1")
+            flow := cfg.Flows().Add().SetName("f1")
+            flow.TxRx().Port().SetTxName("port1")
+            flow.Packet().Add().Ethernet()
+            flow.Packet().Add().Ipv4()
+            ate.OTG().PushConfig(t, cfg)
+            ate.OTG().StartProtocols(t)
+            otgutils.WaitForARP(t, ate.OTG(), cfg, "IPv4")
+            ate.OTG().StartTraffic(t)
+            ```
     *   **Eliminating Polling Loops and Static Sleeps (CRITICAL / HIGH PRIORITY):**
         *   **Anti-pattern:** Relying on static `time.Sleep` calls, or building custom `for` loops that poll telemetry state with `time.Sleep(pollInterval)`.
         *   **Correction:** The use of `gnmi.Watch` with `.Await(t)` is mandatory to detect desired states in real-time. Custom polling loops are banned.
@@ -196,6 +220,58 @@
         otgutils.StopCapture(t, ate.OTG(), cs)
         bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(atePort.ID()))
         ```
+    *   **OTG PCAP Packet Validation:**
+        - **Anti-pattern:** Validating an OTG port capture by inspecting only
+          the first packet (`packet := <-packetSource.Packets()`), or calling
+          `t.Fatalf` on the first packet that does not match the expected
+          shape. Port captures are unfiltered, so periodic DUT control-plane
+          frames (LLDP, ARP, IPv6 Neighbor Discovery, LACP, routing protocol
+          hellos) routinely arrive between `StartCapture` and the first data
+          packet. This causes intermittent failures even when OTG flow
+          counters report 0% loss. A related anti-pattern is adding the
+          capture configuration (for example, `enableCapture(t, config, ...)`
+          or `config.Captures().Add()`) *after* `otgConfig.PushConfig(t,
+          config)`. The capture is then not part of the pushed configuration,
+          and behavior differs from sibling subtests in the same file.
+        - **Correction:** Add the capture configuration to the OTG config
+          *before* `PushConfig`. When parsing the PCAP, iterate over all
+          packets (`for packet := range packetSource.Packets()`). Skip
+          packets that do not belong to the flow under test, matching on
+          flow-identifying fields such as destination IP, protocol, or
+          label. Assert on the matched packets, and call `t.Fatalf` after the
+          loop if no matching packet was found. Fail immediately only on
+          positive evidence of a defect, for example a GRE layer still
+          present after decapsulation.
+        - **BAD (Do not do this):**
+
+        ```go
+        otgConfig.PushConfig(t, config)
+        enableCapture(t, config, "port2") // Too late: not part of the pushed config.
+        // ...
+        packet := <-packetSource.Packets() // May be an LLDP/ARP/ND frame.
+        if ipv6 := packet.Layer(layers.LayerTypeIPv6); ipv6 == nil {
+            t.Fatalf("Decapsulated IPv6 traffic is not received")
+        }
+        ```
+        - **GOOD (Do this instead):**
+
+        ```go
+        enableCapture(t, config, "port2")
+        otgConfig.PushConfig(t, config)
+        // ...
+        for packet := range packetSource.Packets() {
+            ipv6, ok := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+            if !ok || ipv6.DstIP.String() != wantDstIP {
+                continue // Control-plane or unrelated packet.
+            }
+            if packet.Layer(layers.LayerTypeGRE) != nil {
+                t.Fatalf("GRE header still present after decapsulation")
+            }
+            // ... validate TTL / traffic class / DSCP on the matched packet ...
+            return
+        }
+        t.Fatalf("No decapsulated IPv6 packet with dst %s found in capture", wantDstIP)
+        ```
     *   **SSH and AAA State:** Pay special attention to AAA and SSH configurations. If a test modifies SSH authentication (e.g., `management ssh authentication protocol password`), the cleanup routine MUST explicitly negate that specific command (e.g., `management ssh \n no authentication protocol`) rather than relying on generic default commands that might wipe baseline lab configurations.
     *   **Use `t.Cleanup()`:** All cleanup operations, whether for gNMI configurations or raw CLI commands, must be registered using `t.Cleanup()` to guarantee they are executed even if the test fails or panics early.
     *   **README Cleanup Specification:** All test plan `README.md` files must explicitly include a cleanup/teardown step (or `### Cleanup` section) specifying that any state or configuration modified during the test (e.g., disabled interfaces, drained links, altered protocol states) is reverted and the DUT is restored to its baseline operational state upon test completion. Reviewers must flag `README.md` test plans that leave interfaces or protocols in a degraded/disabled state without an explicit cleanup step.
@@ -291,3 +367,79 @@ To achieve high-velocity test execution and prevent pipeline bottlenecks, review
 *   **Eliminating Static Sleeps (CRITICAL / HIGH PRIORITY):**
     *   **Anti-pattern:** Relying on static `time.Sleep` calls based on legacy assumptions. **This is a critical performance issue that must be avoided and flagged as high priority.**
     *   **Correction:** The use of `gnmi.Watch` is mandatory to detect desired states in real-time. Wait times should not be hardcoded, as static sleeps become a fixed tax on the pipeline.
+
+### **6. Testbed & Topology Guidelines (CRITICAL / HIGH PRIORITY)**
+
+**Source:** `topologies/`
+
+To preserve hardware device availability in lab pools and prevent scheduling bottlenecks, test authors MUST choose the simplest homogeneous single-DUT topology needed for the test, and reviewers MUST flag overly complex, high-link-count, DUT-DUT, or mixed-speed topologies in `README.md`, `metadata.textproto`, `testregistry.textproto`, and `topologies/*.testbed`:
+
+*   **Avoid Complex and High-Link-Count Topologies (e.g., 8-Link+ Testbeds):**
+    *   **Anti-pattern:** Selecting complex multi-device or high-link-count topologies (such as 8-link or larger testbeds like `atedut_8.testbed` / `TESTBED_DUT_ATE_8LINKS`, `atedut_8_lag.testbed` / `TESTBED_DUT_ATE_8LINKS_LAG`, `dut_8_loop_2_ate.testbed` / `TESTBED_DUT_8_LOOP_2_ATE`, `dutdutate_8.testbed` / `TESTBED_DUT_DUT_ATE_8LINKS`, `atedut_9.testbed`, `atedut_9_lag.testbed` / `TESTBED_DUT_ATE_9LINKS_LAG`, or `atedut_12.testbed`) for functional tests that do not strictly require that link or device count. High-link-count topologies severely limit matching testbed availability across labs, increase reservation contention, and cause avoidable scheduling failures.
+    *   **Correction:** Always choose the minimal topology capable of validating the feature under test (for example, `dut.testbed` / `TESTBED_DUT`, `dut_2links.testbed` / `TESTBED_DUT_2LINKS`, `atedut_2.testbed` / `TESTBED_DUT_ATE_2LINKS`, or `atedut_4.testbed` / `TESTBED_DUT_ATE_4LINKS`). Reserve 8-link and higher-port-count topologies strictly for dedicated scale or wide-ECMP/LAG tests that cannot be verified on fewer links, keep those tests separate from baseline functional tests, and justify the link count in `README.md`.
+
+*   **Avoid DUT-DUT (Multi-DUT) Topologies:**
+    *   **Anti-pattern:** Selecting or introducing DUT-to-DUT topologies (such as `dutdut.testbed` / `TESTBED_DUT_DUT_4LINKS`, `dutdutate.testbed` / `TESTBED_DUT_DUT_ATE_2LINKS`, `dutdutate_8.testbed` / `TESTBED_DUT_DUT_ATE_8LINKS`, or `ate_dut1_4links_dut2_ate.testbed` / `TESTBED_ATE_DUT1_4LINKS_DUT2_ATE`) when the feature under test can be validated with a single DUT. Requiring two physical DUTs doubles hardware consumption, compounds lab reservation contention, and blocks execution on single-DUT testbeds.
+    *   **Correction:** Prefer a single-DUT topology (`dut.testbed`, `dut_2links.testbed`, `atedut_2.testbed`, or `atedut_4.testbed`), modeling peer protocol interactions or traffic flows with the ATE/OTG (`otg_tests`) or single-DUT loopback links where applicable. Only use a DUT-DUT topology when direct DUT-to-DUT behavior cannot be emulated with an ATE/OTG or loopback (such as genuine multi-device interoperability or physical hardware-to-hardware handoff), and explicitly justify requiring the second DUT in `README.md`.
+
+*   **Avoid Mixed-Speed Topologies (Keep Per-Speed Tests Separate):**
+    *   **Anti-pattern:** Combining multiple port speeds or heterogeneous optics/PMDs in a single testbed or monolithic test suite (such as `dut_400zr_100g_4links.testbed` / `TESTBED_DUT_400ZR_100G_4LINKS` or `dut_400fr_100g_4links.testbed` / `TESTBED_DUT_400FR_100G_4LINKS`), or introducing new mixed-speed `.testbed` files. Mixed-speed topologies sharply shrink the pool of eligible lab devices and block execution when a DUT only has a single port speed populated.
+    *   **Correction:** Always keep testbeds single-speed and split multi-speed coverage into separate, standalone test suites (separate test directories, `README.md`, `metadata.textproto`, and `testregistry.textproto` entries) per speed tier (for example, separate 100G, 400G, and 800G tests backed by single-speed topologies such as `dut_400zr.testbed` / `TESTBED_DUT_400ZR`, `dut_800zr.testbed` / `TESTBED_DUT_800ZR`, or dedicated single-speed loop/ATE testbeds, sharing common helpers in `internal/`). Reviewers MUST flag new or updated tests introducing mixed-speed testbeds or combined multi-speed suites and require splitting them into separate single-speed tests unless cross-speed interaction on the same DUT is explicitly the behavior under test and cannot be verified independently.
+
+### **7. Style Guide Evolution (Learning from Fixes)**
+
+**Source:** `.gemini/styleguide.md`
+
+This style guide is meant to grow from real bugs. When a pull request fixes a
+defect that a reviewer could have caught earlier, Gemini Code Assist MUST look
+for the general rule behind the fix and propose a patch to this file. The goal
+is to catch the same class of issue in future PRs without anyone having to ask.
+
+*   **When to propose a style guide patch:** Propose one when **all** of the
+    following are true:
+    *   The PR fixes a bug, a flaky or intermittent test failure, a test
+        reliability problem, or a resource leak. Signals include a PR title or
+        description with words like "fix", "flaky", "intermittent", or "root
+        cause", a linked issue, or a diff that mostly changes existing test
+        logic rather than adding new coverage.
+    *   The root cause is a **reusable anti-pattern** that could appear in
+        other tests or helpers. One-off typos, wrong constants, or
+        device-specific behavior do not qualify.
+    *   No existing section of this style guide already covers the
+        anti-pattern. If a section does cover it, do not propose a patch.
+        Instead, cite that section and flag any other files in the PR that
+        still contain the anti-pattern.
+*   **How to propose the patch:**
+    *   Post one review comment titled
+        **"Suggested style guide learning"** with `MEDIUM` severity, so that
+        the `comment_severity_threshold` in `.gemini/config.yaml` does not
+        filter it out.
+    *   In one sentence, state the general rule and the root cause from this
+        PR that motivates it.
+    *   Include a ready-to-apply unified diff against `.gemini/styleguide.md`
+        in a fenced `diff` block. Add the rule to the most relevant existing
+        section. Create a new numbered section only if no existing section
+        fits.
+    *   Match the existing format: a bold rule title, an **Anti-pattern:**
+        bullet, a **Correction:** bullet, and short **BAD (Do not do this):**
+        and **GOOD (Do this instead):** Go snippets taken from (but simpler
+        than) the code in the PR. Use concrete helper, function, and OC path
+        names from this repository.
+    *   Ask the author to add the diff to the current PR, or to open a
+        follow-up PR that links to this one. If `.gemini/styleguide.md` is
+        already part of the PR diff, use a GitHub `suggestion` block on that
+        file instead of a `diff` block.
+*   **Quality bar for proposed rules:**
+    *   Write rules that are general and can be checked from code alone. "Do
+        not inspect only the first captured packet" is a good rule. "Fix
+        decap_gre_ipv4_test" is not.
+    *   Keep each rule short. Do not repeat or contradict existing rules.
+        Extend an existing rule rather than adding a near-duplicate.
+    *   Do not propose more than one style guide patch per PR. If a PR has
+        several root causes, combine them into one diff.
+*   **Example:** A PR that fixed intermittent `Decapsulated IPv6 traffic is
+    not received` failures did so by iterating over all captured packets
+    instead of only the first, skipping control-plane frames, and moving
+    `enableCapture` before `PushConfig`. That PR should have been accompanied
+    by the **OTG PCAP Packet Validation** rule in Section 1 under
+    Configuration & Cleanup.

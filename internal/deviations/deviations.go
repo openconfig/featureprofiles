@@ -1631,11 +1631,6 @@ func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool
 	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
-// SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
-func SkipOrigin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipOrigin()
-}
-
 // PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
@@ -1765,11 +1760,6 @@ func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 // AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
 func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
-}
-
-// DisableHardwareNexthopProxy returns true if the device requires disabling hardware nexthop proxying
-func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
 }
 
 // URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
@@ -2585,4 +2575,30 @@ func SyslogDebugSeverityUnsupported(dut *ondatra.DUTDevice) bool {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
 func MountPointStorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMountPointStorageComponentUnsupported()
+}
+
+// BgpGrHelperHoldTimerExpiryRequiresStalePolicy returns true if the device requires
+// explicit GR helper stale-route policy configuration for hold-timer-expiry to trigger
+// GR helper mode (RFC 8538 Section 4).
+// https://issuetracker.google.com/581463773
+func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
+}
+
+// DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
+// Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
+func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
+}
+
+// ControllerCardPrimaryPowerDisableUnsupported returns true if the device
+// rejects setting controller-card power-admin-state to POWER_DISABLED on the
+// PRIMARY controller card and only accepts it on the SECONDARY. Rule 1 of
+// https://github.com/openconfig/public/blob/master/doc/controller-card_poweroff.md
+// instead requires the configuration to be accepted on the PRIMARY and the
+// power-off to be deferred until the card is SECONDARY or reboots.
+// Arista: https://issuetracker.google.com/issues/582304398
+// Cisco: https://issuetracker.google.com/issues/372605838
+func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
 }

@@ -546,8 +546,6 @@ func TestBGPScale(t *testing.T) {
 
 	top := gosnappi.NewConfig()
 
-	ate.Topology().New()
-
 	dutInfoInitial := dutInfo{
 		processes: make(map[string]processesInfo),
 	}
@@ -661,7 +659,6 @@ func TestBGPScale(t *testing.T) {
 				nbrList := setupNeighborList([]attributes{atePort1, atePort2, atePort3, atePort4})
 
 				if index > 0 {
-					ate.Topology().New()
 					top = gosnappi.NewConfig()
 				}
 				t.Logf("BGP scale: Prepare scale done %v", tc.scale)
@@ -1416,7 +1413,6 @@ func bgpEvents(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top
 
 	case "alterBGPAttributes":
 		t.Logf("%v: Alter BGP attributes", operation)
-		ate.Topology().New()
 		top = gosnappi.NewConfig()
 
 		ateSetup(t, dut, top, ate, nbrList, "alterBGPAttributes", isMSSTest)
