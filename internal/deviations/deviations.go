@@ -2602,3 +2602,12 @@ func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 func ControllerCardPrimaryPowerDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetControllerCardPrimaryPowerDisableUnsupported()
 }
+
+// PipelineDropTTLExpiredPunted returns true if the device punts IPv4 packets
+// with TTL 1 and IPv6 packets with hop limit 1 to the control plane instead of
+// counting them as pipeline drops under
+// /components/component/integrated-circuit/pipeline-counters/drop/vendor.
+// Arista: https://partnerissuetracker.corp.google.com/issues/591012231
+func PipelineDropTTLExpiredPunted(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPipelineDropTtlExpiredPunted()
+}

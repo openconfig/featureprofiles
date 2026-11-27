@@ -1639,6 +1639,12 @@ message Metadata {
     // Cisco: https://issuetracker.google.com/issues/372605838
     bool controller_card_primary_power_disable_unsupported = 491;
 
+    // Device punts IPv4 packets with TTL 1 and IPv6 packets with hop limit 1
+    // to the control plane instead of counting them as pipeline drops under
+    // /components/component/integrated-circuit/pipeline-counters/drop/vendor.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/591012231
+    bool pipeline_drop_ttl_expired_punted = 492;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49, 313, 319, 345;
   }
