@@ -46,7 +46,7 @@ const (
 	tunnelInterface          = "fti0"
 	trafficRatePps           = 5000
 	trafficDuration          = 120
-	tolerance                = 20
+	tolerance                = 12
 )
 
 var (
@@ -258,9 +258,9 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	f1v4.Protocol().SetValue(6)
 	f1v4.Src().Increment().SetStart(peer.IPv4).SetCount(200)
 	f1v4.Dst().Increment().SetStart(encapInnerDesIpv4Network).SetCount(200)
-	flow1ipv4.Packet().Add().Tcp()
-	flow1ipv4.Packet().Add().Tcp().SrcPort().Increment().SetStart(9000).SetCount(28000)
-	flow1ipv4.Packet().Add().Tcp().DstPort().Increment().SetStart(37001).SetCount(28000)
+	tcp := flow1ipv4.Packet().Add().Tcp()
+	tcp.SrcPort().Increment().SetStart(9000).SetCount(28000)
+	tcp.DstPort().Increment().SetStart(37001).SetCount(28000)
 
 }
 
