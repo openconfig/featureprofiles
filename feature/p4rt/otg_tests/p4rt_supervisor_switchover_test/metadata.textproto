@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "9b7914a7-002d-4676-9010-4323e7ea5a9d"
+plan_id: "P4RT-1.4"
+description: "P4RT PacketIn and gRIBI Get Continuity across Supervisor Switchover"
+testbed: TESTBED_DUT_ATE_4LINKS
