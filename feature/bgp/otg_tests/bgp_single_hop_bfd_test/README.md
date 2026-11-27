@@ -4,6 +4,12 @@
 
 Validate Bidirectional Forwarding Detection (BFD) integration with customer eBGP peering on the DUT across 802.1Q subinterfaces. Verify sub-second failure detection, timer negotiation, dampening behavior, and immediate BGP session teardown upon BFD link state transitions.
 
+> [!NOTE]
+> BFD on customer eBGP sessions is a **Phase 2** feature of the EdgeBGP profile
+> (RT-1.102 through RT-1.109); the Phase 1 configuration does not enable BFD on
+> the tenant-VRF neighbors. This test plan is therefore not part of the Phase 1
+> coverage set and is unchanged by it.
+
 ## Testbed type
 
 * `TESTBED_DUT_ATE_2LINKS` (ATE Port 1 simulating Customer CE router with BFD enabled).
