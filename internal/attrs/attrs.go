@@ -69,6 +69,9 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 	if a.Desc != "" {
 		intf.Description = ygot.String(a.Desc)
 	}
+	if a.ID != 0 {
+		intf.SetId(a.ID)
+	}
 	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
 		intf.Enabled = ygot.Bool(true)
