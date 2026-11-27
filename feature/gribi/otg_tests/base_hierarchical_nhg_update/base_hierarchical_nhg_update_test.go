@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/kneutil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
@@ -100,7 +101,7 @@ const (
 	port4mac        = "00:1A:11:00:1A:BB"
 	vip1            = "198.18.196.1"
 	outerSrcIP      = "203.0.113.0"
-	fps             = 100000 // traffic frames per second
+	fps             = 100000 // traffic frames per second (HW); KNE uses 10000 via trafficFPS
 	innerSrcIP      = "198.51.100.61"
 	vrfPrefixcount  = 10000
 	ipv4Prefixcount = 700
@@ -109,7 +110,16 @@ const (
 	decapFlowSrc = "198.51.100.111"
 	dscpEncapA1  = 10
 	niTeVrf111   = "TE_VRF_111"
+	kneFPS       = 10000
 )
+
+func trafficFPS(t *testing.T) uint64 {
+	t.Helper()
+	if kneutil.IsKNEBinding(ondatra.DUT(t, "dut")) {
+		return kneFPS
+	}
+	return fps
+}
 
 type testArgs struct {
 	dut    *ondatra.DUTDevice
@@ -513,7 +523,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
 // Set drain to true to design flows for testImplementDrain case and false to design flows for testBaseHierarchialNHG case
-func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain, transit bool, dsts ...*attrs.Attributes) gosnappi.Flow {
+func createFlow(t *testing.T, name string, ateTop gosnappi.Config, drain, transit bool, dsts ...*attrs.Attributes) gosnappi.Flow {
 	var rxEndpoints []string
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
@@ -546,7 +556,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain, transi
 		innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
 	}
 	flowipv4.Size().SetFixed(300)
-	flowipv4.Rate().SetPps(fps)
+	flowipv4.Rate().SetPps(trafficFPS(t))
 	eth := flowipv4.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
 	ethTag.SetName("EgressTrackingFlow").SetOffset(40).SetLength(8)
@@ -695,7 +705,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		if len(nonrxPorts) > 0 {
 			// Time took for traffic to restore in milliseconds after trigger
 			diff := big.NewInt(0).Sub(big.NewInt(0).SetUint64(receivedPkts), big.NewInt(0).SetUint64(sentPkts))
-			fpm := (diff.Uint64() / (fps / 1000))
+			fpm := (diff.Uint64() / (trafficFPS(t) / 1000))
 			if fpm > *args.ConvergencePathChange {
 				t.Fatalf("Traffic loss %v msecs more than expected %v msecs", fpm, *args.ConvergencePathChange)
 			}
