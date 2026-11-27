@@ -10,10 +10,6 @@ ATE port-1 <------> port-1 DUT
 DUT port-2 <------> port-2 ATE
 DUT port-3 <------> port-3 ATE
 DUT port-4 <------> port-4 ATE
-DUT port-5 <------> port-5 ATE
-DUT port-6 <------> port-6 ATE
-DUT port-7 <------> port-7 ATE
-DUT port-8 <------> port-8 ATE
 
 ## Variables
 
@@ -491,7 +487,7 @@ IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#11 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:3,mac_address:magic_mac, interface-ref:dut-port-3-interface},
 }
 IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#12 (DEFAULT VRF) -> {
-  {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
+  {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-2-interface},
 }
 
 NHG#1000 (Default VRF) {
@@ -512,7 +508,7 @@ IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#2 (DEFAULT VRF) -> {
   backup_next_hop_group: 1001 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
-  {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
+  {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-3-interface},
 }
 NHG#1001 (Default VRF) {
   {NH#1001, DEFAULT VRF, weight:1}
@@ -529,7 +525,7 @@ IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
   backup_next_hop_group: 1002 // re-encap to 203.10.113.101
 }
 IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#14 (DEFAULT VRF) -> {
-  {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
+  {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-3-interface},
 }
 NHG#1002 (DEFAULT VRF) {
   {NH#1002, DEFAULT VRF}
@@ -548,12 +544,12 @@ IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
   backup_next_hop_group: 1001 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
-  {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
+  {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
 }
 
 ```
 
-*   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-8.
+*   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-4.
 
 *   Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 
@@ -603,7 +599,7 @@ The DUT should be reset to the baseline after each of the following tests.
     * proto: `41`
     ```
 
-4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-8 per the BGP-ISIS routes in the DEFAULT VRF.
+4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-4 per the BGP-ISIS routes in the DEFAULT VRF.
 
 5.  Verify that the TTL value is copied from the outer header to the inner header. Also ECN should be copied from outer to inner header. IF outer or inner packet is marked as ECN 11 (congestionexperienced), which means packet is congestion experienced, in such cases we need to copy ECN 11 to outer/inner HDR in order communicate about congestion in the network.
 
@@ -646,7 +642,7 @@ The DUT should be reset to the baseline after each of the following tests.
     * proto: `41`
     ```
 
-4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-8 per the BGP-ISIS routes in the DEFAULT VRF.
+4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-4 per the BGP-ISIS routes in the DEFAULT VRF.
 
 5.  Verify that the TTL value is copied from the outer header to the inner header.
 
@@ -705,12 +701,13 @@ Ensures that tunneled traffic is correctly forwarded when there is no match in t
     *   The outer v4 header has the destination address 203.0.113.1.
     *   The outer v4 header has the source address ipv4_outer_src_111.
     *   The outer v4 header has DSCP value has `dscp_encap_no_match` and `dscp_encap_match`
-3.  We should expect that all egress packets (100%) are IPinIP encapped with 203.0.113.1 as the outer header, and egress on DUT port-2, port-3 and port-4 per the hierarchical weight.
-4.  Send 4in4 (IP protocol 4) and 6in4 (IP protocol 41) packets to DUT port-2 where
+3.  We should expect that all egress packets (100%) are IPinIP encapped with 203.0.113.1 as the outer header, and egress on DUT port-2 and port-3 per the hierarchical weight.
+4.  Send 4in4 (IP protocol 4) and 6in4 (IP protocol 41) packets to DUT port-1 where
     *   The outer v4 header has the destination address 203.0.113.100.
     *   The outer v4 header has the source address ipv4_outer_src_222.
     *   The outer v4 header has DSCP value has `dscp_encap_no_match` and `dscp_encap_match`
-We should expect that the egress traffic are 100% encapped with 203.0.113.100 as the outer header, and egress on DUT port-5.
+We should expect that the egress traffic are 100% encapped with 203.0.113.100
+as the outer header, and egress on DUT port-3.
 
 #### Test-5: match on "default term", send to default VRF
 
@@ -722,14 +719,14 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
     *   The outer v4 header has the source address that’s not ipv4_outer_src_111 or ipv4_outer_src_222. For example, we can use 198.100.200.123.
 3.  We should expect that all egress packets:
     *   100% are still IPinIP (4in4) with outer v4 destination address as `138.0.11.8`.
-    *   and, egressed out of DUT port-8 per the route in the DEFAULT VRF.
+    *   and, egressed out of DUT port-4 per the route in the DEFAULT VRF.
 4.  Send v4 packet with protocol `17` (not 6in4 or 4in4), where:
     *   The outer v4 header has the destination address 138.0.11.8.
     *   50% of the packets with source address as ipv4_outer_src_111.
     *   50% of the packets with source address as ipv4_outer_src_222.
 5.  We should expect that all egress packets:
     *   100% are still of protocl `17` and with outer v4 destination address as `138.0.11.8`.
-    *   and, egressed out of DUT port-8 per the route in the DEFAULT VRF.
+    *   and, egressed out of DUT port-4 per the route in the DEFAULT VRF.
 6.  Remove the matching route (e.g. stop the BGP routes) in the DEFAULT VRF and verify that the traffic are dropped.
 
 #### Test-6, decap then encap
@@ -774,7 +771,7 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
     *   are IPinIP encapped with outer source IP as `ipv4_outter_src_111` and dscp value `dscp_encap_a_1`.
     *   1/4 are with 203.0.113.1 as the outer header destination IP.
     *   3/4 are with 203.10.113.2 as the outer header destination IPs.
-    *   egress on DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
+    *   egress on DUT port-2 and port-3 per the hierarchical weight.
 
 5.  Send the following packets to DUT port -1
 
@@ -801,7 +798,7 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
     *   are IPinIP encapped with outer source IP as `ipv4_outter_src_111` and dscp value `dscp_encap_b_1`.
     *   3/4 are with 203.0.113.1 as the outer header destination IP.
     *   1/4 are with 203.10.113.2 as the outer header destination IPs.
-    *   egress on DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
+    *   egress on DUT port-2 and port-3 per the hierarchical weight.
 
 
 ## Config Parameter Coverage

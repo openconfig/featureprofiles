@@ -56,10 +56,6 @@ func TestMain(m *testing.M) {
 // DUT port-2 <------> port-2 ATE
 // DUT port-3 <------> port-3 ATE
 // DUT port-4 <------> port-4 ATE
-// DUT port-5 <------> port-5 ATE
-// DUT port-6 <------> port-6 ATE
-// DUT port-7 <------> port-7 ATE
-// DUT port-8 <------> port-8 ATE
 
 const (
 	plenIPv4                 = 30
@@ -126,8 +122,8 @@ const (
 	dutSysID                 = "1920.0000.2001"
 	otgSysID1                = "640000000001"
 	isisInstance             = "DEFAULT"
-	otgIsisPort8LoopV4       = "203.0.113.10"
-	otgIsisPort8LoopV6       = "2001:db8::203:0:113:10"
+	otgIsisPort4LoopV4       = "203.0.113.10"
+	otgIsisPort4LoopV6       = "2001:db8::203:0:113:10"
 	dutAS                    = 65501
 	peerGrpName1             = "BGP-PEER-GROUP1"
 	seqIDBase                = uint32(10)
@@ -194,66 +190,6 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	dutPort5 = attrs.Attributes{
-		Desc:    "dutPort5",
-		IPv4:    "192.0.2.17",
-		IPv6:    "2001:db8::192:5:2:1",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "192.0.2.18",
-		MAC:     "02:00:05:01:01:01",
-		IPv6:    "2001:db8::192:5:2:2",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	dutPort6 = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "192.0.2.21",
-		IPv6:    "2001:db8::192:6:2:1",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "192.0.2.22",
-		MAC:     "02:00:06:01:01:01",
-		IPv6:    "2001:db8::192:6:2:2",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	dutPort7 = attrs.Attributes{
-		Desc:    "dutPort7",
-		IPv4:    "192.0.2.25",
-		IPv6:    "2001:db8::192:7:2:1",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "192.0.2.26",
-		MAC:     "02:00:07:01:01:01",
-		IPv6:    "2001:db8::192:7:2:2",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	dutPort8 = attrs.Attributes{
-		Desc:    "dutPort8",
-		IPv4:    "192.0.2.29",
-		IPv6:    "2001:db8::192:8:2:1",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "192.0.2.30",
-		MAC:     "02:00:08:01:01:01",
-		IPv6:    "2001:db8::192:8:2:2",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
 	dutlo0Attrs = attrs.Attributes{
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.11",
@@ -282,52 +218,6 @@ var (
 	otgPort3DummyIP = attrs.Attributes{
 		Desc:    "otgPort3",
 		IPv4:    "192.0.2.38",
-		IPv4Len: plenIPv4,
-	}
-
-	dutPort4DummyIP = attrs.Attributes{
-		Desc:       "dutPort4",
-		IPv4Sec:    "192.0.2.41",
-		IPv4LenSec: plenIPv4,
-	}
-
-	otgPort4DummyIP = attrs.Attributes{
-		Desc:    "otgPort4",
-		IPv4:    "192.0.2.42",
-		IPv4Len: plenIPv4,
-	}
-
-	dutPort5DummyIP = attrs.Attributes{
-		Desc:       "dutPort5",
-		IPv4Sec:    "192.0.2.45",
-		IPv4LenSec: plenIPv4,
-	}
-
-	otgPort5DummyIP = attrs.Attributes{
-		Desc:    "otgPort5",
-		IPv4:    "192.0.2.46",
-		IPv4Len: plenIPv4,
-	}
-	dutPort6DummyIP = attrs.Attributes{
-		Desc:       "dutPort5",
-		IPv4Sec:    "192.0.2.49",
-		IPv4LenSec: plenIPv4,
-	}
-
-	otgPort6DummyIP = attrs.Attributes{
-		Desc:    "otgPort5",
-		IPv4:    "192.0.2.50",
-		IPv4Len: plenIPv4,
-	}
-	dutPort7DummyIP = attrs.Attributes{
-		Desc:       "dutPort5",
-		IPv4Sec:    "192.0.2.53",
-		IPv4LenSec: plenIPv4,
-	}
-
-	otgPort7DummyIP = attrs.Attributes{
-		Desc:    "otgPort5",
-		IPv4:    "192.0.2.54",
 		IPv4Len: plenIPv4,
 	}
 	loopbackIntfName string
@@ -611,11 +501,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
-	p6 := dut.Port(t, "port6")
-	p7 := dut.Port(t, "port7")
-	portList := []*ondatra.Port{p2, p3, p4, p5, p6, p7}
+	portList := []*ondatra.Port{p2, p3}
 	for idx, p := range portList {
 		s := &oc.NetworkInstance_Protocol_Static{
 			Prefix: ygot.String(magicIp + "/32"),
@@ -639,22 +525,10 @@ func staticARPWithSpecificIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
-	p6 := dut.Port(t, "port6")
-	p7 := dut.Port(t, "port7")
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4DummyIP.NewOCInterface(p4.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), dutPort5DummyIP.NewOCInterface(p5.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), dutPort6DummyIP.NewOCInterface(p6.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p7.Name()).Config(), dutPort7DummyIP.NewOCInterface(p7.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), configStaticArp(p6.Name(), otgPort6DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p7.Name()).Config(), configStaticArp(p7.Name(), otgPort7DummyIP.IPv4, magicMac))
 }
 
 // seqIDOffset returns sequence ID offset added with seqIDBase (10), to avoid sequences
@@ -680,7 +554,7 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureDUT configures port1-8 on the DUT.
+// configureDUT configures port1-4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	if deviations.VendorPreConfigRequired(dut) {
@@ -693,14 +567,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
-	p6 := dut.Port(t, "port6")
-	p7 := dut.Port(t, "port7")
-	p8 := dut.Port(t, "port8")
-	portList := []*ondatra.Port{p1, p2, p3, p4, p5, p6, p7, p8}
-	portNameList := []string{"port1", "port2", "port3", "port4", "port5", "port6", "port7", "port8"}
+	portList := []*ondatra.Port{p1, p2, p3, p4}
+	portNameList := []string{"port1", "port2", "port3", "port4"}
 
-	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5, dutPort6, dutPort7, dutPort8} {
+	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4} {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
@@ -796,7 +666,7 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
 	pg1.PeerAs = ygot.Uint32(localAs)
 
-	bgpNbr := bgp.GetOrCreateNeighbor(otgIsisPort8LoopV4)
+	bgpNbr := bgp.GetOrCreateNeighbor(otgIsisPort4LoopV4)
 	bgpNbr.PeerGroup = ygot.String(peerGrpName1)
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
@@ -837,8 +707,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowValues.flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{"atePort1.IPv4"})
-	flow.TxRx().Device().SetRxNames([]string{"atePort2.IPv4", "atePort3.IPv4", "atePort4.IPv4",
-		"atePort5.IPv4", "atePort6.IPv4", "atePort7.IPv4", "atePort8.IPv4"})
+	flow.TxRx().Device().SetRxNames([]string{"atePort2.IPv4", "atePort3.IPv4", "atePort4.IPv4"})
 	flow.Size().SetFixed(512)
 	flow.Rate().SetPps(100)
 	flow.Duration().Continuous()
@@ -887,7 +756,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Verifying BGP state")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	nbrPath := bgpPath.Neighbor(otgIsisPort8LoopV4)
+	nbrPath := bgpPath.Neighbor(otgIsisPort4LoopV4)
 	// Get BGP adjacency state.
 	t.Logf("Waiting for BGP neighbor to establish...")
 	var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
@@ -900,9 +769,9 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatal("No BGP neighbor formed")
 	}
 	state, _ := status.Val()
-	t.Logf("BGP adjacency for %s: %v", otgIsisPort8LoopV4, state)
+	t.Logf("BGP adjacency for %s: %v", otgIsisPort4LoopV4, state)
 	if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-		t.Errorf("BGP peer %s status got %d, want %d", otgIsisPort8LoopV4, state, want)
+		t.Errorf("BGP peer %s status got %v, want %v", otgIsisPort4LoopV4, state, want)
 	}
 }
 
@@ -920,7 +789,7 @@ func programAftWithMagicIp(t *testing.T, dut *ondatra.DUTDevice, args *testArgs)
 			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()).
+			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
 			WithIPAddress(magicIp),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(12).AddNextHop(13, 2),
@@ -928,7 +797,7 @@ func programAftWithMagicIp(t *testing.T, dut *ondatra.DUTDevice, args *testArgs)
 			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()).
+			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).
 			WithIPAddress(magicIp),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(13).AddNextHop(14, 1),
@@ -936,7 +805,7 @@ func programAftWithMagicIp(t *testing.T, dut *ondatra.DUTDevice, args *testArgs)
 			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()).
+			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).
 			WithIPAddress(magicIp),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(14).AddNextHop(15, 1),
@@ -944,7 +813,7 @@ func programAftWithMagicIp(t *testing.T, dut *ondatra.DUTDevice, args *testArgs)
 			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()).
+			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
 			WithIPAddress(magicIp),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(15).AddNextHop(16, 1),
@@ -967,32 +836,32 @@ func programGRIBIWithDummyIP(t *testing.T, dut *ondatra.DUTDevice, args *testArg
 			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()).
-			WithIPAddress(otgPort4DummyIP.IPv4),
+			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
+			WithIPAddress(otgPort2DummyIP.IPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(12).AddNextHop(13, 2),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()).
-			WithIPAddress(otgPort5DummyIP.IPv4),
+			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).
+			WithIPAddress(otgPort3DummyIP.IPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(13).AddNextHop(14, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()).
-			WithIPAddress(otgPort6DummyIP.IPv4),
+			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).
+			WithIPAddress(otgPort3DummyIP.IPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(14).AddNextHop(15, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()).
-			WithIPAddress(otgPort7DummyIP.IPv4),
+			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
+			WithIPAddress(otgPort2DummyIP.IPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(15).AddNextHop(16, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1020,28 +889,28 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 				WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
 
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()),
+				WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()),
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(12).AddNextHop(13, 2),
 			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
 
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()),
+				WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()),
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(13).AddNextHop(14, 1),
 			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
 
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()),
+				WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()),
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(14).AddNextHop(15, 1),
 			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
 
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()),
+				WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()),
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(15).AddNextHop(16, 1),
 			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1379,10 +1248,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, ate *ondatra.ATEDevice) gosnappi.C
 	port2 := config.Ports().Add().SetName("port2")
 	port3 := config.Ports().Add().SetName("port3")
 	port4 := config.Ports().Add().SetName("port4")
-	port5 := config.Ports().Add().SetName("port5")
-	port6 := config.Ports().Add().SetName("port6")
-	port7 := config.Ports().Add().SetName("port7")
-	port8 := config.Ports().Add().SetName("port8")
 
 	pmd100GFRPorts := []string{}
 	for _, p := range config.Ports().Items() {
@@ -1430,68 +1295,36 @@ func configureOTG(t *testing.T, otg *otg.OTG, ate *ondatra.ATEDevice) gosnappi.C
 	iDut4Ipv4.SetAddress(atePort4.IPv4).SetGateway(dutPort4.IPv4).SetPrefix(uint32(atePort4.IPv4Len))
 	iDut4Ipv6 := iDut4Eth.Ipv6Addresses().Add().SetName(atePort4.Name + ".IPv6")
 	iDut4Ipv6.SetAddress(atePort4.IPv6).SetGateway(dutPort4.IPv6).SetPrefix(uint32(atePort4.IPv6Len))
+	// Configure Loopback on port4.
+	iDut4LoopV4 := iDut4Dev.Ipv4Loopbacks().Add().SetName("Port4LoopV4").SetEthName(iDut4Eth.Name())
+	iDut4LoopV4.SetAddress(otgIsisPort4LoopV4)
+	iDut4LoopV6 := iDut4Dev.Ipv6Loopbacks().Add().SetName("Port4LoopV6").SetEthName(iDut4Eth.Name())
+	iDut4LoopV6.SetAddress(otgIsisPort4LoopV6)
 
-	iDut5Dev := config.Devices().Add().SetName(atePort5.Name)
-	iDut5Eth := iDut5Dev.Ethernets().Add().SetName(atePort5.Name + ".Eth").SetMac(atePort5.MAC)
-	iDut5Eth.Connection().SetPortName(port5.Name())
-	iDut5Ipv4 := iDut5Eth.Ipv4Addresses().Add().SetName(atePort5.Name + ".IPv4")
-	iDut5Ipv4.SetAddress(atePort5.IPv4).SetGateway(dutPort5.IPv4).SetPrefix(uint32(atePort5.IPv4Len))
-	iDut5Ipv6 := iDut5Eth.Ipv6Addresses().Add().SetName(atePort5.Name + ".IPv6")
-	iDut5Ipv6.SetAddress(atePort5.IPv6).SetGateway(dutPort5.IPv6).SetPrefix(uint32(atePort5.IPv6Len))
-
-	iDut6Dev := config.Devices().Add().SetName(atePort6.Name)
-	iDut6Eth := iDut6Dev.Ethernets().Add().SetName(atePort6.Name + ".Eth").SetMac(atePort6.MAC)
-	iDut6Eth.Connection().SetPortName(port6.Name())
-	iDut6Ipv4 := iDut6Eth.Ipv4Addresses().Add().SetName(atePort6.Name + ".IPv4")
-	iDut6Ipv4.SetAddress(atePort6.IPv4).SetGateway(dutPort6.IPv4).SetPrefix(uint32(atePort6.IPv4Len))
-	iDut6Ipv6 := iDut6Eth.Ipv6Addresses().Add().SetName(atePort6.Name + ".IPv6")
-	iDut6Ipv6.SetAddress(atePort6.IPv6).SetGateway(dutPort6.IPv6).SetPrefix(uint32(atePort6.IPv6Len))
-
-	iDut7Dev := config.Devices().Add().SetName(atePort7.Name)
-	iDut7Eth := iDut7Dev.Ethernets().Add().SetName(atePort7.Name + ".Eth").SetMac(atePort7.MAC)
-	iDut7Eth.Connection().SetPortName(port7.Name())
-	iDut7Ipv4 := iDut7Eth.Ipv4Addresses().Add().SetName(atePort7.Name + ".IPv4")
-	iDut7Ipv4.SetAddress(atePort7.IPv4).SetGateway(dutPort7.IPv4).SetPrefix(uint32(atePort7.IPv4Len))
-	iDut7Ipv6 := iDut7Eth.Ipv6Addresses().Add().SetName(atePort7.Name + ".IPv6")
-	iDut7Ipv6.SetAddress(atePort7.IPv6).SetGateway(dutPort7.IPv6).SetPrefix(uint32(atePort7.IPv6Len))
-
-	iDut8Dev := config.Devices().Add().SetName(atePort8.Name)
-	iDut8Eth := iDut8Dev.Ethernets().Add().SetName(atePort8.Name + ".Eth").SetMac(atePort8.MAC)
-	iDut8Eth.Connection().SetPortName(port8.Name())
-	iDut8Ipv4 := iDut8Eth.Ipv4Addresses().Add().SetName(atePort8.Name + ".IPv4")
-	iDut8Ipv4.SetAddress(atePort8.IPv4).SetGateway(dutPort8.IPv4).SetPrefix(uint32(atePort8.IPv4Len))
-	iDut8Ipv6 := iDut8Eth.Ipv6Addresses().Add().SetName(atePort8.Name + ".IPv6")
-	iDut8Ipv6.SetAddress(atePort8.IPv6).SetGateway(dutPort8.IPv6).SetPrefix(uint32(atePort8.IPv6Len))
-	// Configure Loopback on port8.
-	iDut8LoopV4 := iDut8Dev.Ipv4Loopbacks().Add().SetName("Port8LoopV4").SetEthName(iDut8Eth.Name())
-	iDut8LoopV4.SetAddress(otgIsisPort8LoopV4)
-	iDut8LoopV6 := iDut8Dev.Ipv6Loopbacks().Add().SetName("Port8LoopV6").SetEthName(iDut8Eth.Name())
-	iDut8LoopV6.SetAddress(otgIsisPort8LoopV6)
-
-	// Enable ISIS and BGP Protocols on port 8.
-	isisDut := iDut8Dev.Isis().SetName("ISIS1").SetSystemId(otgSysID1)
-	isisDut.Basic().SetIpv4TeRouterId(atePort8.IPv4).SetHostname(isisDut.Name()).SetLearnedLspFilter(true)
-	isisDut.Interfaces().Add().SetEthName(iDut8Dev.Ethernets().Items()[0].Name()).
+	// Enable ISIS and BGP Protocols on port 4.
+	isisDut := iDut4Dev.Isis().SetName("ISIS1").SetSystemId(otgSysID1)
+	isisDut.Basic().SetIpv4TeRouterId(atePort4.IPv4).SetHostname(isisDut.Name()).SetLearnedLspFilter(true)
+	isisDut.Interfaces().Add().SetEthName(iDut4Dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisInt1").
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-	// Advertise OTG Port8 loopback address via ISIS.
-	isisPort2V4 := iDut8Dev.Isis().V4Routes().Add().SetName("ISISPort8V4").SetLinkMetric(10)
-	isisPort2V4.Addresses().Add().SetAddress(otgIsisPort8LoopV4).SetPrefix(32)
-	isisPort2V6 := iDut8Dev.Isis().V6Routes().Add().SetName("ISISPort8V6").SetLinkMetric(10)
-	isisPort2V6.Addresses().Add().SetAddress(otgIsisPort8LoopV6).SetPrefix(uint32(128))
+	// Advertise OTG Port4 loopback address via ISIS.
+	isisPort4V4 := iDut4Dev.Isis().V4Routes().Add().SetName("ISISPort4V4").SetLinkMetric(10)
+	isisPort4V4.Addresses().Add().SetAddress(otgIsisPort4LoopV4).SetPrefix(32)
+	isisPort4V6 := iDut4Dev.Isis().V6Routes().Add().SetName("ISISPort4V6").SetLinkMetric(10)
+	isisPort4V6.Addresses().Add().SetAddress(otgIsisPort4LoopV6).SetPrefix(uint32(128))
 
-	iDutBgp := iDut8Dev.Bgp().SetRouterId(otgIsisPort8LoopV4)
-	iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(iDut8LoopV4.Name()).Peers().Add().SetName(atePort8.Name + ".BGP4.peer")
+	iDutBgp := iDut4Dev.Bgp().SetRouterId(otgIsisPort4LoopV4)
+	iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(iDut4LoopV4.Name()).Peers().Add().SetName(atePort4.Name + ".BGP4.peer")
 	iDutBgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDutBgp4Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
 	iDutBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	bgp4Peer = iDutBgp4Peer
 
-	bgpNeti1Bgp4PeerRoutes := iDutBgp4Peer.V4Routes().Add().SetName(atePort8.Name + ".BGP4.Route")
-	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(otgIsisPort8LoopV4).
+	bgpNeti1Bgp4PeerRoutes := iDutBgp4Peer.V4Routes().Add().SetName(atePort4.Name + ".BGP4.Route")
+	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(otgIsisPort4LoopV4).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
 		Advanced().SetLocalPreference(100).SetIncludeLocalPreference(true)
@@ -1500,8 +1333,8 @@ func configureOTG(t *testing.T, otg *otg.OTG, ate *ondatra.ATEDevice) gosnappi.C
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4InnerDstNoEncap).SetPrefix(32).
 		SetCount(1).SetStep(1)
 
-	bgpNeti1Bgp6PeerRoutes := iDutBgp4Peer.V6Routes().Add().SetName(atePort8.Name + ".BGP6.Route")
-	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(otgIsisPort8LoopV6).
+	bgpNeti1Bgp6PeerRoutes := iDutBgp4Peer.V6Routes().Add().SetName(atePort4.Name + ".BGP6.Route")
+	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(otgIsisPort4LoopV6).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
 		Advanced().SetLocalPreference(100).SetIncludeLocalPreference(true)
@@ -1524,8 +1357,8 @@ func updateBgpRoutes(t *testing.T, args *testArgs, deleteRoute bool) {
 	if deleteRoute {
 		bgp4Peer.V4Routes().Clear()
 	} else {
-		bgpNeti1Bgp4PeerRoutes := bgp4Peer.V4Routes().Add().SetName(atePort8.Name + ".BGP4.Route")
-		bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(otgIsisPort8LoopV4).
+		bgpNeti1Bgp4PeerRoutes := bgp4Peer.V4Routes().Add().SetName(atePort4.Name + ".BGP4.Route")
+		bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(otgIsisPort4LoopV4).
 			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
 			Advanced().SetLocalPreference(100).SetIncludeLocalPreference(true)
@@ -2034,8 +1867,8 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 			// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 			// v4 header stripped and are forwarded according to the route in the DEFAULT
 			// VRF that matches the inner IP address.
-			portList := []string{"port8"}
-			//dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
+			portList := []string{"port4"}
+			//dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4}
 			t.Run("Create ip-in-ip and ipv6-in-ip flows, send traffic and verify decap functionality",
 				func(t *testing.T) {
 
@@ -2075,7 +1908,7 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 
 			// Test with packets with a destination address that does not match
 			// the decap route, and verify that such packets are not decapped.
-			portList = []string{"port4"}
+			portList = []string{"port2"}
 			t.Run("Send traffic to non decap route and verify the behavior",
 				func(t *testing.T) {
 					flow3 := createFlow(&flowArgs{flowName: flowNegTest,
@@ -2127,8 +1960,8 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 			// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 			// v4 header stripped and are forwarded according to the route in the DEFAULT
 			// VRF that matches the inner IP address.
-			portList := []string{"port8"}
-			//dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
+			portList := []string{"port4"}
+			//dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4}
 			t.Run("Create ip-in-ip and ipv6-in-ip flows, send traffic and verify decap functionality",
 				func(t *testing.T) {
 
@@ -2193,7 +2026,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 	// v4 header stripped and are forwarded according to the route in the DEFAULT
 	// VRF that matches the inner IP address.
-	portList := []string{"port8"}
+	portList := []string{"port4"}
 	t.Run("Verify packets are decap & forward with Default vrf", func(t *testing.T) {
 		flow1 := createFlow(&flowArgs{flowName: "flow1",
 			outHdrSrcIP:   ipv4OuterSrc111,
@@ -2231,7 +2064,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 
 	// Test with packets with a destination address that does not match
 	// the decap route, and verify that such packets are not decapped.
-	portList = []string{"port4"}
+	portList = []string{"port2"}
 	t.Run("Send traffic to non decap route and verify the behavior", func(t *testing.T) {
 		flow4 := createFlow(&flowArgs{flowName: flowNegTest,
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, isInnHdrV4: true,
@@ -2277,16 +2110,13 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 			outDstIP: []string{gribiIPv4EntryVRF1111}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
 		wantWeights := []float64{
-			0.0625, // 6.25  Port2
-			0.1875, // 18.75 Port3
-			0.75,   // 75.0  Port4
-			0,      // 0 Port5
-			0,      // 0 Port6
-			0,      // 0 Port7
-			0,      // 0 Port8
+			0.8125, // 81.25 Port2 (NH#11: 6.25% + NH#13: 75.0%)
+			0.1875, // 18.75 Port3 (NH#12: 18.75%)
+			0,      // 0 Port4
 		}
 		validateTrafficDistribution(t, args.ate, wantWeights)
 
+		portList = []string{"port3"}
 		flow3 := createFlow(&flowArgs{flowName: "flow3",
 			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1},
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
@@ -2300,15 +2130,15 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 			outDstIP: []string{gribiIPv4EntryVRF2221}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
-		// Verify received pkts on DUT port-5.
+		// Verify received pkts on DUT port-3.
 		outTrafficCounters := gnmi.OTG().Port("port1").State()
 		outPkts := gnmi.Get(t, args.ate.OTG(), outTrafficCounters).GetCounters().GetOutFrames()
 
-		inTrafficCounters := gnmi.OTG().Port("port5").State()
+		inTrafficCounters := gnmi.OTG().Port("port3").State()
 		inPkts := gnmi.Get(t, args.ate.OTG(), inTrafficCounters).GetCounters().GetInFrames()
 
 		if (outPkts - inPkts) < tolerancePct {
-			t.Error("Traffic did not egressed through DUT port5")
+			t.Error("Traffic did not egressed through DUT port3")
 		}
 	*/
 }
@@ -2329,50 +2159,52 @@ func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *o
 	// Configure GRIBi baseline AFTs.
 	configGribiBaselineAFT(ctx, t, dut, args)
 
-	portList := []string{"port8"}
+	portList := []string{"port4"}
 
 	flow1 := createFlow(&flowArgs{flowName: "flow1",
 		outHdrSrcIP: ipv4OuterSrc333, outHdrDstIP: ipv4InnerDst,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst2, isInnHdrV4: true})
+	flow1.TxRx().Device().SetRxNames([]string{"atePort4.IPv4"})
 
 	flow2 := createFlow(&flowArgs{flowName: "flow2",
 		outHdrSrcIP: ipv4OuterSrc333, outHdrDstIP: ipv4InnerDst, InnHdrSrcIPv6: atePort1.IPv6,
 		InnHdrDstIPv6: ipv6InnerDst2, isInnHdrV4: false})
+	flow2.TxRx().Device().SetRxNames([]string{"atePort4.IPv4"})
 
 	sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 	verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
 
-	// Verify received pkts on DUT port-8 per the route in the DEFAULT VRF.
-	outTrafficCounters := gnmi.OTG().Port("port1").State()
-	outPkts := gnmi.Get(t, args.ate.OTG(), outTrafficCounters).GetCounters().GetOutFrames()
-
-	inTrafficCounters := gnmi.OTG().Port("port8").State()
-	inPkts := gnmi.Get(t, args.ate.OTG(), inTrafficCounters).GetCounters().GetInFrames()
-
-	if (outPkts - inPkts) < tolerancePct {
-		t.Error("Traffic did not egressed through Default VRF")
+	// Verify received pkts on DUT port-4 per the route in the DEFAULT VRF.
+	expectedPkts := gnmi.Get(t, args.otg, gnmi.OTG().Flow("flow1").Counters().OutPkts().State()) +
+		gnmi.Get(t, args.otg, gnmi.OTG().Flow("flow2").Counters().OutPkts().State())
+	inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port4").State()).GetCounters().GetInFrames()
+	if expectedPkts == 0 {
+		t.Error("No packets were transmitted by the traffic generator")
+	} else if inPkts < expectedPkts*(100-tolerancePct)/100 {
+		t.Errorf("Traffic did not egress through Default VRF on port4: expected at least %d pkts, got %d", expectedPkts*(100-tolerancePct)/100, inPkts)
 	}
 
 	flow3 := createFlow(&flowArgs{flowName: "flow3",
 		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4InnerDst, proto: 17, udp: true,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst2, isInnHdrV4: true})
+	flow3.TxRx().Device().SetRxNames([]string{"atePort4.IPv4"})
 
 	flow4 := createFlow(&flowArgs{flowName: "flow4",
 		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4InnerDst, proto: 17, udp: true,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst2, isInnHdrV4: true})
+	flow4.TxRx().Device().SetRxNames([]string{"atePort4.IPv4"})
 
 	sendTraffic(t, args, portList, []gosnappi.Flow{flow3, flow4})
 	verifyTraffic(t, args, []string{"flow3", "flow4"}, !wantLoss)
 
-	// Verify received pkts on DUT port-8 per the route in the DEFAULT VRF.
-	outTrafficCounters = gnmi.OTG().Port("port1").State()
-	outPkts = gnmi.Get(t, args.ate.OTG(), outTrafficCounters).GetCounters().GetOutFrames()
-
-	inTrafficCounters = gnmi.OTG().Port("port8").State()
-	inPkts = gnmi.Get(t, args.ate.OTG(), inTrafficCounters).GetCounters().GetInFrames()
-
-	if (outPkts - inPkts) < tolerancePct {
-		t.Error("Traffic did not egressed through Default VRF")
+	// Verify received pkts on DUT port-4 per the route in the DEFAULT VRF.
+	expectedPkts = gnmi.Get(t, args.otg, gnmi.OTG().Flow("flow3").Counters().OutPkts().State()) +
+		gnmi.Get(t, args.otg, gnmi.OTG().Flow("flow4").Counters().OutPkts().State())
+	inPkts = gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port4").State()).GetCounters().GetInFrames()
+	if expectedPkts == 0 {
+		t.Error("No packets were transmitted by the traffic generator")
+	} else if inPkts < expectedPkts*(100-tolerancePct)/100 {
+		t.Errorf("Traffic did not egress through Default VRF on port4: expected at least %d pkts, got %d", expectedPkts*(100-tolerancePct)/100, inPkts)
 	}
 
 	// Remove the matching route (e.g. stop the BGP routes) in
@@ -2421,13 +2253,9 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 			outDstIP: []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
 		wantWeights := []float64{
-			0.0156, // 1.56 Port2
-			0.0468, // 4.68 Port3
-			0.1875, // 18.75 Port4
-			0,      // 0 Port5
-			0.75,   // 75.0 Port6
-			0,      // 0 Port7
-			0,      // 0 Port8
+			0.2031, // 20.31 Port2 (NH#11: 1.56% + NH#13: 18.75%)
+			0.7969, // 79.69 Port3 (NH#12: 4.69% + NH#15: 75.0%)
+			0,      // 0 Port4
 		}
 		validateTrafficDistribution(t, args.ate, wantWeights)
 
@@ -2446,13 +2274,9 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 			outDstIP: []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
 		wantWeights = []float64{
-			0.0468, // 4.68 Port2
-			0.1406, // 14.06 Port3
-			0.5625, // 56.25 Port4
-			0,      // 0 Port5
-			0.25,   // 25 Port6
-			0,      // 0 Port7
-			0,      // 0 Port8
+			0.6094, // 60.94 Port2 (NH#11: 4.69% + NH#13: 56.25%)
+			0.3906, // 39.06 Port3 (NH#12: 14.06% + NH#15: 25.0%)
+			0,      // 0 Port4
 		}
 		validateTrafficDistribution(t, args.ate, wantWeights)
 	*/
@@ -2487,7 +2311,7 @@ func TestGribiDecap(t *testing.T) {
 
 	t.Log("Install BGP route resolved by ISIS")
 	t.Log("Configure ISIS on DUT")
-	configureISIS(t, dut, []string{dut.Port(t, "port8").Name(), loopbackIntfName}, dutAreaAddress, dutSysID)
+	configureISIS(t, dut, []string{dut.Port(t, "port4").Name(), loopbackIntfName}, dutAreaAddress, dutSysID)
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
@@ -2501,7 +2325,7 @@ func TestGribiDecap(t *testing.T) {
 		otgConfig = configureOTG(t, otg, ate)
 	})
 
-	verifyISISTelemetry(t, dut, dut.Port(t, "port8").Name())
+	verifyISISTelemetry(t, dut, dut.Port(t, "port4").Name())
 	verifyBgpTelemetry(t, dut)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
