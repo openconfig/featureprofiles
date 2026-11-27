@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "0dafb32a-13b6-4c88-be81-044e63d9d827"
+plan_id: "TRANSCEIVER-3.3"
+description: "800ZR Optics firmware upgrade and firmware-version decoding"
+testbed: TESTBED_DUT_800ZR
