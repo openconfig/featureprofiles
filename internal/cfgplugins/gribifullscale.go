@@ -127,6 +127,10 @@ const (
 
 	// Hardware resource utilization monitoring parameters.
 	HWUtilizationSettleDuration = 10 * time.Second
+	// hwReportMinPctSwing is the minimum percentage-point swing across stages
+	// required for a changing HW resource to appear in the progression report.
+	// Filters out low-variation background jitter (e.g., LPTS punt slices).
+	hwReportMinPctSwing = 1.0
 
 	// gRIBI batch programming parameters.
 	DefaultGRIBIBatchSize = 2_000
@@ -1652,9 +1656,6 @@ func ProgramGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, defaultVRF string,
 		if t.Failed() {
 			RecordHWUtilization(t, dut, tracker, monitorHWUtilization, "Failure-GRIBIRoutes", HWUtilizationSettleDuration)
 		}
-		if monitorHWUtilization {
-			GenerateHWUtilizationReport(t, tracker)
-		}
 	}()
 	ctx := context.Background()
 
@@ -2861,6 +2862,15 @@ type HWResourceMetric struct {
 	MaxLimit uint64
 }
 
+// hwResourceSummary holds aggregated progression statistics for a single HW resource
+// across recorded snapshots for sorting and formatting the utilization report.
+type hwResourceSummary struct {
+	key         HWResourceKey
+	maxLimit    uint64
+	finalPct    float64
+	absNetDelta uint64
+}
+
 // HWStageSnapshot captures the complete state of switch HW resources at a specific test stage.
 type HWStageSnapshot struct {
 	Stage     string
@@ -3005,12 +3015,14 @@ func GenerateHWUtilizationReport(t *testing.T, tracker *HWUtilizationTracker) {
 		t.Log("GenerateHWUtilizationReport: no hardware utilization snapshots recorded")
 		return
 	}
-	snapshots := tracker.snapshots
-	if len(snapshots) < 2 {
-		t.Logf("GenerateHWUtilizationReport: only %d snapshot recorded, progression requires at least 2 stages", len(snapshots))
+	if len(tracker.snapshots) < 2 {
+		t.Logf("GenerateHWUtilizationReport: only %d snapshot recorded, progression requires at least 2 stages", len(tracker.snapshots))
 		return
 	}
+	t.Log(formatHWUtilizationReport(tracker.snapshots))
+}
 
+func formatHWUtilizationReport(snapshots []HWStageSnapshot) string {
 	// 1. Collect all unique HWResourceKeys across all snapshots.
 	allKeysMap := make(map[HWResourceKey]bool)
 	for _, snap := range snapshots {
@@ -3019,16 +3031,19 @@ func GenerateHWUtilizationReport(t *testing.T, tracker *HWUtilizationTracker) {
 		}
 	}
 
-	// 2. Identify keys that changed (max(Used) > min(Used)).
-	var changingKeys []HWResourceKey
+	// 2. Identify changing keys that meet the minimum percentage-point swing threshold.
+	finalSnap := snapshots[len(snapshots)-1]
+	var summaries []hwResourceSummary
+	var omittedCount int
 	for k := range allKeysMap {
-		var minUsed, maxUsed uint64
+		var minUsed, maxUsed, firstUsed, lastUsed, maxLimit uint64
 		hasData := false
 		for _, snap := range snapshots {
 			if m, ok := snap.Resources[k]; ok {
 				if !hasData {
 					minUsed = m.Used
 					maxUsed = m.Used
+					firstUsed = m.Used
 					hasData = true
 				} else {
 					if m.Used < minUsed {
@@ -3038,24 +3053,62 @@ func GenerateHWUtilizationReport(t *testing.T, tracker *HWUtilizationTracker) {
 						maxUsed = m.Used
 					}
 				}
+				lastUsed = m.Used
+				if maxLimit == 0 && m.MaxLimit > 0 {
+					maxLimit = m.MaxLimit
+				}
 			}
 		}
-		if hasData && maxUsed > minUsed {
-			changingKeys = append(changingKeys, k)
+		if !hasData || maxUsed == minUsed {
+			continue
 		}
+		if maxLimit > 0 {
+			pctSwing := (float64(maxUsed-minUsed) / float64(maxLimit)) * 100.0
+			if pctSwing < hwReportMinPctSwing {
+				omittedCount++
+				continue
+			}
+		}
+
+		finalPct := -1.0
+		if m, ok := finalSnap.Resources[k]; ok && maxLimit > 0 {
+			finalPct = (float64(m.Used) / float64(maxLimit)) * 100.0
+		}
+		var absNetDelta uint64
+		if lastUsed >= firstUsed {
+			absNetDelta = lastUsed - firstUsed
+		} else {
+			absNetDelta = firstUsed - lastUsed
+		}
+
+		summaries = append(summaries, hwResourceSummary{
+			key:         k,
+			maxLimit:    maxLimit,
+			finalPct:    finalPct,
+			absNetDelta: absNetDelta,
+		})
 	}
 
-	if len(changingKeys) == 0 {
-		t.Log("GenerateHWUtilizationReport: no hardware resource utilization metrics changed across stages")
-		return
+	if len(summaries) == 0 {
+		if omittedCount > 0 {
+			return fmt.Sprintf("GenerateHWUtilizationReport: no hardware resource utilization metrics changed by >= %.1f%% (%d low-variation rows omitted)", hwReportMinPctSwing, omittedCount)
+		}
+		return "GenerateHWUtilizationReport: no hardware resource utilization metrics changed across stages"
 	}
 
-	// 3. Sort changing keys deterministically by Component, then Name.
-	sort.Slice(changingKeys, func(i, j int) bool {
-		if changingKeys[i].Component != changingKeys[j].Component {
-			return changingKeys[i].Component < changingKeys[j].Component
+	// 3. Sort globally by final stage Used % descending, then |net delta| descending,
+	// then Component and Name ascending for deterministic output.
+	sort.Slice(summaries, func(i, j int) bool {
+		if summaries[i].finalPct != summaries[j].finalPct {
+			return summaries[i].finalPct > summaries[j].finalPct
 		}
-		return changingKeys[i].Name < changingKeys[j].Name
+		if summaries[i].absNetDelta != summaries[j].absNetDelta {
+			return summaries[i].absNetDelta > summaries[j].absNetDelta
+		}
+		if summaries[i].key.Component != summaries[j].key.Component {
+			return summaries[i].key.Component < summaries[j].key.Component
+		}
+		return summaries[i].key.Name < summaries[j].key.Name
 	})
 
 	// 4. Build headers: COMPONENT, RESOURCE, MAX LIMIT, followed by each stage name.
@@ -3064,16 +3117,11 @@ func GenerateHWUtilizationReport(t *testing.T, tracker *HWUtilizationTracker) {
 		headers = append(headers, snap.Stage)
 	}
 
-	// 5. Build 2D rows (one row per changing resource).
-	rows := make([][]string, 0, len(changingKeys))
-	for _, k := range changingKeys {
-		var maxLimit uint64
-		for _, snap := range snapshots {
-			if m, ok := snap.Resources[k]; ok {
-				maxLimit = m.MaxLimit
-				break
-			}
-		}
+	// 5. Build 2D rows (one row per kept resource).
+	rows := make([][]string, 0, len(summaries))
+	for _, s := range summaries {
+		k := s.key
+		maxLimit := s.maxLimit
 
 		row := []string{k.Component, k.Name, fmt.Sprintf("%d", maxLimit)}
 		var prevUsed uint64
@@ -3145,8 +3193,11 @@ func GenerateHWUtilizationReport(t *testing.T, tracker *HWUtilizationTracker) {
 		}
 		sb.WriteString("\n")
 	}
+	if omittedCount > 0 {
+		sb.WriteString(fmt.Sprintf("Omitted %d low-variation rows (used %% swing < %.1f%%).\n", omittedCount, hwReportMinPctSwing))
+	}
 
-	t.Log(sb.String())
+	return sb.String()
 }
 
 // RunTrafficTestCases iterates through the configured traffic test cases (fixed-size, IMIX, repair)
