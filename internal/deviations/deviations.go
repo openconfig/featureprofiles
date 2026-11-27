@@ -2585,6 +2585,12 @@ func BgpGrHelperHoldTimerExpiryRequiresStalePolicy(dut *ondatra.DUTDevice) bool 
 	return lookupDUTDeviations(dut).GetBgpGrHelperHoldTimerExpiryRequiresStalePolicy()
 }
 
+// DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
+// Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
+func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
+}
+
 // SoftLoopBackOcUnsupported returns true if the device does not support OC configuration for soft loopback interfaces.
 func SoftLoopBackOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSoftLoopbackOcUnsupported()
