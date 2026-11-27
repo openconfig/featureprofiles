@@ -5,3 +5,28 @@ uuid: "4f4d9935-372b-4e0a-aa87-ce91f4dc7a08"
 plan_id: "TE-1.4"
 description: "gRIBI Recursive Route Resolution under Routing Protocol Churn"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    default_bgp_instance_name: "BGP"
+    missing_isis_interface_afi_safi_enable: true
+    isis_instance_enabled_required: true
+    interface_enabled: true
+    isis_lsp_tlvs_oc_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    default_bgp_instance_name: "default"
+    isis_lsp_tlvs_oc_unsupported: true
+    gribi_opaque_recursive_nhg: true
+  }
+}
