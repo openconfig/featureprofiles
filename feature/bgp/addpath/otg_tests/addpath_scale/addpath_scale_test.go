@@ -314,6 +314,7 @@ func TestAddPathScaleWithRoutePolicy(t *testing.T) {
 	})
 
 	createTrafficFlow(t, top, ate, true)
+	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -407,6 +408,9 @@ func createCommunitySet(t *testing.T, dut *ondatra.DUTDevice, cs communitySet, r
 			}
 		}
 		communitySet.SetCommunityMember(cm)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(cs.matchSetOptions)
+		}
 	}
 	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && cs.name == communitySetNameRegex {
@@ -435,9 +439,8 @@ func validateAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 }
 
 func validateAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
-
 	createTrafficFlow(t, top, ate, false)
+	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -1013,15 +1016,28 @@ func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice
 	t.Helper()
 
 	prefixesV4 := createPrefixesV4(t)
-	var dstIps []string
+	// resource limitations. Sample across /22, /24, and /30
+	pfxsByLen := make(map[int][]string)
 	for _, prefix := range prefixesV4 {
-		dstIps = append(dstIps, prefix.Addr().String())
+		pfxLen := prefix.Bits()
+		pfxsByLen[pfxLen] = append(pfxsByLen[pfxLen], prefix.Addr().String())
+	}
+	const maxDstIPs = 100
+	limitPerLen := maxDstIPs / len(pfxsByLen)
+	var dstIps []string
+	for _, ips := range pfxsByLen {
+		if len(ips) > limitPerLen {
+			dstIps = append(dstIps, ips[:limitPerLen]...)
+		} else {
+			dstIps = append(dstIps, ips...)
+		}
 	}
 
 	top.Flows().Clear()
 	numFlows := atePort2.numSubIntf
 	if numFlows > 50 {
-		// b/485393718 Limit the number of flows to 10 to avoid OTG port limitations. This section of code can be removed if we have more advanced card from Ixia
+		// b/485393718 Limit the number of flows to 10 to avoid OTG port limitations.
+		// This section of code can be removed if we have more advanced card from Ixia
 		numFlows = 10
 	}
 	for i := uint32(1); i <= numFlows; i++ {
