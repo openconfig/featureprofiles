@@ -21,7 +21,7 @@ graph LR;
 
 ### Test environment setup
 
-1. Configure tenant VRF `ce1` (router-id `192.0.2.1`) and establish dual-stack eBGP sessions on DUT Port 1 (`192.0.2.1/30`, `2001:db8:1::1/64`) with ATE Port 1 (`192.0.2.2` and `2001:db8:1::2`, AS 65001). Configure `local-as 64510` (no-prepend, replace-as) and `send-community BOTH` on both neighbors, bind import policy `TAG_CE_PO1_100_V4` / `TAG_CE_PO1_100_V6` and export policy `TO_CE_PO1_100` per address family.
+1. Configure tenant VRF `ce1` (router-id `192.0.2.1`) and establish dual-stack eBGP sessions on DUT Port 1 (`192.0.2.1/30`, `2001:db8:1::1/64`) with ATE Port 1 (`192.0.2.2` and `2001:db8:1::2`, AS 65001). Configure `local-as 64510` (no-prepend, replace-as) and `send-community-type [STANDARD, EXTENDED]` on both neighbors, bind import policy `TAG_CE_PO1_100_V4` / `TAG_CE_PO1_100_V6` and export policy `TO_CE_PO1_100` per address family.
 2. Configure per-neighbor max-prefix limit on DUT for both ATE CE sessions in VRF `ce1`: `max-prefixes 5000` on `IPV4_UNICAST` and `IPV6_UNICAST`.
 3. Configure "skip RIB install" for customer routes in VRF `ce1` (routes stay in the BGP RIB, are advertised with `advertise-inactive-routes`, but are not installed into the VRF FIB — see RT-1.107). Consequently `prefixes/installed` is expected to be `0`.
 4. Establish iBGP session on DUT Port 2 with ATE Port 2 (core RR) in `DEFAULT` as a **dynamic** peer (listen range, peer-group `RM_DYNAMIC_PEERS`) with `L3VPN_IPV4_UNICAST` / `L3VPN_IPV6_UNICAST` and export policy `VPNV4_NEXTHOP_OUT` / `VPNV6_NEXTHOP_OUT` (see RT-1.103, RT-1.108).
@@ -64,9 +64,19 @@ graph LR;
 * **Step 1**: Subscribe (`ON_CHANGE`) to `/network-instances/network-instance[name=ce1]/protocols/protocol[identifier=openconfig-policy-types:BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=192.0.2.2]/afi-safis/afi-safi[afi-safi-name=openconfig-bgp-types:IPV4_UNICAST]/apply-policy/state/import-policy` and `.../export-policy`; verify they report `TAG_CE_PO1_100_V4` and `TO_CE_PO1_100` (IPv6 neighbor: `TAG_CE_PO1_100_V6` / `TO_CE_PO1_100`).
 * **Step 2**: Verify `/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:BGP][name=BGP]/bgp/peer-groups/peer-group[peer-group-name=RM_DYNAMIC_PEERS]/afi-safis/afi-safi[afi-safi-name=openconfig-bgp-types:L3VPN_IPV4_UNICAST]/apply-policy/state/export-policy` reports `VPNV4_NEXTHOP_OUT` (and `VPNV6_NEXTHOP_OUT` for `L3VPN_IPV6_UNICAST`).
 * **Step 3**: Replace the export policy bound to the CE neighbor and verify an `ON_CHANGE` update for `apply-policy/state/export-policy` is streamed in less than 10 seconds; restore the original binding.
-* **Step 4**: Verify `.../neighbor[neighbor-address=192.0.2.2]/state/local-as` = `64510`, `.../state/peer-as` = `65001`, `.../state/send-community` = `BOTH`, and `/network-instances/network-instance[name=ce1]/protocols/protocol[identifier=openconfig-policy-types:BGP][name=BGP]/bgp/global/state/router-id` = `192.0.2.1` (VRF-scoped router-id).
+* **Step 4**: Verify `.../neighbor[neighbor-address=192.0.2.2]/state/local-as` = `64510`, `.../state/peer-as` = `65001`, `.../state/send-community-type` = `[STANDARD, EXTENDED]`, and `/network-instances/network-instance[name=ce1]/protocols/protocol[identifier=openconfig-policy-types:BGP][name=BGP]/bgp/global/state/router-id` = `192.0.2.1` (VRF-scoped router-id).
 * **Step 5**: Verify the core RR peer in `DEFAULT` reports `.../state/dynamically-configured` = `true` and `.../state/peer-group` = `RM_DYNAMIC_PEERS`, while the CE neighbors report `dynamically-configured` = `false`.
 * **Step 6**: Verify `.../neighbor[neighbor-address=192.0.2.2]/afi-safis/afi-safi[afi-safi-name=openconfig-bgp-types:IPV4_UNICAST]/ipv4-unicast/prefix-limit/state/max-prefixes` = `5000` (and the IPv6 equivalent).
+
+### Cleanup
+
+*   Close the gNMI `Subscribe` sessions.
+*   Remove the prefix limits, policy bindings, `local-as` / community settings
+    and the eBGP neighbors from `ce1`, the dynamic peer-group / listen range and
+    iBGP peering from `DEFAULT`, the "skip RIB install" setting and the tenant
+    VRF `ce1`.
+*   Stop all ATE BGP emulations and route advertisements; verify the DUT returns
+    to its baseline operational state (no residual sessions in telemetry).
 
 ## Canonical OC
 
@@ -95,7 +105,7 @@ graph LR;
                         "neighbor-address": "192.0.2.2",
                         "peer-as": 65001,
                         "local-as": 64510,
-                        "send-community": "BOTH"
+                        "send-community-type": ["STANDARD", "EXTENDED"]
                       },
                       "afi-safis": {
                         "afi-safi": [
@@ -128,7 +138,7 @@ graph LR;
                         "neighbor-address": "2001:db8:1::2",
                         "peer-as": 65001,
                         "local-as": 64510,
-                        "send-community": "BOTH"
+                        "send-community-type": ["STANDARD", "EXTENDED"]
                       },
                       "afi-safis": {
                         "afi-safi": [
@@ -193,7 +203,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/export-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community-type:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/dynamically-configured:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
   /network-instances/network-instance/protocols/protocol/bgp/global/state/router-id:
