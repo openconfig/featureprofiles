@@ -131,6 +131,7 @@ const (
 	// Chassis reboot variables
 	oneSecondInNanoSecond = 1e9
 	rebootDelay           = 120
+	rebootDelayMargin     = 10 * time.Second
 	// Maximum reboot time is 900 seconds (15 minutes).
 	maxRebootTime = 900
 	// Maximum wait time for all components to be in responsive state
@@ -1036,12 +1037,16 @@ func ChassisReboot(t *testing.T) {
 			}
 
 			if tc.rebootRequest.GetDelay() > 1 {
-				t.Logf("Validating DUT remains reachable for at least %d seconds", rebootDelay)
+				rebootDelayDuration := time.Duration(rebootDelay) * time.Second
+				t.Logf("Validating DUT remains reachable for at least %v", rebootDelayDuration)
 				for {
 					time.Sleep(10 * time.Second)
-					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
-					if time.Since(start).Seconds() > rebootDelay {
-						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
+					elapsed := time.Since(start)
+					t.Logf("Time elapsed %v since reboot was requested.", elapsed)
+					// Exit with a safety margin before rebootDelay to avoid issuing an
+					// unbounded gnmi.Get right as the chassis halts.
+					if elapsed+rebootDelayMargin > rebootDelayDuration {
+						t.Logf("Time elapsed %v approaching %v reboot delay; exiting reachability loop", elapsed, rebootDelayDuration)
 						break
 					}
 					latestTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
@@ -1070,8 +1075,8 @@ func ChassisReboot(t *testing.T) {
 					break
 				}
 
-				if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
-					t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+				if elapsed, maxWait := time.Since(startReboot), time.Duration(maxRebootTime)*time.Second; elapsed > maxWait {
+					t.Fatalf("Check boot time: got %v, want < %v", elapsed, maxWait)
 				}
 			}
 			t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())

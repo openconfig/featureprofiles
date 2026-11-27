@@ -151,6 +151,7 @@ const (
 	// Chassis reboot constants.
 	OneSecondInNanoSecond = 1e9
 	RebootDelay           = 30
+	rebootDelayMargin     = 10 * time.Second
 	MaxRebootTime         = 900
 	MaxCompWaitTime       = 900
 
@@ -2569,12 +2570,16 @@ func RebootChassis(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
 
-	t.Logf("Validating DUT remains reachable for at least %d seconds", RebootDelay)
+	rebootDelayDuration := time.Duration(RebootDelay) * time.Second
+	t.Logf("Validating DUT remains reachable for at least %v", rebootDelayDuration)
 	for {
 		time.Sleep(10 * time.Second)
-		t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
-		if time.Since(start).Seconds() > RebootDelay {
-			t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), RebootDelay)
+		elapsed := time.Since(start)
+		t.Logf("Time elapsed %v since reboot was requested.", elapsed)
+		// Exit with a safety margin before RebootDelay to avoid issuing an
+		// unbounded gnmi.Lookup right as the chassis halts.
+		if elapsed+rebootDelayMargin > rebootDelayDuration {
+			t.Logf("Time elapsed %v approaching %v reboot delay; exiting reachability loop", elapsed, rebootDelayDuration)
 			break
 		}
 		timeVal := gnmi.Lookup(t, dut, gnmi.OC().System().CurrentDatetime().State())
