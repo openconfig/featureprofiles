@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/kneutil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/client"
@@ -47,13 +48,22 @@ const (
 	routeCount       = 1
 	vrf1             = "TE_VRF_111"
 	vrf2             = "vrfB"
-	fps              = 1000000 // traffic frames per second
+	fps              = 1000000 // traffic frames per second (HW); KNE uses 10000 via trafficFPS
 	switchovertime   = 250.0   // switchovertime during interface shut in milliseconds
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	decapFlowSrc     = "198.51.100.111"
 	dscpEncapA1      = 10
 	lossTolerance    = 1.0
+	kneFPS           = 10000
 )
+
+func trafficFPS(t *testing.T) uint64 {
+	t.Helper()
+	if kneutil.IsKNEBinding(ondatra.DUT(t, "dut")) {
+		return kneFPS
+	}
+	return fps
+}
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
@@ -390,7 +400,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4"})
-	flow.Rate().SetPps(fps)
+	flow.Rate().SetPps(trafficFPS(t))
 	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().Increment().SetStart(decapFlowSrc)
@@ -447,7 +457,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	diff := pktDiff(sentPkts, receivedPkts)
 	if len(shutPorts) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
-		fpm := (diff / (fps / 1000))
+		fpm := (diff / (trafficFPS(t) / 1000))
 		if fpm > switchovertime {
 			t.Errorf("Traffic loss %v msecs more than expected %v msecs", fpm, switchovertime)
 		}
