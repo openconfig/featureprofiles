@@ -5,3 +5,32 @@ uuid: "16166927-5ff3-4271-9f5d-29f70b64973a"
 plan_id: "RT-5.18"
 description: "Aggregate Interface (LAG) Drain via Admin Down"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_config_unsupported: true
+    use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address: true
+    bgp_afi_safi_in_default_ni_before_other_ni: true
+    bgp_non_default_vrf_installed_prefixes_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    aggregate_atomic_update: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    isis_require_same_l1_metric_with_l2_metric: true
+    isis_mpls_unsupported: true
+    global_max_ecmp_paths_unsupported: true
+    missing_value_for_defaults: true
+    interface_config_vrf_before_address: true
+  }
+}
