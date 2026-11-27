@@ -564,7 +564,7 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 		}
 
 		// Filter out link-local and multicast UDP-IPv6 control packets (e.g., DHCPv6/mDNS).
-		// Note: UDP destination port is not filtered here because some platforms (e.g., Arista 7280 J2/J2C+)
+		// Note: UDP destination port is not filtered here because some platforms
 		// emit DstPort 0 in the outer MPLS-in-UDP header.
 		v6Packet := ipv6Layer.(*layers.IPv6)
 		if v6Packet.DstIP.IsLinkLocalUnicast() || v6Packet.DstIP.IsMulticast() || v6Packet.SrcIP.IsLinkLocalUnicast() {
