@@ -4,7 +4,7 @@
 uuid: "bc288f94-cb04-4bb0-b1d7-621cfaa7e9f4"
 plan_id: "gNMI-1.6"
 description: "System gRPC Servers running in more than one network-instance"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: ARISTA
