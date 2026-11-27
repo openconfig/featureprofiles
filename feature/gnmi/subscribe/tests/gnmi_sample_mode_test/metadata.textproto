@@ -4,7 +4,7 @@
 uuid: "abcc6890-c3e1-4b0e-984e-749c85b54e5a"
 plan_id: "gNMI-1.27"
 description: "gNMI Sample Mode Test"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: ARISTA
