@@ -193,12 +193,16 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 // TestIPv6Entry tests IPv6Entry forwarding with prefix length > 64.
 func TestIPv6Entry(t *testing.T) {
 	ctx := context.Background()
-	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
-	configureATE(t, ate)
+	top := configureATE(t, ate)
 
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+
+	otg := ate.OTG()
+	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, top, "IPv6")
 
 	gribic := dut.RawAPIs().GRIBI(t)
 
@@ -567,6 +571,7 @@ func TestIPv6Entry(t *testing.T) {
 		f2Bad := createFlowWithPrefix(t, "LPM_Coarser_Drop_Port3", ate, ateTop, "2001:db8:200:0:8000::1", 256, &atePort3)
 		otg.PushConfig(t, ateTop)
 		otg.StartProtocols(t)
+		otgutils.WaitForARP(t, otg, ateTop, "IPv6")
 
 		validateTrafficFlows(t, ate, []string{f1Good, f2Good}, []string{f1Bad, f2Bad})
 	})
@@ -630,6 +635,7 @@ func TestIPv6Entry(t *testing.T) {
 				flowName := createFlowWithPrefix(t, "Flow_"+sp.name, ate, ateTop, sp.flowIP, 1, &atePort2)
 				otg.PushConfig(t, ateTop)
 				otg.StartProtocols(t)
+				otgutils.WaitForARP(t, otg, ateTop, "IPv6")
 
 				validateTrafficFlows(t, ate, []string{flowName}, nil)
 			})
@@ -677,9 +683,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	atePort2.AddToOTG(top, p2, &dutPort2)
 	atePort3.AddToOTG(top, p3, &dutPort3)
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-
 	return top
 }
 
@@ -716,6 +719,7 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 	if len(good) == 0 && len(bad) == 0 {
 		otg.PushConfig(t, ateTop)
 		otg.StartProtocols(t)
+		otgutils.WaitForARP(t, otg, ateTop, "IPv6")
 		return newGoodFlows, newBadFlows
 	}
 	ateTop.Flows().Clear().Items()
@@ -749,6 +753,7 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 	}
 	otg.PushConfig(t, ateTop)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, ateTop, "IPv6")
 	return newGoodFlows, newBadFlows
 }
 
