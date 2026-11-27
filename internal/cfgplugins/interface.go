@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -2057,4 +2058,214 @@ func VerifyInterfaceIPv6Address(t *testing.T, dut *ondatra.DUTDevice, portName s
 	if got, want := gnmi.Get(t, dut, v6Path.Enabled().State()), true; got != want {
 		t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", portName, got, want)
 	}
+}
+
+// SingletonInterfaceParams defines a routed singleton Ethernet interface with
+// dual-stack IPv4 and IPv6 addresses on subinterface 0.
+type SingletonInterfaceParams struct {
+	// PortName is the Ondatra port ID, for example "port1".
+	PortName    string
+	Description string
+	// MTU is /interfaces/interface/config/mtu. It is not set when 0 or with the
+	// omit_l2_mtu deviation.
+	MTU     uint16
+	IPv4    string
+	IPv4Len uint8
+	IPv6    string
+	IPv6Len uint8
+}
+
+// SingletonInterfacesConfig holds the interfaces configured by
+// NewSingletonInterfaces.
+type SingletonInterfacesConfig struct {
+	Interfaces []SingletonInterfaceParams
+}
+
+// NewSingletonInterfaces appends to sb a replace of the configuration of each
+// interface in cfg with an enabled ethernetCsmacd interface that has dual-stack
+// IPv4 and IPv6 addresses on subinterface 0. Subinterface 0 is attached to the
+// default network instance where the explicit_interface_in_default_vrf
+// deviation requires it. The calling test is responsible for sb.Set(t, dut).
+func NewSingletonInterfaces(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg SingletonInterfacesConfig) *gnmi.SetBatch {
+	t.Helper()
+	var names []string
+	for _, p := range cfg.Interfaces {
+		port := dut.Port(t, p.PortName)
+		intf := &oc.Interface{
+			Name:    ygot.String(port.Name()),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(true),
+		}
+		if p.Description != "" {
+			intf.Description = ygot.String(p.Description)
+		}
+		if p.MTU > 0 && !deviations.OmitL2MTU(dut) {
+			intf.Mtu = ygot.Uint16(p.MTU)
+		}
+		if deviations.ExplicitPortSpeed(dut) {
+			intf.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
+		}
+		addDualStackSubinterface(dut, intf, p.IPv4, p.IPv4Len, p.IPv6, p.IPv6Len)
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(port.Name()).Config(), intf)
+		names = append(names, port.Name())
+	}
+	if len(names) > 0 {
+		AssignInterfacesToDefaultNetworkInstance(t, dut, sb, DefaultNetworkInstanceInterfacesConfig{Interfaces: names})
+	}
+	return sb
+}
+
+// StaticAggregateMemberParams defines a physical member port of a static
+// aggregate interface.
+type StaticAggregateMemberParams struct {
+	// PortName is the Ondatra port ID, for example "port1".
+	PortName string
+	// ID is /interfaces/interface/config/id. It is not set when 0.
+	ID          uint32
+	Description string
+}
+
+// StaticAggregateParams defines a static (non-LACP) aggregate interface with
+// dual-stack IPv4 and IPv6 addresses on subinterface 0, and its member ports.
+type StaticAggregateParams struct {
+	// Name is the aggregate interface name, for example one returned by
+	// NextAggregateInterfaces.
+	Name        string
+	Description string
+	// MTU is /interfaces/interface/config/mtu. It is not set when 0 or with the
+	// omit_l2_mtu deviation.
+	MTU     uint16
+	IPv4    string
+	IPv4Len uint8
+	IPv6    string
+	IPv6Len uint8
+	Members []StaticAggregateMemberParams
+}
+
+// StaticAggregatesConfig holds the aggregate interfaces configured by
+// NewStaticAggregates.
+type StaticAggregatesConfig struct {
+	Aggregates []StaticAggregateParams
+}
+
+// NewStaticAggregates appends to sb the operations that configure each
+// aggregate in cfg as an enabled STATIC ieee8023adLag interface with dual-stack
+// IPv4 and IPv6 addresses on subinterface 0, and bind its member ports through
+// /interfaces/interface/ethernet/config/aggregate-id. Subinterface 0 and its
+// default network instance attachment are first removed from the member ports,
+// and subinterface 0 of each aggregate is attached to the default network
+// instance where the explicit_interface_in_default_vrf deviation requires it.
+// The calling test is responsible for sb.Set(t, dut), which applies the
+// aggregates and their members in a single SetRequest.
+func NewStaticAggregates(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg StaticAggregatesConfig) *gnmi.SetBatch {
+	t.Helper()
+	var memberNames []string
+	for _, a := range cfg.Aggregates {
+		for _, m := range a.Members {
+			memberNames = append(memberNames, dut.Port(t, m.PortName).Name())
+		}
+	}
+	if len(memberNames) > 0 {
+		AssignInterfacesToDefaultNetworkInstance(t, dut, sb, DefaultNetworkInstanceInterfacesConfig{Interfaces: memberNames, Delete: true})
+		for _, name := range memberNames {
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(name).Subinterface(0).Config())
+			gnmi.BatchDelete(sb, gnmi.OC().Interface(name).Ethernet().AggregateId().Config())
+		}
+	}
+
+	var aggNames []string
+	for _, a := range cfg.Aggregates {
+		gnmi.BatchDelete(sb, gnmi.OC().Interface(a.Name).Aggregation().MinLinks().Config())
+		agg := &oc.Interface{
+			Name:    ygot.String(a.Name),
+			Type:    oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+			Enabled: ygot.Bool(true),
+		}
+		if a.Description != "" {
+			agg.Description = ygot.String(a.Description)
+		}
+		if a.MTU > 0 && !deviations.OmitL2MTU(dut) {
+			agg.Mtu = ygot.Uint16(a.MTU)
+		}
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+		addDualStackSubinterface(dut, agg, a.IPv4, a.IPv4Len, a.IPv6, a.IPv6Len)
+		gnmi.BatchReplace(sb, gnmi.OC().Interface(a.Name).Config(), agg)
+		aggNames = append(aggNames, a.Name)
+
+		for _, m := range a.Members {
+			port := dut.Port(t, m.PortName)
+			gnmi.BatchReplace(sb, gnmi.OC().Interface(port.Name()).Config(), staticAggregateMember(t, dut, port, a.Name, m))
+		}
+	}
+	if len(aggNames) > 0 {
+		AssignInterfacesToDefaultNetworkInstance(t, dut, sb, DefaultNetworkInstanceInterfacesConfig{Interfaces: aggNames})
+	}
+	return sb
+}
+
+// staticAggregateMember returns the configuration of port as an enabled member
+// of the aggregate interface aggName.
+func staticAggregateMember(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, aggName string, m StaticAggregateMemberParams) *oc.Interface {
+	t.Helper()
+	intf := &oc.Interface{
+		Name:    ygot.String(port.Name()),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if m.ID != 0 {
+		intf.Id = ygot.Uint32(m.ID)
+	}
+	if m.Description != "" {
+		intf.Description = ygot.String(m.Description)
+	}
+	eth := intf.GetOrCreateEthernet()
+	eth.AggregateId = ygot.String(aggName)
+	if deviations.ExplicitPortSpeed(dut) {
+		eth.PortSpeed = fptest.GetIfSpeed(t, port)
+	}
+	return intf
+}
+
+// addDualStackSubinterface adds subinterface 0 to intf with the given IPv4 and
+// IPv6 addresses (each optional) and enables both address families.
+func addDualStackSubinterface(dut *ondatra.DUTDevice, intf *oc.Interface, ipv4 string, ipv4Len uint8, ipv6 string, ipv6Len uint8) {
+	sub := intf.GetOrCreateSubinterface(0)
+	if deviations.InterfaceEnabled(dut) {
+		sub.Enabled = ygot.Bool(true)
+	}
+	if ipv4 != "" {
+		s4 := sub.GetOrCreateIpv4()
+		if !deviations.IPv4MissingEnabled(dut) {
+			s4.Enabled = ygot.Bool(true)
+		}
+		s4.GetOrCreateAddress(ipv4).PrefixLength = ygot.Uint8(ipv4Len)
+	}
+	if ipv6 != "" {
+		s6 := sub.GetOrCreateIpv6()
+		s6.Enabled = ygot.Bool(true)
+		s6.GetOrCreateAddress(ipv6).PrefixLength = ygot.Uint8(ipv6Len)
+	}
+}
+
+// NextAggregateInterfaces returns the platform names of the n lowest-index
+// aggregate interfaces that the DUT does not report in telemetry, as named by
+// the OpenConfig entity naming conventions. Unlike repeated
+// netutil.NextAggregateInterface calls, it returns n distinct names without
+// configuring anything on the DUT.
+func NextAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
+	t.Helper()
+	batch := gnmi.OCBatch()
+	batch.AddPaths(gnmi.OC().InterfaceAny().Aggregation())
+	var existing map[string]*oc.Interface
+	if root, ok := gnmi.Lookup(t, dut, batch.State()).Val(); ok {
+		existing = root.Interface
+	}
+	var names []string
+	for index := 0; len(names) < n; index++ {
+		name := netutil.AggregateInterface(t, dut, index)
+		if _, ok := existing[name]; !ok {
+			names = append(names, name)
+		}
+	}
+	return names
 }
