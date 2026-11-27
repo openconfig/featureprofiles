@@ -339,9 +339,8 @@ func testGreDecapIPv6(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, 
 	grev6.TrafficClass().SetValue(128)
 
 	config.Flows().Append(flow)
-	otgConfig.PushConfig(t, config)
-
 	enableCapture(t, config, "port2")
+	otgConfig.PushConfig(t, config)
 	otgConfig.StartProtocols(t)
 
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -379,9 +378,8 @@ func testGreDecapIPv4MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	grev4.Priority().Dscp().Phb().SetValue(32)
 
 	config.Flows().Append(flow)
-	otgConfig.PushConfig(t, config)
-
 	enableCapture(t, config, "port2")
+	otgConfig.PushConfig(t, config)
 
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -419,9 +417,8 @@ func testGreDecapIPv6MPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.O
 	grev6.TrafficClass().SetValue(128)
 
 	config.Flows().Append(flow)
-	otgConfig.PushConfig(t, config)
-
 	enableCapture(t, config, "port2")
+	otgConfig.PushConfig(t, config)
 
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -464,9 +461,8 @@ func testGreDecapMultiLabelMPLS(t *testing.T, dut *ondatra.DUTDevice, otgConfig 
 	grev4.Priority().Dscp().Phb().SetValue(32)
 
 	config.Flows().Append(flow)
-	otgConfig.PushConfig(t, config)
-
 	enableCapture(t, config, "port2")
+	otgConfig.PushConfig(t, config)
 
 	otgConfig.StartProtocols(t)
 	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
@@ -530,22 +526,27 @@ func validateGREDecapIpv4(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
 	}
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	packet := <-packetSource.Packets()
+	expectedDstIP := strings.Split(IPv4Dst1, "/")[0]
 
-	var ipv4Layer *layers.IPv4
-	ipv4LayerCount := 0
-	for _, layer := range packet.Layers() {
-		if ipLayer, ok := layer.(*layers.IPv4); ok {
-			ipv4LayerCount++
-			ipv4Layer = ipLayer
+	for packet := range packetSource.Packets() {
+		var ipv4Layer *layers.IPv4
+		ipv4LayerCount := 0
+		for _, layer := range packet.Layers() {
+			if ipLayer, ok := layer.(*layers.IPv4); ok {
+				ipv4LayerCount++
+				ipv4Layer = ipLayer
+			}
 		}
-	}
+		if ipv4Layer == nil {
+			continue
+		}
+		if ipv4LayerCount == 2 {
+			t.Fatalf("Error: Decapsulated IPv4 traffic is not received. Expected %v, got %v", "1", ipv4LayerCount)
+		}
+		if ipv4Layer.DstIP.String() != expectedDstIP {
+			continue
+		}
 
-	if ipv4LayerCount == 2 {
-		t.Fatalf("Error: Decapsulated IPv4 traffic is not received. Expected %v, got %v", "1", ipv4LayerCount)
-	}
-
-	if ipv4Layer != nil {
 		dscpValue := ipv4Layer.TOS >> 2
 		if dscpValue != 32 {
 			t.Fatalf("Error: Inner-packet DSCP should be preserved. Expected: 32, Got: %v", dscpValue)
@@ -561,7 +562,9 @@ func validateGREDecapIpv4(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
 				t.Logf("Got expected TTL")
 			}
 		}
+		return
 	}
+	t.Fatalf("Error: Decapsulated IPv4 traffic is not received on ATE Port 2")
 }
 
 func validateGREDecapIpv6(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
@@ -572,35 +575,49 @@ func validateGREDecapIpv6(t *testing.T, otgConfig *otg.OTG, checkTTL bool) {
 	}
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	expectedDstIP := strings.Split(IPv6Dst1, "/")[0]
 
 	for packet := range packetSource.Packets() {
-		if ipv4Layer := packet.Layer(layers.LayerTypeIPv4); ipv4Layer != nil {
+		if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
 			t.Fatalf("Error: Decapsulated IPv6 traffic is not received on ATE Port 2")
 		}
-		if ipv6Layer := packet.Layer(layers.LayerTypeIPv6); ipv6Layer != nil {
-			ipv6, _ := ipv6Layer.(*layers.IPv6)
-			t.Logf("Decapsulated IPv6 traffic is received on ATE Port 2")
-			if trafficClass := ipv6.TrafficClass; trafficClass != 128 {
-				t.Fatalf("Error: Inner-packet traffic-class is not preserved. Expected: 128, Got: %v", trafficClass)
-			} else {
-				t.Logf("Inner-packet traffic-class is preserved. Expected: 128, Got: %v", trafficClass)
+		if ipv4Layer := packet.Layer(layers.LayerTypeIPv4); ipv4Layer != nil {
+			ipv4, _ := ipv4Layer.(*layers.IPv4)
+			if ipv4.DstIP.String() == decapDestIp {
+				t.Fatalf("Error: Decapsulated IPv6 traffic is not received on ATE Port 2")
 			}
-
-			if checkTTL {
-				expectedttl := uint32(ttlBeforeDecap - 1)
-				got := uint32(ipv6.HopLimit)
-				if got != expectedttl {
-					t.Fatalf("TTL mismatch, got: %d, want: %d", got, expectedttl)
-				} else {
-					t.Logf("Got expected TTL")
-				}
-			}
-			break
-		} else {
-			t.Fatalf("Decapsulated IPv6 traffic is not received on ATE Port 2")
+			continue
 		}
-	}
+		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
+		if ipv6Layer == nil {
+			// Ignore non-IP control-plane packets (e.g., LLDP, ARP) captured on the port.
+			continue
+		}
+		ipv6, _ := ipv6Layer.(*layers.IPv6)
+		if ipv6.DstIP.String() != expectedDstIP {
+			// Ignore unrelated IPv6 control-plane traffic (e.g., link-local Neighbor Discovery).
+			continue
+		}
 
+		t.Logf("Decapsulated IPv6 traffic is received on ATE Port 2")
+		if trafficClass := ipv6.TrafficClass; trafficClass != 128 {
+			t.Fatalf("Error: Inner-packet traffic-class is not preserved. Expected: 128, Got: %v", trafficClass)
+		} else {
+			t.Logf("Inner-packet traffic-class is preserved. Expected: 128, Got: %v", trafficClass)
+		}
+
+		if checkTTL {
+			expectedttl := uint32(ttlBeforeDecap - 1)
+			got := uint32(ipv6.HopLimit)
+			if got != expectedttl {
+				t.Fatalf("TTL mismatch, got: %d, want: %d", got, expectedttl)
+			} else {
+				t.Logf("Got expected TTL")
+			}
+		}
+		return
+	}
+	t.Fatalf("Decapsulated IPv6 traffic is not received on ATE Port 2")
 }
 
 func validateMPLSDecapTraffic(t *testing.T, otgConfig *otg.OTG) {
@@ -611,23 +628,25 @@ func validateMPLSDecapTraffic(t *testing.T, otgConfig *otg.OTG) {
 	}
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	packet := <-packetSource.Packets()
 
-	var mplsLayer *layers.MPLS
-	mplsLayerCount := 0
+	for packet := range packetSource.Packets() {
+		var mplsLayer *layers.MPLS
+		mplsLayerCount := 0
 
-	for _, layer := range packet.Layers() {
-		if ipLayer, ok := layer.(*layers.MPLS); ok {
-			mplsLayerCount++
-			mplsLayer = ipLayer
+		for _, layer := range packet.Layers() {
+			if ipLayer, ok := layer.(*layers.MPLS); ok {
+				mplsLayerCount++
+				mplsLayer = ipLayer
+			}
 		}
-	}
+		if mplsLayer == nil {
+			continue
+		}
 
-	if mplsLayerCount == 2 {
-		t.Fatalf("Error: Decapsulated MPLS traffic is not received. Expected %v, got %v", "1", mplsLayerCount)
-	}
+		if mplsLayerCount == 2 {
+			t.Fatalf("Error: Decapsulated MPLS traffic is not received. Expected %v, got %v", "1", mplsLayerCount)
+		}
 
-	if mplsLayer != nil {
 		expectedttl := uint32(ttlBeforeDecap - 1)
 		got := uint32(mplsLayer.TTL)
 		if got != expectedttl {
@@ -642,7 +661,9 @@ func validateMPLSDecapTraffic(t *testing.T, otgConfig *otg.OTG) {
 		} else {
 			t.Logf("Got expected EXP.Expected: 4, Got: %v", mplsExp)
 		}
+		return
 	}
+	t.Fatalf("Error: Decapsulated MPLS traffic is not received on ATE Port 2")
 }
 
 func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, config gosnappi.Config, flowName string) {
