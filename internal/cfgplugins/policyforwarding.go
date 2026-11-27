@@ -61,6 +61,10 @@ type OcPolicyForwardingParams struct {
 	InterfaceID         string
 	AppliedPolicyName   string
 	RemovePolicyName    bool
+	// ResetDecapState removes any previous GUE decap-group / UDP decap-port binding for GUEPort before the
+	// native (CLI) GUE decap config is pushed, so repeated pushes with a different payload type replace the
+	// earlier one instead of stacking on it. Currently honoured for Arista.
+	ResetDecapState bool
 
 	// Policy Rule specific params
 	InnerDstIPv6       string
@@ -830,19 +834,42 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGre = ygot.Bool(true)
 }
 
-// DecapPolicyRulesandActionsGue configures the "decap MPLS in GUE" policy and related MPLS global and static LSP settings.
-func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+// DecapPolicyRulesandActionsGue configures and applies a policy forwarding rule to match UDP GUE traffic and enable GUE decapsulation.
+func DecapPolicyRulesandActionsGue(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	t.Helper()
 
-	pols := pf.GetOrCreatePolicy("customer10")
-	var ruleSeq uint32 = 10
-	var protocol uint8 = 4
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(params.NetworkInstanceName)
+	pf := ni.GetOrCreatePolicyForwarding()
+	pol := pf.GetOrCreatePolicy(params.AppliedPolicyName)
+	rule := pol.GetOrCreateRule(1)
 
-	rule10 := pols.GetOrCreateRule(ruleSeq)
-	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
-	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(protocol)
+	sb := &gnmi.SetBatch{}
 
-	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
+	prefixSetName := params.AppliedPolicyName + "-dst-prefix-set"
+	if strings.Contains(params.TunnelIP, ":") {
+		prefixSet := d.GetOrCreateDefinedSets().GetOrCreateIpv6PrefixSet(prefixSetName)
+		prefixSet.Prefix = []string{params.TunnelIP}
+		gnmi.BatchUpdate(sb, gnmi.OC().DefinedSets().Ipv6PrefixSet(prefixSetName).Config(), prefixSet)
+		ip6 := rule.GetOrCreateIpv6()
+		ip6.DestinationAddressPrefixSet = ygot.String(prefixSetName)
+		ip6.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+	} else {
+		prefixSet := d.GetOrCreateDefinedSets().GetOrCreateIpv4PrefixSet(prefixSetName)
+		prefixSet.Prefix = []string{params.TunnelIP}
+		gnmi.BatchUpdate(sb, gnmi.OC().DefinedSets().Ipv4PrefixSet(prefixSetName).Config(), prefixSet)
+		ip4 := rule.GetOrCreateIpv4()
+		ip4.DestinationAddressPrefixSet = ygot.String(prefixSetName)
+		ip4.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+	}
+	rule.GetOrCreateTransport().SetDestinationPort(oc.UnionUint16(params.GUEPort))
+	rule.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
+
+	iface := pf.GetOrCreateInterface(params.InterfaceID)
+	iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
+
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(params.NetworkInstanceName).PolicyForwarding().Config(), pf)
+	sb.Set(t, dut)
 }
 
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
@@ -889,11 +916,13 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
+		case ondatra.CISCO:
+			ciscoGueDecapCLIConfig(t, dut, ocPFParams)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
-		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
+		DecapPolicyRulesandActionsGue(t, dut, ocPFParams)
 	}
 }
 
@@ -904,7 +933,9 @@ func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPoli
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no ip decap-group %s\n", ocPFParams.AppliedPolicyName))
+			aristaResetGueDecapCLIConfig(t, dut, ocPFParams)
+		case ondatra.CISCO:
+			ciscoRemoveGueDecapCLIConfig(t, dut, ocPFParams)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group removal'", dut.Vendor())
 		}
@@ -913,23 +944,115 @@ func RemoveDecapGroupGue(t *testing.T, dut *ondatra.DUTDevice, ocPFParams OcPoli
 	}
 }
 
+// aristaResetGueDecapCLIConfig removes the GUE decap-group and the UDP decap-port entries (for both IPv4
+// and IPv6 payloads) bound to params.GUEPort. Each command is pushed separately and non-fatally, so a "no"
+// form that EOS rejects because the entry is absent never aborts the rest of the cleanup.
+func aristaResetGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+	t.Helper()
+	cmds := []string{
+		fmt.Sprintf("no ip decap-group %s\n", params.AppliedPolicyName),
+		fmt.Sprintf("no ip decap-group type udp destination port %d payload ipv4\n", params.GUEPort),
+		fmt.Sprintf("no ip decap-group type udp destination port %d payload ipv6\n", params.GUEPort),
+	}
+	for _, cmd := range cmds {
+		if err := gnmiNativeConfigNonFatal(t, dut, cmd); err != nil {
+			t.Logf("Ignoring error while resetting Arista GUE decap config with %q: %v", strings.TrimSpace(cmd), err)
+		}
+	}
+}
+
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
+	t.Helper()
 	decapProto := params.DecapProtocol
 	if decapProto == "" {
 		decapProto = params.IPType
 	}
 
-	cliConfig := fmt.Sprintf(`
-		                    ip decap-group type udp destination port %v payload %s
-							ip decap-group %s
-							tunnel type UDP
-							tunnel decap-ip %s
-							`, params.GUEPort, decapProto, params.AppliedPolicyName, params.TunnelIP)
-	if params.InterfaceID != "" {
-		cliConfig += fmt.Sprintf("tunnel decap-interface %s", params.InterfaceID)
+	if params.ResetDecapState {
+		aristaResetGueDecapCLIConfig(t, dut, params)
 	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "ip decap-group type udp destination port %v payload %s\n", params.GUEPort, decapProto)
+	fmt.Fprintf(&b, "ip decap-group %s\n", params.AppliedPolicyName)
+	b.WriteString("   tunnel type UDP\n")
+	fmt.Fprintf(&b, "   tunnel decap-ip %s\n", params.TunnelIP)
+	if params.InterfaceID != "" {
+		fmt.Fprintf(&b, "   tunnel decap-interface %s\n", params.InterfaceID)
+	}
+	b.WriteString("!\n")
+	helpers.GnmiCLIConfig(t, dut, b.String())
+}
+
+// ciscoGueDecapNames returns the deterministic class-map and policy-map names used by the Cisco
+// IOS-XR GUE decap PBR configuration. The PBR rule matches the outer (transport) IP header, and GUE
+// variant 1 encodes the inner payload type, so a single policy per outer address-family covers both
+// inner IPv4 and inner IPv6 traffic.
+func ciscoGueDecapNames(params OcPolicyForwardingParams) (outerAF, cmapName, pmapName string) {
+	outerAF = "ipv4"
+	if strings.Contains(params.TunnelIP, ":") {
+		outerAF = "ipv6"
+	}
+	cmapName = fmt.Sprintf("%s-%s-cmap", params.AppliedPolicyName, outerAF)
+	pmapName = fmt.Sprintf("%s-%s-pmap", params.AppliedPolicyName, outerAF)
+	return outerAF, cmapName, pmapName
+}
+
+// EnableCiscoGueDecapNVE configures the Cisco IOS-XR NVE overlay-encap GUEv1 UDP decap ports. It does
+// not reboot the DUT. IOS-XR only activates a newly added NVE overlay-encap UDP port after a reload, so
+// on a DUT where this config has not been applied before, reload it once outside the test. Re-applying
+// identical config is a no-op. The same UDP destination port is programmed for both IPv4 and IPv6 inner
+// payloads, per the PF-1.4 README.
+func EnableCiscoGueDecapNVE(t *testing.T, dut *ondatra.DUTDevice, guePort uint32) {
+	t.Helper()
+	cliConfig := fmt.Sprintf(`nve
+ overlay-encap guev1
+  udp-port destination ipv4 %[1]d
+  udp-port destination ipv6 %[1]d
+ !
+!
+`, guePort)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// ciscoGueDecapCLIConfig configures GUE (variant 1) decapsulation on Cisco IOS-XR through a PBR
+// traffic policy matching the outer transport destination (the decap subnet range) and a global
+// vrf-policy binding (IOS-XR does not support the interface apply-forwarding-policy OC leaf). The NVE
+// UDP ports are enabled separately via EnableCiscoGueDecapNVE.
+func ciscoGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+	t.Helper()
+	outerAF, cmapName, pmapName := ciscoGueDecapNames(params)
+	cliConfig := fmt.Sprintf(`class-map type traffic match-all %[1]s
+ match protocol udp
+ match destination-address %[2]s %[3]s
+ end-class-map
+!
+policy-map type pbr %[4]s
+ class type traffic %[1]s
+  decapsulate gue variant 1
+ !
+ end-policy-map
+!
+vrf-policy
+ vrf default address-family %[2]s policy type pbr input %[4]s
+!
+`, cmapName, outerAF, params.TunnelIP, pmapName)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// ciscoRemoveGueDecapCLIConfig reverts the IOS-XR GUE decap PBR configuration created by
+// ciscoGueDecapCLIConfig, unbinding the policy from the default VRF before deleting the maps.
+func ciscoRemoveGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+	t.Helper()
+	outerAF, cmapName, pmapName := ciscoGueDecapNames(params)
+	cliConfig := fmt.Sprintf(`vrf-policy
+ no vrf default address-family %[1]s policy type pbr input %[2]s
+!
+no policy-map type pbr %[2]s
+no class-map type traffic match-all %[3]s
+!
+`, outerAF, pmapName, cmapName)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 

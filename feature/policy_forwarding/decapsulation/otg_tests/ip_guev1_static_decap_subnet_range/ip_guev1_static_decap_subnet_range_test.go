@@ -39,36 +39,37 @@ import (
 )
 
 const (
-	packetSize      = 512
-	ipv4PrefixLen   = 30
-	ipv6PrefixLen   = 126
-	packetPerSecond = 1000
-	timeout         = 30
-	sleepTime       = 10 * time.Second
-	captureWait     = 10
-	ate1Asn         = 65002
-	ate2Asn         = 65003
-	dutAsn          = 65001
-	ipv4Src         = "198.51.100.1"
-	ipv4Dst         = "203.0.113.1"
-	ipv6Src         = "2001:DB8:1::1"
-	ipv6Dst         = "2001:DB8:2::1"
-	peerv4Grp1Name  = "BGP-PEER-GROUP1-V4"
-	peerv6Grp1Name  = "BGP-PEER-GROUP1-V6"
-	peerv4Grp2Name  = "BGP-PEER-GROUP2-V4"
-	peerv6Grp2Name  = "BGP-PEER-GROUP2-V6"
-	v4NetName1      = "BGPv4RR1"
-	v6NetName1      = "BGPv6RR1"
-	v4NetName2      = "BGPv4RR2"
-	v6NetName2      = "BGPv6RR2"
-	tunIp           = "2001:db8::3"
-	policyName      = "decap-policy-gue"
-	policyId        = 1
-	outerDscpValue  = uint32(35)
-	innerDscpValue  = uint32(32)
-	innerTTL        = uint32(50)
-	outerTTL        = uint32(70)
-	srcPortValue    = 30000
+	ipv4PrefixLen       = 30
+	ipv6PrefixLen       = 126
+	packetCount         = 1000
+	trafficRatePercent  = 10.0
+	timeout             = 30 * time.Second
+	ipv4Src             = "198.51.100.1"
+	ipv4Dst             = "203.0.113.1"
+	ipv6Src             = "2001:db8:1::1"
+	ipv6Dst             = "2001:db8:2::1"
+	policyName          = "decap-policy-gue"
+	policyId            = 1
+	outerDscpValue      = uint32(35)
+	innerDscpValue      = uint32(32)
+	innerTTL            = uint32(50)
+	outerTTL            = uint32(70)
+	srcPortMin          = 1024
+	srcPortMax          = 65535
+	decapDstSubnetV6    = "2001:db8:dead:beef::/64"
+	decapDst1V6         = "2001:db8:dead:beef::1"
+	decapDst2V6         = "2001:db8:dead:beef::2"
+	decapDst3V6         = "2001:db8:dead:beef::3"
+	decapDst4V6         = "2001:db8:dead:beef::4"
+	gueDecapPort        = 6081
+	loopbackIntfName    = "Loopback0"
+	counterTolerancePct = 5
+
+	// Some platforms (e.g. Cisco IOS-XR) refresh interface counters only every ~30s, so the DUT
+	// counters are watched (gNMI subscribe) until they reflect the traffic instead of being read once.
+	counterSettleTimeout = 90 * time.Second
+	// DUT counters are accepted within counterTolerancePct of the 1000 packets sent (e.g. Cisco reported 995).
+	minExpectedPkts = packetCount - packetCount*counterTolerancePct/100
 )
 
 var (
@@ -106,6 +107,7 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
+	decapDstAddrs = []string{decapDst1V6, decapDst2V6, decapDst3V6, decapDst4V6}
 )
 
 func TestMain(m *testing.M) {
@@ -113,13 +115,14 @@ func TestMain(m *testing.M) {
 }
 
 type testCase struct {
-	name              string
-	ipType            string
-	ateGuePort        int
-	dutGuePort        int
-	trafficDestIp     string
-	trafficShouldPass bool
-	verifyCounters    bool
+	name               string
+	ipType             string
+	ateGuePort         int
+	dutGuePort         int
+	trafficDestIps     []string
+	trafficShouldPass  bool
+	shouldDecap        bool
+	verifyDropCounters bool
 }
 
 func TestIpGueStaticDecapsulation(t *testing.T) {
@@ -131,7 +134,15 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
-	configureBgp(t, dut)
+	configureDUTLoopback(t, dut, decapDst3V6)
+	configureStaticRoutes(t, dut)
+
+	// Cisco IOS-XR models GUE decap through NVE overlay-encap UDP ports. The config is pushed here without
+	// rebooting the DUT; a newly added NVE port only becomes active after a reload, which must be done
+	// outside the test if the DUT has never had this NVE config.
+	if deviations.GueGreDecapUnsupported(dut) && dut.Vendor() == ondatra.CISCO {
+		cfgplugins.EnableCiscoGueDecapNVE(t, dut, gueDecapPort)
+	}
 
 	// configure ATE
 	topo := configureATE(t)
@@ -139,7 +150,11 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
-	waitForBGPSession(t, dut, true)
+
+	// Remove the GUE decap policy/decap-group once all sub-tests are done.
+	t.Cleanup(func() {
+		cfgplugins.RemoveDecapGroupGue(t, dut, getDefaultOcPolicyForwardingParams(t, dut, gueDecapPort, "ipv6"))
+	})
 
 	testCases := []testCase{
 		{
@@ -147,63 +162,67 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			ipType:            "ipv4",
 			ateGuePort:        6081,
 			dutGuePort:        6081,
-			trafficDestIp:     tunIp,
+			trafficDestIps:    decapDstAddrs,
 			trafficShouldPass: true,
-			verifyCounters:    true,
+			shouldDecap:       true,
 		},
 		{
 			name:              "PF-1.4.2: GUE Decapsulation of inner IPv6 traffic over DECAP subnet range",
 			ipType:            "ipv6",
 			ateGuePort:        6081,
 			dutGuePort:        6081,
-			trafficDestIp:     tunIp,
+			trafficDestIps:    decapDstAddrs,
 			trafficShouldPass: true,
-			verifyCounters:    true,
+			shouldDecap:       true,
 		},
 		{
-			name:              "PF-1.4.3: GUE Decapsulation of inner IPv4 traffic using non-default and unconfigured GUE UDP port (Negative).",
-			ipType:            "ipv4",
-			ateGuePort:        6085,
-			dutGuePort:        6081,
-			trafficDestIp:     tunIp,
-			trafficShouldPass: false,
-			verifyCounters:    true,
+			name:               "PF-1.4.3: GUE Decapsulation of inner IPv4 traffic using non-default and unconfigured GUE UDP port (Negative).",
+			ipType:             "ipv4",
+			ateGuePort:         6085,
+			dutGuePort:         6081,
+			trafficDestIps:     decapDstAddrs,
+			trafficShouldPass:  false,
+			shouldDecap:        false,
+			verifyDropCounters: true,
 		},
 		{
-			name:              "PF-1.4.4: GUE Decapsulation of inner IPv6 traffic using non-default and unconfigured GUE UDP port (Negative).",
-			ipType:            "ipv6",
-			ateGuePort:        6085,
-			dutGuePort:        6081,
-			trafficDestIp:     tunIp,
-			trafficShouldPass: false,
-			verifyCounters:    true,
+			name:               "PF-1.4.4: GUE Decapsulation of inner IPv6 traffic using non-default and unconfigured GUE UDP port (Negative).",
+			ipType:             "ipv6",
+			ateGuePort:         6085,
+			dutGuePort:         6081,
+			trafficDestIps:     decapDstAddrs,
+			trafficShouldPass:  false,
+			shouldDecap:        false,
+			verifyDropCounters: true,
 		},
 		{
 			name:              "PF-1.4.5: Inner IPV4 GUE Pass-through (Negative)",
 			ipType:            "ipv4",
 			ateGuePort:        6081,
 			dutGuePort:        6081,
-			trafficDestIp:     atePort2.IPv6,
+			trafficDestIps:    []string{atePort2.IPv6},
 			trafficShouldPass: true,
-			verifyCounters:    false,
+			shouldDecap:       false,
 		},
 		{
 			name:              "PF-1.4.6: Inner IPV6 GUE Pass-through (Negative)",
 			ipType:            "ipv6",
 			ateGuePort:        6081,
 			dutGuePort:        6081,
-			trafficDestIp:     atePort2.IPv6,
+			trafficDestIps:    []string{atePort2.IPv6},
 			trafficShouldPass: true,
-			verifyCounters:    false,
+			shouldDecap:       false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.ipType == "ipv4" {
-				gueDecapInnerIpv4Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters)
+				gueDecapInnerIpv4Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIps,
+					tc.trafficShouldPass, tc.shouldDecap, tc.verifyDropCounters)
 			} else {
-				gueDecapInnerIpv6Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters)
+				gueDecapInnerIpv6Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIps,
+					tc.trafficShouldPass, tc.shouldDecap, tc.verifyDropCounters)
 			}
 		})
 	}
@@ -234,67 +253,60 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-type bgpNeighbor struct {
-	as            uint32
-	neighborip    string
-	isV4          bool
-	PeerGroupName string
-}
-
-// configureBgp configures BGP on the DUT with IPv4 and IPv6 eBGP neighbors. It creates BGP global configuration, peer groups, neighbors, and enables. IPv4 and IPv6 unicast AFI-SAFIs under the default network instance.
-func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
+// configureDUTLoopback configures a software loopback interface on the DUT with the given IPv6 /128 address.
+func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, addr string) {
 	t.Helper()
 	d := &oc.Root{}
-
-	nbr1v4 := &bgpNeighbor{as: ate1Asn, neighborip: atePort1.IPv4, isV4: true, PeerGroupName: peerv4Grp1Name}
-	nbr1v6 := &bgpNeighbor{as: ate1Asn, neighborip: atePort1.IPv6, isV4: false, PeerGroupName: peerv6Grp1Name}
-	nbr2v4 := &bgpNeighbor{as: ate2Asn, neighborip: atePort2.IPv4, isV4: true, PeerGroupName: peerv4Grp2Name}
-	nbr2v6 := &bgpNeighbor{as: ate2Asn, neighborip: atePort2.IPv6, isV4: false, PeerGroupName: peerv6Grp2Name}
-
-	nbrList := []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
-
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-
-	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := niProto.GetOrCreateBgp()
-
-	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(dutAsn)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	g.RouterId = ygot.String(dutPort2.IPv4)
-
-	pg1v4 := bgp.GetOrCreatePeerGroup(peerv4Grp1Name)
-	pg1v4.PeerAs = ygot.Uint32(ate1Asn)
-
-	pg1v6 := bgp.GetOrCreatePeerGroup(peerv6Grp1Name)
-	pg1v6.PeerAs = ygot.Uint32(ate1Asn)
-
-	pg2v4 := bgp.GetOrCreatePeerGroup(peerv4Grp2Name)
-	pg2v4.PeerAs = ygot.Uint32(ate1Asn)
-
-	pg2v6 := bgp.GetOrCreatePeerGroup(peerv6Grp2Name)
-	pg2v6.PeerAs = ygot.Uint32(ate1Asn)
-
-	for _, nbr := range nbrList {
-		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		nv4.PeerGroup = ygot.String(nbr.PeerGroupName)
-		nv4.PeerAs = ygot.Uint32(nbr.as)
-		nv4.Enabled = ygot.Bool(true)
-		if nbr.isV4 {
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-		} else {
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
-		}
-	}
-	gnmi.Replace(t, dut, dutConfPath.Config(), niProto)
-
+	lo := d.GetOrCreateInterface(loopbackIntfName)
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	a := lo.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAddress(addr)
+	a.PrefixLength = ygot.Uint8(128)
+	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), lo)
+	t.Cleanup(func() {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(loopbackIntfName).Config())
+	})
 }
 
-// configureATE sets up the ATE interfaces and BGP configurations.
+// configureStaticRoutes installs the static routes the README requires on the DUT:
+// IPV4-SRC1/IPV6-SRC1 towards ATE Port 1 and IPV4-DST1/IPV6-DST1 towards ATE Port 2.
+// Static routes are used (rather than eBGP) so that no routing-policy is needed on the DUT;
+// IOS-XR otherwise drops all eBGP routes that have no import policy.
+func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	niName := deviations.DefaultNetworkInstance(dut)
+	protoName := deviations.StaticProtocolName(dut)
+
+	routes := []struct{ prefix, nextHop string }{
+		{ipv4Src + "/32", atePort1.IPv4},
+		{ipv6Src + "/128", atePort1.IPv6},
+		{ipv4Dst + "/32", atePort2.IPv4},
+		{ipv6Dst + "/128", atePort2.IPv6},
+	}
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(niName)
+	sp := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, protoName)
+	for _, r := range routes {
+		nh := sp.GetOrCreateStatic(r.prefix).GetOrCreateNextHop("0")
+		nh.NextHop = oc.UnionString(r.nextHop)
+	}
+	spPath := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, protoName)
+	gnmi.Update(t, dut, spPath.Config(), sp)
+
+	t.Cleanup(func() {
+		for _, r := range routes {
+			gnmi.Delete(t, dut, spPath.Static(r.prefix).Config())
+		}
+	})
+}
+
+// ateIPv4Name / ateIPv6Name return the OTG interface names used as flow endpoints.
+func ateIPv4Name(a attrs.Attributes) string { return a.Name + ".IPv4" }
+func ateIPv6Name(a attrs.Attributes) string { return a.Name + ".IPv6" }
+
+// configureATE sets up the ATE interfaces. Routing is static on the DUT (see configureStaticRoutes);
+// the ATE only needs L3 interfaces, and flows are addressed to the DUT gateway (Ethernet dst auto),
+// which covers the README's "static route for DECAP-DST-SUBNET-V6/64 towards the DUT" on ATE Port 1.
 func configureATE(t *testing.T) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Log("Configure ATE interface")
@@ -304,63 +316,119 @@ func configureATE(t *testing.T) gosnappi.Config {
 	port1Dev := topo.Devices().Add().SetName(atePort1.Name + ".dev")
 	port1Eth := port1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
 	port1Eth.Connection().SetPortName(port1.Name())
-	port1Ipv4 := port1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
+	port1Ipv4 := port1Eth.Ipv4Addresses().Add().SetName(ateIPv4Name(atePort1))
 	port1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-	port1Ipv6 := port1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
+	port1Ipv6 := port1Eth.Ipv6Addresses().Add().SetName(ateIPv6Name(atePort1))
 	port1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-
-	bgp1 := port1Dev.Bgp().SetRouterId(atePort1.IPv4)
-	bgp4Peer1 := bgp1.Ipv4Interfaces().Add().SetIpv4Name(port1Ipv4.Name()).Peers().Add().SetName(port1Dev.Name() + ".BGP4.peer")
-	bgp4Peer1.SetPeerAddress(port1Ipv4.Gateway())
-	bgp4Peer1.SetAsNumber(ate1Asn)
-	bgp4Peer1.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	net1v4 := bgp4Peer1.V4Routes().Add().SetName(v4NetName1)
-	net1v4.Addresses().Add().SetAddress(ipv4Src).SetPrefix(32).SetCount(1).SetStep(1)
-
-	bgp6Peer1 := bgp1.Ipv6Interfaces().Add().SetIpv6Name(port1Ipv6.Name()).Peers().Add().SetName(port1Dev.Name() + ".BGP6.peer")
-	bgp6Peer1.SetPeerAddress(port1Ipv6.Gateway())
-	bgp6Peer1.SetAsNumber(ate1Asn)
-	bgp6Peer1.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	net1v6 := bgp6Peer1.V6Routes().Add().SetName(v6NetName1)
-	net1v6.Addresses().Add().SetAddress(ipv6Src).SetPrefix(128).SetCount(1).SetStep(1)
 
 	port2Dev := topo.Devices().Add().SetName(atePort2.Name + ".dev")
 	port2Eth := port2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
 	port2Eth.Connection().SetPortName(port2.Name())
-	port2Ipv4 := port2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
+	port2Ipv4 := port2Eth.Ipv4Addresses().Add().SetName(ateIPv4Name(atePort2))
 	port2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
-	port2Ipv6 := port2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")
+	port2Ipv6 := port2Eth.Ipv6Addresses().Add().SetName(ateIPv6Name(atePort2))
 	port2Ipv6.SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
-
-	bgp2 := port2Dev.Bgp().SetRouterId(atePort2.IPv4)
-	bgp4Peer2 := bgp2.Ipv4Interfaces().Add().SetIpv4Name(port2Ipv4.Name()).Peers().Add().SetName(port2Dev.Name() + ".BGP4.peer")
-	bgp4Peer2.SetPeerAddress(port2Ipv4.Gateway())
-	bgp4Peer2.SetAsNumber(ate2Asn)
-	bgp4Peer2.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	net2v4 := bgp4Peer2.V4Routes().Add().SetName(v4NetName2)
-	net2v4.Addresses().Add().SetAddress(ipv4Dst).SetPrefix(32).SetCount(1).SetStep(1)
-
-	bgp6Peer2 := bgp2.Ipv6Interfaces().Add().SetIpv6Name(port2Ipv6.Name()).Peers().Add().SetName(port2Dev.Name() + ".BGP6.peer")
-	bgp6Peer2.SetPeerAddress(port2Ipv6.Gateway())
-	bgp6Peer2.SetAsNumber(ate2Asn)
-	bgp6Peer2.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	net2v6 := bgp6Peer2.V6Routes().Add().SetName(v6NetName2)
-	net2v6.Addresses().Add().SetAddress(ipv6Dst).SetPrefix(128).SetCount(1).SetStep(1)
 	return topo
 }
 
-// trafficStartStop starts traffic on the ATE, waits for a fixed duration, stops the traffic, and collects interface counters from the DUT. If verifyCounters is true, it validates policer behavior using packet counters.
-func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config, otgConfig *otg.OTG, flow gosnappi.Flow, verifyCounters bool) {
-	initialInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
-	initialOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
+// counterDelta returns final-initial, or 0 if the counter went backwards (reset / stale baseline),
+// so an unsigned underflow can never look like a huge packet count.
+func counterDelta(final, initial uint64) uint64 {
+	if final < initial {
+		return 0
+	}
+	return final - initial
+}
+
+// waitForCounterDelta watches the counter via gNMI until it has advanced by at least want over initial,
+// or the timeout expires, and returns the latest value. Interface counters on some platforms
+// (e.g. Cisco IOS-XR) are refreshed only periodically, so a single read right after the traffic
+// stops can still show the pre-traffic value.
+func waitForCounterDelta(t *testing.T, dut *ondatra.DUTDevice, name string, q ygnmi.SingletonQuery[uint64], initial, want uint64, wait time.Duration) uint64 {
+	t.Helper()
+	val, ok := gnmi.Watch(t, dut, q, wait, func(v *ygnmi.Value[uint64]) bool {
+		cur, present := v.Val()
+		return present && cur >= initial && cur-initial >= want
+	}).Await(t)
+	if ok {
+		if cur, present := val.Val(); present {
+			return cur
+		}
+	}
+	cur := gnmi.Get(t, dut, q)
+	t.Logf("%s advanced by %d (want >= %d) within %v", name, int64(cur)-int64(initial), want, wait)
+	return cur
+}
+
+// trafficStartStop starts and stops traffic, collects interface and policy counters, verifies forwarding behavior, and optionally validates drop counters.
+func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config, otgConfig *otg.OTG, flow gosnappi.Flow, trafficShouldPass, shouldDecap, verifyDropCounters bool) {
+	inPath := gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State()
+	outPath := gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State()
+
+	initialInUnicastPkts := gnmi.Get(t, dut, inPath)
+	initialOutUnicastPkts := gnmi.Get(t, dut, outPath)
+
+	matchedPktsSupported := !deviations.PolicyRuleCountersOCUnsupported(dut)
+	initialMatchedPkts := uint64(0)
+	if matchedPktsSupported {
+		initialMatchedPkts = gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State())
+	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
+	// Wait until the flow has actually sent all packets. (Waiting for Transmit==false can succeed
+	// before the flow has started, which stopped the traffic with 0 packets sent.)
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State(), timeout,
+		func(val *ygnmi.Value[uint64]) bool {
+			sent, ok := val.Val()
+			return ok && sent >= packetCount
+		}).Await(t)
 	ate.OTG().StopTraffic(t)
-	finalInUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Counters().InUnicastPkts().State())
-	finalOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
+
+	// All packetCount packets reach DUT port1; they reach port2 only when the flow is forwarded
+	// (decapsulated or passed through). Wait for the counters to reflect that before sampling.
+	finalInUnicastPkts := waitForCounterDelta(t, dut, "port1 in-unicast-pkts", inPath, initialInUnicastPkts, minExpectedPkts, counterSettleTimeout)
+	finalOutUnicastPkts := gnmi.Get(t, dut, outPath)
+	if trafficShouldPass {
+		finalOutUnicastPkts = waitForCounterDelta(t, dut, "port2 out-unicast-pkts", outPath, initialOutUnicastPkts, minExpectedPkts, counterSettleTimeout)
+	}
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
-	if verifyCounters {
-		verifyPolicerMatchedPackets(t, dut, otgConfig, flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts)
+	// TODO: Replace this with drop counters telemetry if it's available on the DUT. For now, we use the interface counters to infer drops.
+	verifyPolicerMatchedPackets(t, dut, &policerVerificationParams{
+		Flow:                  flow,
+		OTGConfig:             otgConfig,
+		InitialInUnicastPkts:  initialInUnicastPkts,
+		InitialOutUnicastPkts: initialOutUnicastPkts,
+		FinalInUnicastPkts:    finalInUnicastPkts,
+		FinalOutUnicastPkts:   finalOutUnicastPkts,
+		InitialMatchedPkts:    initialMatchedPkts,
+		MatchedPktsSupported:  matchedPktsSupported,
+		WantIncrement:         shouldDecap,
+	})
+	if verifyDropCounters {
+		verifyDropCountersIncrement(t, initialInUnicastPkts, finalInUnicastPkts, initialOutUnicastPkts, finalOutUnicastPkts)
+	}
+}
+
+// verifyDropCountersIncrement verifies that exactly packetCount packets arrived at the DUT's
+// ingress but none reached egress, confirming the DUT dropped the full flow.
+func verifyDropCountersIncrement(t *testing.T, initialInUnicastPkts, finalInUnicastPkts, initialOutUnicastPkts, finalOutUnicastPkts uint64) {
+	t.Helper()
+	inDelta := counterDelta(finalInUnicastPkts, initialInUnicastPkts)
+	outDelta := counterDelta(finalOutUnicastPkts, initialOutUnicastPkts)
+	tolerance := uint64(packetCount * counterTolerancePct / 100)
+	minAllowedIngress := uint64(packetCount) - tolerance
+	maxAllowedIngress := uint64(packetCount) + tolerance
+	maxAllowedEgress := tolerance
+	if inDelta < minAllowedIngress || inDelta > maxAllowedIngress {
+		t.Errorf("expected DUT ingress in-unicast-pkts on port1 to increment by %d +/- %d%% (range [%d, %d]), got %d (initial=%d final=%d)",
+			packetCount, counterTolerancePct, minAllowedIngress, maxAllowedIngress, inDelta, initialInUnicastPkts, finalInUnicastPkts)
+	}
+	if outDelta > maxAllowedEgress {
+		t.Errorf("expected DUT egress out-unicast-pkts on port2 to increase by at most %d packets (%d + %d%%), got %d (initial=%d final=%d)",
+			maxAllowedEgress, packetCount, counterTolerancePct, outDelta, initialOutUnicastPkts, finalOutUnicastPkts)
+	}
+	if inDelta >= minAllowedIngress && inDelta <= maxAllowedIngress && outDelta <= maxAllowedEgress {
+		t.Logf("PASS: DUT ingress increased by %d packets (within [%d, %d]) and egress increased by %d packets (<= %d allowed), indicating the flow was dropped",
+			inDelta, minAllowedIngress, maxAllowedIngress, outDelta, maxAllowedEgress)
 	}
 }
 
@@ -372,13 +440,13 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string, tr
 	framesRxV4 := recvMetricV4.GetCounters().GetInPkts()
 
 	if trafficShouldPass {
-		t.Logf("traffic validation for flow %s. Expecting Traffic TX = RX.", flowName)
-		if framesTxV4 == 0 {
-			t.Error("No traffic was generated and frames transmitted were 0")
-		} else if framesRxV4 == framesTxV4 {
-			t.Logf("Traffic validation successful for [%s] FramesTx: %d FramesRx: %d", flowName, framesTxV4, framesRxV4)
+		t.Logf("Traffic validation for flow %s. Expecting %d packets transmitted and received.", flowName, packetCount)
+		if framesTxV4 != packetCount {
+			t.Errorf("Unexpected transmitted packet count for [%s]. Got: %d, Want: %d", flowName, framesTxV4, packetCount)
+		} else if framesRxV4 != packetCount {
+			t.Errorf("Unexpected received packet count for [%s]. Got: %d, Want: %d", flowName, framesRxV4, packetCount)
 		} else {
-			t.Errorf("Traffic validation failed for [%s] FramesTx: %d FramesRx: %d", flowName, framesTxV4, framesRxV4)
+			t.Logf("Traffic validation successful for [%s]. FramesTx: %d FramesRx: %d", flowName, framesTxV4, framesRxV4)
 		}
 	} else {
 		t.Logf("traffic validation for flow %s. Expecting Traffic Loss", flowName)
@@ -403,7 +471,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
-	time.Sleep(captureWait * time.Second)
 	pcapFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
@@ -415,98 +482,170 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
-// verifyPolicerMatchedPackets verifies that packets are matched by the configured policer or policy-forwarding rule.
-func verifyPolicerMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, flow gosnappi.Flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts uint64) {
+type policerVerificationParams struct {
+	Flow                  gosnappi.Flow
+	OTGConfig             *otg.OTG
+	InitialInUnicastPkts  uint64
+	InitialOutUnicastPkts uint64
+	FinalInUnicastPkts    uint64
+	FinalOutUnicastPkts   uint64
+	InitialMatchedPkts    uint64
+	MatchedPktsSupported  bool
+	WantIncrement         bool
+}
+
+// verifyPolicerMatchedPackets verifies that the policy-rule matched packet counters (or interface-counter proxy on deviating DUTs) reflect the expected decapsulation policy match behavior.
+func verifyPolicerMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, p *policerVerificationParams) {
 	t.Helper()
-	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
-	// TO-DO: Curently PolicyForwarding not supported in DUT (Bug 457722520). Adding deviation to check the PF counters.
-	if deviations.PolicyRuleCountersOCUnsupported(dut) {
+
+	// TO-DO: Currently PolicyForwarding not supported in DUT (Bug 457722520). Adding deviation to check the PF counters.
+	if !p.MatchedPktsSupported {
 		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			ingressPkt := finalInUnicastPkts - initialInUnicastPkts
-			ingressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+		case ondatra.ARISTA, ondatra.CISCO:
+			ingressPkt := counterDelta(p.FinalInUnicastPkts, p.InitialInUnicastPkts)
+			egressPkt := counterDelta(p.FinalOutUnicastPkts, p.InitialOutUnicastPkts)
 
-			egressPkt := finalOutUnicastPkts - initialOutUnicastPkts
-			egressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-
-			if ingressPkt == 0 || egressPkt == 0 {
-				t.Errorf("Got the unexpected packet count ingressPkt: %d, egressPkt: %d", ingressPkt, egressPkt)
+			if ingressPkt == 0 {
+				t.Errorf("Got the unexpected ingress packet count: %d", ingressPkt)
 			}
 
-			if ingressPkt >= ingressAtePkts && egressPkt >= egressAtePkts {
-				t.Logf("Interface counters reflect decapsulated packets: InUnicastPkts : %d OutUnicastPkts : %d", ingressPkt, egressPkt)
+			if p.WantIncrement {
+				tolerance := uint64(packetCount * counterTolerancePct / 100)
+				ingressAtePkts, egressAtePkts := otgutils.GetFlowStats(t, p.OTGConfig, p.Flow.Name(), timeout)
+
+				if ingressPkt >= ingressAtePkts-tolerance && egressPkt >= egressAtePkts-tolerance {
+					t.Logf("Interface counters reflect decapsulated packets: InUnicastPkts: %d OutUnicastPkts: %d", ingressPkt, egressPkt)
+				} else {
+					t.Errorf("Interface counters didn't reflect decapsulated packets")
+				}
 			} else {
-				t.Errorf("error: Interface counters didn't reflect decapsulated packets.")
+				t.Logf("PF policy-rule counters unsupported on this DUT; interface-counter deviation path cannot confirm the decap-policy did NOT match (ingressPkt=%d egressPkt=%d)", ingressPkt, egressPkt)
 			}
+
 		default:
-			t.Errorf("deviation PolicyRuleCountersOCUnsupported is not handled for the dut (Bug 457722520): %v", dut.Vendor())
+			t.Errorf("deviation PolicyRuleCountersOCUnsupported is not handled for DUT %v (Bug 457722520)", dut.Vendor())
 		}
+		return
+	}
+
+	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+	_, ok := gnmi.Watch(
+		t,
+		dut,
+		gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			PolicyForwarding().
+			Policy(policyName).
+			Rule(policyId).
+			MatchedPkts().
+			State(),
+		timeout,
+		isPresent,
+	).Await(t)
+
+	if !ok {
+		t.Errorf("Unable to find matched packets")
+		return
+	}
+
+	matchedPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		PolicyForwarding().
+		Policy(policyName).
+		Rule(policyId).
+		MatchedPkts().
+		State()
+	finalMatchedPkts := gnmi.Get(t, dut, matchedPath)
+	if p.WantIncrement {
+		finalMatchedPkts = waitForCounterDelta(t, dut, "decap-policy matched-pkts", matchedPath, p.InitialMatchedPkts, minExpectedPkts, counterSettleTimeout)
+	}
+
+	delta := counterDelta(finalMatchedPkts, p.InitialMatchedPkts)
+
+	if p.WantIncrement {
+		// README: the DUT counters must reflect the 1000 decapsulated packets.
+		tolerance := uint64(packetCount * counterTolerancePct / 100)
+		if delta < uint64(packetCount)-tolerance || delta > uint64(packetCount)+tolerance {
+			t.Errorf("decap-policy matched-pkts counter incremented by %d, want %d +/- %d%% (initial=%d final=%d)", delta, packetCount, counterTolerancePct, p.InitialMatchedPkts, finalMatchedPkts)
+		} else {
+			t.Logf("PASS: decap-policy matched-pkts counter incremented by %d", delta)
+		}
+	} else if delta != 0 {
+		t.Errorf("decap-policy matched-pkts counter unexpectedly incremented by %d for a flow that should not match the decap rule (initial=%d final=%d)", delta, p.InitialMatchedPkts, finalMatchedPkts)
 	} else {
-		_, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State(), timeout, isPresent).Await(t)
-		if !ok {
-			t.Errorf("Unable to find matched packets")
-		}
-		matchpackets := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State())
-		if matchpackets == 0 {
-			t.Errorf("matched counters received %d", matchpackets)
-		}
+		t.Logf("PASS: decap-policy matched-pkts counter correctly did not increment")
 	}
 }
 
-// gueDecapInnerIpv4Traffic configures and validates GUE decapsulation for inner IPv4 traffic, including optional traffic and counter verification.
-func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters bool) {
+// applyImixTrafficProfile applies an IMIX traffic profile to the given flow, setting packet sizes and weights,
+// as well as the traffic rate and duration.
+func applyImixTrafficProfile(flow gosnappi.Flow) {
+	custom := flow.Size().WeightPairs().Custom()
+	custom.Add().SetSize(128).SetWeight(7)
+	custom.Add().SetSize(512).SetWeight(4)
+	custom.Add().SetSize(1518).SetWeight(1)
+	flow.Rate().SetPercentage(trafficRatePercent)
+	flow.Duration().FixedPackets().SetPackets(packetCount)
+}
+
+// gueDecapInnerIpv4Traffic configures and validates GUE decapsulation for inner IPv4 traffic, including traffic and decap-counter verification.
+func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIps []string, trafficShouldPass, shouldDecap, verifyDropCounters bool) {
 	trafficID := fmt.Sprintf("Gue-Decap-Flow1-%v", ateUdpPort)
-	flow := configureIPv4Traffic(t, ate, topo, trafficID, destIp, ateUdpPort)
+	flow := configureIPv4Traffic(t, ate, topo, trafficID, destIps, ateUdpPort)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv4")
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	cs := otgutils.StartCapture(t, ate.OTG())
 	defer otgutils.StopCapture(t, ate.OTG(), cs)
-	trafficStartStop(t, dut, ate, topo, otgConfig, flow, verifyCounters)
+	trafficStartStop(t, dut, ate, topo, otgConfig, flow, trafficShouldPass, shouldDecap, verifyDropCounters)
 	otgutils.StopCapture(t, ate.OTG(), cs)
-	if trafficValidation {
+	if trafficShouldPass {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		if verifyCounters {
+		if shouldDecap {
 			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
-			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+			verifyCaptureDscpTtlValue(t, ate, "port2", "ipv4", int(innerDscpValue), int(innerTTL-1))
 		} else {
-			// PF-1.4.5 / PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
-			verifyPassThroughGuePacket(t, ate, "port2")
+			// PF-1.4.5: pass-through — verify outer packet unmodified (no decap)
+			verifyPassThroughGuePacket(t, ate, "port2", "ipv4")
 		}
 	} else {
+		// PF-1.4.3: negative — the flow must be dropped (no packets received on ATE Port 2)
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
 }
 
-// gueDecapInnerIpv6Traffic configures and validates GUE decapsulation for inner IPv6 traffic, including optional traffic and counter verification.
-func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters bool) {
+// gueDecapInnerIpv6Traffic configures and validates GUE decapsulation for inner IPv6 traffic, including traffic and decap-counter verification.
+func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIps []string, trafficShouldPass, shouldDecap, verifyDropCounters bool) {
 	trafficID := fmt.Sprintf("Gue-Decap-Flow1-%v", ateUdpPort)
-	flow := configureIPv6Traffic(t, ate, topo, trafficID, destIp, ateUdpPort)
+	flow := configureIPv6Traffic(t, ate, topo, trafficID, destIps, ateUdpPort)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv6")
 	enableCapture(t, topo, "port2")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
 	cs := otgutils.StartCapture(t, ate.OTG())
 	defer otgutils.StopCapture(t, ate.OTG(), cs)
-	trafficStartStop(t, dut, ate, topo, otgConfig, flow, verifyCounters)
+	trafficStartStop(t, dut, ate, topo, otgConfig, flow, trafficShouldPass, shouldDecap, verifyDropCounters)
 	otgutils.StopCapture(t, ate.OTG(), cs)
-	if trafficValidation {
+	if trafficShouldPass {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		if verifyCounters {
+		if shouldDecap {
 			// PF-1.4.1 / PF-1.4.2: decapsulate — verify inner DSCP and TTL
-			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+			verifyCaptureDscpTtlValue(t, ate, "port2", "ipv6", int(innerDscpValue), int(innerTTL-1))
 		} else {
-			// PF-1.4.5 / PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
-			verifyPassThroughGuePacket(t, ate, "port2")
+			// PF-1.4.6: pass-through — verify outer packet unmodified (no decap)
+			verifyPassThroughGuePacket(t, ate, "port2", "ipv6")
 		}
 	} else {
+		// PF-1.4.4: negative — the flow must be dropped (no packets received on ATE Port 2)
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
 }
 
-// configureDutWithGueDecap configures GUE decapsulation on the DUT for the specified UDP port and IP type (IPv4 or IPv6) using Policy Forwarding.
+// configureDutWithGueDecap configures GUE decapsulation on the DUT for the specified UDP port and
+// IP type (IPv4 or IPv6), delegating to cfgplugins.DecapGroupConfigGue for both the native-CLI
+// deviation path and the canonical OC path (a destination-address-prefix-set covering the decap
+// subnet range, combined with a UDP destination-port match).
 func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) {
+	t.Helper()
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	ocPFParams := getDefaultOcPolicyForwardingParams(t, dut, guePort, ipType)
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
@@ -514,78 +653,96 @@ func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 }
 
 // getDefaultOcPolicyForwardingParams provides default parameters for the generator, matching the values in the provided JSON example.
+// ResetDecapState makes every sub-test push a fresh decap config: anything a previous sub-test left behind
+// (e.g. the same UDP port still bound to the other payload type on Arista) is removed first.
 func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
-		NetworkInstanceName: "DEFAULT",
+		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
-		TunnelIP:            tunIp,
+		TunnelIP:            decapDstSubnetV6,
 		GUEPort:             uint32(guePort),
 		IPType:              ipType,
 		Dynamic:             true,
+		ResetDecapState:     true,
 	}
 }
 
-// configureIPv4Traffic configure the IPv4 stream.
-func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, trafficID, destIp string, guePort int) gosnappi.Flow {
+// dscpToTrafficClass converts a DSCP value to the IPv6 Traffic Class byte (DSCP occupies the upper
+// six bits, the lower two are ECN). Writing the raw DSCP into the field would set DSCP 8 / ECN=CE.
+func dscpToTrafficClass(dscp uint32) uint32 { return dscp << 2 }
+
+// configureIPv4Traffic configures the outer-IPv6/GUE + inner-IPv4 stream. destIps cycles the
+// outer GUE destination across the given addresses (e.g. the full DECAP-DST-SUBNET-V6/64 range,
+// or a single pass-through address), per the README's traffic profile.
+func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, trafficID string, destIps []string, guePort int) gosnappi.Flow {
 	t.Logf("Configure Traffic from ATE with flowname %s", trafficID)
 	topo.Flows().Clear()
 	flow := topo.Flows().Add().SetName(trafficID)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{v4NetName1}).SetRxNames([]string{v4NetName2})
+	flow.TxRx().Device().SetTxNames([]string{ateIPv4Name(atePort1)}).SetRxNames([]string{ateIPv4Name(atePort2)})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	ethHeader.Dst().Auto()
 	outerIpHeader := flow.Packet().Add().Ipv6()
 	outerIpHeader.Src().SetValue(atePort1.IPv6)
-	outerIpHeader.Dst().SetValue(destIp)
-	outerIpHeader.TrafficClass().SetValue(outerDscpValue)
+	if len(destIps) == 1 {
+		outerIpHeader.Dst().SetValue(destIps[0])
+	} else {
+		outerIpHeader.Dst().SetValues(destIps)
+	}
+	outerIpHeader.TrafficClass().SetValue(dscpToTrafficClass(outerDscpValue))
 	outerIpHeader.HopLimit().SetValue(outerTTL)
 	udpHeader := flow.Packet().Add().Udp()
-	udpHeader.SrcPort().SetValue(srcPortValue)
+	udpHeader.SrcPort().Random().SetMin(srcPortMin).SetMax(srcPortMax)
 	udpHeader.DstPort().SetValue(uint32(guePort))
 	innerIpHeader := flow.Packet().Add().Ipv4()
 	innerIpHeader.Src().SetValue(ipv4Src)
 	innerIpHeader.Dst().SetValue(ipv4Dst)
 	innerIpHeader.Priority().Dscp().Phb().SetValue(innerDscpValue)
 	innerIpHeader.TimeToLive().SetValue(innerTTL)
-	flow.Size().SetFixed(uint32(packetSize))
-	flow.Rate().SetPps(packetPerSecond)
-	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	applyImixTrafficProfile(flow)
 	return flow
 }
 
-// configureIPv6Traffic configure the IPv6 stream.
-func configureIPv6Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, trafficID, destIp string, guePort int) gosnappi.Flow {
+// configureIPv6Traffic configures the outer-IPv6/GUE + inner-IPv6 stream, using the ATE IPv6 interfaces as endpoints,
+// destIps cycles the outer GUE destination across the given addresses.
+func configureIPv6Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, trafficID string, destIps []string, guePort int) gosnappi.Flow {
 	t.Logf("Configure Traffic from ATE with flowname %s", trafficID)
 	topo.Flows().Clear()
 	flow := topo.Flows().Add().SetName(trafficID)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{v4NetName1}).SetRxNames([]string{v4NetName2})
+	flow.TxRx().Device().SetTxNames([]string{ateIPv6Name(atePort1)}).SetRxNames([]string{ateIPv6Name(atePort2)})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	ethHeader.Dst().Auto()
 	outerIpHeader := flow.Packet().Add().Ipv6()
 	outerIpHeader.Src().SetValue(atePort1.IPv6)
-	outerIpHeader.Dst().SetValue(destIp)
-	outerIpHeader.TrafficClass().SetValue(outerDscpValue)
+	if len(destIps) == 1 {
+		outerIpHeader.Dst().SetValue(destIps[0])
+	} else {
+		outerIpHeader.Dst().SetValues(destIps)
+	}
+	outerIpHeader.TrafficClass().SetValue(dscpToTrafficClass(outerDscpValue))
 	outerIpHeader.HopLimit().SetValue(outerTTL)
 	udpHeader := flow.Packet().Add().Udp()
-	udpHeader.SrcPort().SetValue(srcPortValue)
+	udpHeader.SrcPort().Random().SetMin(srcPortMin).SetMax(srcPortMax)
 	udpHeader.DstPort().SetValue(uint32(guePort))
 	innerIpHeader := flow.Packet().Add().Ipv6()
 	innerIpHeader.Src().SetValue(ipv6Src)
 	innerIpHeader.Dst().SetValue(ipv6Dst)
-	innerIpHeader.TrafficClass().SetValue(innerDscpValue)
+	innerIpHeader.TrafficClass().SetValue(dscpToTrafficClass(innerDscpValue))
 	innerIpHeader.HopLimit().SetValue(innerTTL)
-	flow.Size().SetFixed(uint32(packetSize))
-	flow.Rate().SetPps(packetPerSecond)
-	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	applyImixTrafficProfile(flow)
 	return flow
 }
 
-// verifyCaptureDscpTtlValue validates that the DSCP and TTL values are preserved after decapsulation by analyzing captured packets on the specified ATE port.
-func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port string, dscp int, ttl int) {
+// verifyCaptureDscpTtlValue validates the README's RX-Flow-type#1/#2: every decapsulated packet captured on
+// the specified ATE port must be the inner packet (IPV4-SRC1->IPV4-DST1 or IPV6-SRC1->IPV6-DST1) with
+// the inner DSCP preserved and the inner TTL decremented by exactly one.
+// innerType is "ipv4" or "ipv6".
+func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port, innerType string, dscp int, ttl int) {
+	t.Helper()
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
 	if err != nil {
@@ -593,88 +750,118 @@ func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port string
 	}
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	matched, bad := 0, 0
 	for packet := range packetSource.Packets() {
-		// Handle IPv4 payload
-		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-			ip, _ := ipLayer.(*layers.IPv4)
-			if ip.SrcIP.Equal(net.ParseIP(ipv4Src)) {
-				dscpValue := ip.TOS >> 2
-				ttlVal := ip.TTL
-				if dscpValue == uint8(dscp) && ttlVal == uint8(ttl) {
-					t.Logf("PASS: IPv4 DSCP value %v and TTL value %v are Preserved", dscp, ttl)
-					return
-				}
-				t.Fatalf("ERROR: IPv4 DSCP and TTL value not preserved after Decap. Expected : DSCP - %v , TTL - %v Got : DSCP - %v , TTL - %v", dscp, ttl, dscpValue, ttlVal)
-			}
+		gotDscp, gotTTL := 0, 0
+		family := ""
+		dstOK := false
+		if ip, ok := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4); ok && innerType == "ipv4" && ip.SrcIP.Equal(net.ParseIP(ipv4Src)) {
+			family, gotDscp, gotTTL = "IPv4", int(ip.TOS>>2), int(ip.TTL)
+			dstOK = ip.DstIP.Equal(net.ParseIP(ipv4Dst))
+		} else if ip6, ok := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6); ok && innerType == "ipv6" && ip6.SrcIP.Equal(net.ParseIP(ipv6Src)) {
+			// The DSCP is the upper six bits of the IPv6 Traffic Class.
+			family, gotDscp, gotTTL = "IPv6", int(ip6.TrafficClass>>2), int(ip6.HopLimit)
+			dstOK = ip6.DstIP.Equal(net.ParseIP(ipv6Dst))
+		} else {
+			continue
 		}
-		// Handle IPv6 payload
-		if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
-			ip6, _ := ip6Layer.(*layers.IPv6)
-			if ip6.SrcIP.Equal(net.ParseIP(ipv6Src)) {
-				dscpValue := ip6.TrafficClass
-				ttlVal := ip6.HopLimit
-				if int(dscpValue) == dscp && int(ttlVal) == ttl {
-					t.Logf("PASS: IPv6 DSCP value %v and TTL value %v are Preserved", dscp, ttl)
-					return
-				}
-				t.Fatalf("ERROR: IPv6 DSCP and TTL value not preserved after Decap. Expected : DSCP - %v , TTL - %v Got : DSCP - %v , TTL - %v", dscp, ttl, dscpValue, ttlVal)
+		matched++
+		if !dstOK || gotDscp != dscp || gotTTL != ttl {
+			bad++
+			if bad <= 3 {
+				t.Logf("%s packet mismatch after decap. Expected: DSCP %v, TTL %v, inner dst ok=true Got: DSCP %v, TTL %v, inner dst ok=%v", family, dscp, ttl, gotDscp, gotTTL, dstOK)
 			}
 		}
 	}
-	t.Fatalf("ERROR: Could not find packet with matching inner source IP (%s or %s) in capture", ipv4Src, ipv6Src)
+	switch {
+	case matched == 0:
+		t.Errorf("Could not find decapsulated %s packet with inner source IP (%s or %s) in capture", innerType, ipv4Src, ipv6Src)
+	case bad > 0:
+		t.Errorf("DSCP/TTL/destination not as expected after decap for %d of %d captured packets. Expected: DSCP %v, TTL %v", bad, matched, dscp, ttl)
+	default:
+		t.Logf("PASS: DSCP value %v and TTL value %v are preserved on all %d captured decapsulated packets", dscp, ttl, matched)
+	}
 }
 
-// waitForBGPSession waits for BGP neighbors to reach the expected session state within a fixed timeout. It validates BGPv4 neighbor session state under the default network instance.
-func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
-	compare := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-		state, ok := val.Val()
-		if ok {
-			if wantEstablished {
-				t.Logf("BGP session state: %s", state.String())
-				return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-			}
-			return state == oc.Bgp_Neighbor_SessionState_IDLE
-		}
-		return false
+// verifyPassThroughGuePacket validates the README's RX-Flow-type#5/#6: the GUE packet is forwarded undecapsulated
+// to ATE Port 2 with only the outer TTL decremented (outer DSCP, UDP port 6081 and the inner header untouched).
+// innerType is "ipv4" or "ipv6".
+func verifyPassThroughGuePacket(t *testing.T, ate *ondatra.ATEDevice, port, innerType string) {
+	t.Helper()
+	pcapfilename := processCapture(t, ate, port)
+	handle, err := pcap.OpenOffline(pcapfilename)
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer handle.Close()
 
-	nbrListv4 := []string{atePort1.IPv4, atePort2.IPv4}
-
-	for _, nbr := range nbrListv4 {
-		nbrPath := statePath.Neighbor(nbr)
-		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, compare).Await(t)
+	wantInnerVersion := byte(4)
+	if innerType == "ipv6" {
+		wantInnerVersion = 6
+	}
+	wantOuterTTL := uint8(outerTTL - 1)
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	matched, bad := 0, 0
+	for packet := range packetSource.Packets() {
+		ip6, ok := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+		if !ok || !ip6.SrcIP.Equal(net.ParseIP(atePort1.IPv6)) {
+			continue
+		}
+		udp, ok := packet.Layer(layers.LayerTypeUDP).(*layers.UDP)
 		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			if wantEstablished {
-				t.Fatal("No BGP neighbor formed...")
-			} else {
-				t.Fatal("BGPv4 session didn't teardown.")
-			}
+			continue
 		}
-	}
-}
-func verifyPassThroughGuePacket(t *testing.T, ate *ondatra.ATEDevice, port string) {
-	pcapfilename := processCapture(t, ate, port)
-	handle, err := pcap.OpenOffline(pcapfilename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
-			ip6, _ := ip6Layer.(*layers.IPv6)
-			if ip6.SrcIP.Equal(net.ParseIP(atePort1.IPv6)) {
-				expectedTTL := uint8(outerTTL - 1)
-				if ip6.HopLimit == expectedTTL {
-					t.Logf("PASS: GUE pass-through packet verified: outer src=%s, TTL=%d (decremented by 1)", atePort1.IPv6, ip6.HopLimit)
-					return
+		matched++
+		errs := []string{}
+		if !ip6.DstIP.Equal(net.ParseIP(atePort2.IPv6)) {
+			errs = append(errs, fmt.Sprintf("outer dst %s, want %s", ip6.DstIP, atePort2.IPv6))
+		}
+		if ip6.HopLimit != wantOuterTTL {
+			errs = append(errs, fmt.Sprintf("outer TTL %d, want %d", ip6.HopLimit, wantOuterTTL))
+		}
+		if got := uint32(ip6.TrafficClass >> 2); got != outerDscpValue {
+			errs = append(errs, fmt.Sprintf("outer DSCP %d, want %d", got, outerDscpValue))
+		}
+		if int(udp.DstPort) != gueDecapPort {
+			errs = append(errs, fmt.Sprintf("UDP dst port %d, want %d", udp.DstPort, gueDecapPort))
+		}
+		// GUE variant 1: the UDP payload is the inner IP packet itself. (gopacket would decode UDP/6081
+		// as Geneve, so the inner header is parsed explicitly from the UDP payload.)
+		if len(udp.Payload) == 0 || udp.Payload[0]>>4 != wantInnerVersion {
+			errs = append(errs, "inner IP version mismatch or empty UDP payload")
+		} else if wantInnerVersion == 4 {
+			if in, ok := gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv4, gopacket.Default).Layer(layers.LayerTypeIPv4).(*layers.IPv4); ok {
+				if uint32(in.TTL) != innerTTL || uint32(in.TOS>>2) != innerDscpValue {
+					errs = append(errs, fmt.Sprintf("inner IPv4 TTL/DSCP %d/%d, want %d/%d", in.TTL, in.TOS>>2, innerTTL, innerDscpValue))
 				}
-				t.Fatalf("ERROR: Outer TTL mismatch in pass-through. Expected: %d, Got: %d", expectedTTL, ip6.HopLimit)
+			} else {
+				errs = append(errs, "inner IPv4 header could not be decoded")
+			}
+		} else {
+			if in, ok := gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv6, gopacket.Default).Layer(layers.LayerTypeIPv6).(*layers.IPv6); ok {
+				if uint32(in.HopLimit) != innerTTL || uint32(in.TrafficClass>>2) != innerDscpValue {
+					errs = append(errs, fmt.Sprintf("inner IPv6 hop-limit/DSCP %d/%d, want %d/%d", in.HopLimit, in.TrafficClass>>2, innerTTL, innerDscpValue))
+				}
+			} else {
+				errs = append(errs, "inner IPv6 header could not be decoded")
+			}
+		}
+		if len(errs) > 0 {
+			bad++
+			if bad <= 3 {
+				t.Logf("pass-through packet mismatch: %v", errs)
 			}
 		}
 	}
-	t.Fatalf("ERROR: Could not find GUE pass-through packet with outer src IP (%s) in capture", atePort1.IPv6)
+	switch {
+	case matched == 0:
+		t.Errorf("Could not find GUE pass-through packet with outer src IP (%s) in capture", atePort1.IPv6)
+	case bad > 0:
+		t.Errorf("%d of %d GUE pass-through packets were modified or malformed", bad, matched)
+	case matched != packetCount:
+		t.Errorf("Captured %d GUE pass-through packets, want %d (no packet loss expected)", matched, packetCount)
+	default:
+		t.Logf("PASS: %d GUE pass-through packets verified: outer dst=%s, DSCP=%d, UDP port=%d, TTL=%d (decremented by 1), inner header unchanged",
+			matched, atePort2.IPv6, outerDscpValue, gueDecapPort, wantOuterTTL)
+	}
 }

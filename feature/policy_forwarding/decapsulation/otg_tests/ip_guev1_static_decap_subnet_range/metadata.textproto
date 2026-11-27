@@ -17,3 +17,12 @@ platform_exceptions: {
     gue_gre_decap_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    policy_rule_counters_oc_unsupported: true
+    gue_gre_decap_unsupported: true
+  }
+}
