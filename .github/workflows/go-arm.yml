@@ -64,7 +64,9 @@ jobs:
       # Cache location is managed by XDG_CACHE_HOME env variable
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
-        run: sudo apt-get -y install libpcap-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpcap-dev
       - run: go test -v -coverprofile=profile.cov $(go list ./... | grep -v /.*test.*)
       - name: Send coverage
         continue-on-error: true
@@ -92,7 +94,9 @@ jobs:
     # Cache location is managed by XDG_CACHE_HOME env variable
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
-      run: sudo apt-get -y install libpcap-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install libpcap-dev
 
     # Removed counter-productive go clean -cache
 
