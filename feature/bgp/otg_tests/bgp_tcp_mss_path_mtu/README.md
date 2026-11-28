@@ -1,6 +1,11 @@
-# RT-1.21: BGP TCP MSS and PMTUD 
+# RT-1.21: BGP PMTUD
 
 ## Summary
+
+> [!NOTE]
+> The TCP MSS test moved to
+> [RT-1.22: BGP TCP MSS](https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_tcp_mss/README.md).
+> The MSS steps below are kept until this test is updated to cover PMTUD only.
 
 *   Validate changes in TCP MSS value is allowed and takes effect.
 *   Validate DUT's PMTUD compliance.
@@ -21,7 +26,7 @@
 *   Verify that the TCP MSS value is set to 4096 bytes for the IPv4 and IPv6 EBGP sessions.
 *   Establish iBGP session with MD5 enabled between ATE:port1 and DUT2:port1.
 *   Ensure that the MTU on the DUT1:port1 towards ATE1:port1 is left at default (1500B) while the ATE1:port1 interface towards DUT1:port1 is set at 5040B. Please also make sure that the DUT2:port1 MTU is set at 5040B as well.
-*   Enable PMTUD on DUT2:port1. 
+*   Enable PMTUD on DUT2:port1.
 *   Re-establish the IBGP sessions by tcp reset.
 *   Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.
 
@@ -45,7 +50,7 @@ rpcs:
 ## Canonical OC
 ```json
 {}
-```   
+```
 
 ## Minimum DUT platform requirement
 
