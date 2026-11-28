@@ -24,7 +24,7 @@ import (
 )
 
 // FindProcessIDByName uses telemetry to find out the PID of a process.
-func FindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+func FindProcessIDByName(t testing.TB, dut *ondatra.DUTDevice, pName string) uint64 {
 	t.Helper()
 
 	var pid uint64
