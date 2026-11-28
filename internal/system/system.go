@@ -16,12 +16,78 @@
 package system
 
 import (
+	"context"
+	"math"
+	"net/netip"
+	"sort"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
+
+var (
+	cpComponentCacheMu sync.Mutex
+	cpComponentCache   = make(map[string][]string)
+	ygnmiClientCache   = make(map[string]*ygnmi.Client)
+)
+
+func getYGNMIClient(t testing.TB, dut *ondatra.DUTDevice) (*ygnmi.Client, error) {
+	t.Helper()
+	dutName := dut.Name()
+	cpComponentCacheMu.Lock()
+	if cached, ok := ygnmiClientCache[dutName]; ok {
+		cpComponentCacheMu.Unlock()
+		return cached, nil
+	}
+	cpComponentCacheMu.Unlock()
+
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dutName))
+	if err != nil {
+		return nil, err
+	}
+	cpComponentCacheMu.Lock()
+	ygnmiClientCache[dutName] = c
+	cpComponentCacheMu.Unlock()
+	return c, nil
+}
+
+// YGNMIClient returns a ygnmi client for dut that is created once per DUT and then reused.
+// Reusing one client avoids opening a new gNMI connection (and, with direct dial, a new mTLS
+// handshake on the DUT's telemetry front-end) for every query.
+func YGNMIClient(t testing.TB, dut *ondatra.DUTDevice) (*ygnmi.Client, error) {
+	t.Helper()
+	return getYGNMIClient(t, dut)
+}
+
+// ProcessSample holds a point-in-time snapshot of a user-space system process's
+// identity, uptime, memory, and CPU telemetry from [OC-Group-A] (/system/processes/process/state).
+type ProcessSample struct {
+	PID               uint64
+	Name              string
+	StartTime         uint64
+	StartTimePresent  bool
+	MemoryUsage       uint64
+	MemoryUtilization uint8
+	CPUUtilization    uint8
+}
+
+// ComponentMemorySample holds a point-in-time snapshot of a control-plane hardware component's
+// operational state and memory telemetry from [OC-Group-B] (/components/component/state).
+type ComponentMemorySample struct {
+	Name       string
+	Type       oc.Component_Type_Union
+	OperStatus oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	Available  uint64
+	Utilized   uint64
+}
 
 // FindProcessIDByName uses telemetry to find out the PID of a process.
 func FindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
@@ -36,4 +102,865 @@ func FindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uin
 		}
 	}
 	return pid
+}
+
+// SampleGNMIOpts returns *gnmi.Opts configured for gNMI SAMPLE mode at the given sample interval.
+func SampleGNMIOpts(dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(interval),
+	)
+}
+
+// isTransientHelperProcess returns true for short-lived interactive CLI shells, SSH session workers,
+// login helpers, or cron/command utilities that are not persistent system daemons.
+func isTransientHelperProcess(name string) bool {
+	if strings.HasPrefix(name, "sshd") || strings.HasPrefix(name, "CliShell") {
+		return true
+	}
+	switch name {
+	case "", "exec", "bash", "sh", "csh", "ksh", "zsh", "login", "Cli", "cli", "mgd", "sudo", "su", "sleep", "cron", "crond", "more", "less", "grep", "awk", "sed", "find", "flock", "ps", "top":
+		return true
+	default:
+		return false
+	}
+}
+
+// CollectUserSpaceProcesses queries /system/processes/process/state in a single wildcard
+// query ([OC-Group-A]) and returns all user-space processes reporting memory-usage > 0,
+// keyed by PID. Kernel threads reporting memory-usage == 0 and transient shell/CLI helpers are filtered out.
+func CollectUserSpaceProcesses(t testing.TB, dut *ondatra.DUTDevice) map[uint64]ProcessSample {
+	t.Helper()
+	procs := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
+	samples := make(map[uint64]ProcessSample, len(procs))
+	for _, proc := range procs {
+		if proc == nil || proc.GetMemoryUsage() == 0 || isTransientHelperProcess(proc.GetName()) {
+			continue
+		}
+		pid := proc.GetPid()
+		samples[pid] = ProcessSample{
+			PID:               pid,
+			Name:              proc.GetName(),
+			StartTime:         proc.GetStartTime(),
+			StartTimePresent:  proc.StartTime != nil && proc.GetStartTime() > 0,
+			MemoryUsage:       proc.GetMemoryUsage(),
+			MemoryUtilization: proc.GetMemoryUtilization(),
+			CPUUtilization:    proc.GetCpuUtilization(),
+		}
+	}
+	return samples
+}
+
+// ProcessSampleStream maintains a wildcard gNMI SAMPLE subscription on
+// /system/processes/process/state ([OC-Group-A]) at a configured sampling interval.
+type ProcessSampleStream struct {
+	mu             sync.Mutex
+	samples        map[uint64]ProcessSample
+	cancel         context.CancelFunc
+	interval       time.Duration
+	lastSampleTime time.Time
+	// streaming is true while the single long-lived background SAMPLE subscription is open.
+	streaming bool
+	// done is closed when the background SAMPLE subscription goroutine exits (nil if none started).
+	done chan struct{}
+}
+
+// NewProcessSampleStream opens one long-lived wildcard SAMPLE subscription on
+// /system/processes/process/state at the given interval and registers cleanup on t. Keeping a
+// single subscription open (instead of opening a new one for every wait) minimizes gNMI stream
+// churn on the DUT's telemetry front-end, which would otherwise be measured as part of the
+// process memory being validated. If the subscription cannot be opened or ends early, the
+// Await methods fall back to short-lived SAMPLE subscriptions.
+func NewProcessSampleStream(t testing.TB, dut *ondatra.DUTDevice, interval time.Duration) *ProcessSampleStream {
+	t.Helper()
+	if interval <= 0 {
+		interval = 60 * time.Second
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &ProcessSampleStream{
+		samples:        make(map[uint64]ProcessSample),
+		cancel:         cancel,
+		interval:       interval,
+		lastSampleTime: time.Now(),
+	}
+	t.Cleanup(s.Close)
+	if dut == nil {
+		return s
+	}
+	c, err := getYGNMIClient(t, dut)
+	if err != nil {
+		t.Logf("ProcessSampleStream: cannot create gNMI client (%v); using short-lived SAMPLE subscriptions", err)
+		return s
+	}
+	s.streaming = true
+	s.done = make(chan struct{})
+	go func() {
+		defer close(s.done)
+		_, err := ygnmi.WatchAll(ctx, c, gnmi.OC().System().ProcessAny().State(), func(v *ygnmi.Value[*oc.System_Process]) error {
+			if proc, ok := v.Val(); ok {
+				s.record(proc)
+			}
+			return ygnmi.Continue
+		},
+			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+			ygnmi.WithSampleInterval(interval),
+		).Await()
+		s.mu.Lock()
+		s.streaming = false
+		s.mu.Unlock()
+		if ctx.Err() == nil {
+			t.Logf("ProcessSampleStream: background SAMPLE subscription ended (%v); using short-lived SAMPLE subscriptions", err)
+		}
+	}()
+	return s
+}
+
+// record stores a user-space process sample received from a SAMPLE update.
+func (s *ProcessSampleStream) record(proc *oc.System_Process) {
+	if proc == nil || proc.GetMemoryUsage() == 0 || isTransientHelperProcess(proc.GetName()) {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pid := proc.GetPid()
+	s.samples[pid] = ProcessSample{
+		PID:               pid,
+		Name:              proc.GetName(),
+		StartTime:         proc.GetStartTime(),
+		StartTimePresent:  proc.StartTime != nil && proc.GetStartTime() > 0,
+		MemoryUsage:       proc.GetMemoryUsage(),
+		MemoryUtilization: proc.GetMemoryUtilization(),
+		CPUUtilization:    proc.GetCpuUtilization(),
+	}
+}
+
+// isStreaming reports whether the long-lived background SAMPLE subscription is open.
+func (s *ProcessSampleStream) isStreaming() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.streaming
+}
+
+// waitFor blocks for d while the background SAMPLE subscription keeps updating samples.
+func waitFor(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	<-timer.C
+}
+
+// Snapshot returns the current user-space process telemetry map by merging the latest
+// wildcard gnmi.GetAll snapshot with updates received via the SAMPLE stream.
+func (s *ProcessSampleStream) Snapshot(t testing.TB, dut *ondatra.DUTDevice) map[uint64]ProcessSample {
+	t.Helper()
+	latest := CollectUserSpaceProcesses(t, dut)
+	if s == nil {
+		return latest
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for pid, sample := range latest {
+		s.samples[pid] = sample
+	}
+	out := make(map[uint64]ProcessSample, len(s.samples))
+	for pid, sample := range s.samples {
+		if _, alive := latest[pid]; alive {
+			out[pid] = sample
+		}
+	}
+	return out
+}
+
+// AwaitNextSample awaits the next sampling interval of duration s.interval using gnmi.WatchAll
+// with SAMPLE mode on [OC-Group-A] (/system/processes/process/state) and returns a complete
+// snapshot of all user-space processes.
+func (s *ProcessSampleStream) AwaitNextSample(t testing.TB, dut *ondatra.DUTDevice) map[uint64]ProcessSample {
+	t.Helper()
+	waitDur := s.interval
+	if waitDur <= 0 {
+		waitDur = 60 * time.Second
+	}
+	s.mu.Lock()
+	targetTime := s.lastSampleTime.Add(waitDur)
+	s.mu.Unlock()
+
+	if rem := time.Until(targetTime); rem > 0 {
+		if s.isStreaming() {
+			waitFor(rem)
+		} else {
+			s.watchSlice(t, dut, rem, waitDur)
+		}
+	}
+
+	s.mu.Lock()
+	if time.Now().After(targetTime) {
+		s.lastSampleTime = targetTime
+	} else {
+		s.lastSampleTime = time.Now()
+	}
+	s.mu.Unlock()
+	return s.Snapshot(t, dut)
+}
+
+// AwaitHoldWindow keeps [OC-Group-A] sampling active across the given holdDuration. While the
+// long-lived background SAMPLE subscription is open it simply waits (samples keep arriving on
+// that subscription); otherwise it falls back to short-lived SAMPLE subscriptions, one per
+// sampling interval. It does not use time.Sleep.
+func (s *ProcessSampleStream) AwaitHoldWindow(t *testing.T, dut *ondatra.DUTDevice, holdDuration time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(holdDuration)
+	for {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			return
+		}
+		sliceDur := rem
+		if s.interval > 0 && sliceDur > s.interval {
+			sliceDur = s.interval
+		}
+		if s.isStreaming() {
+			waitFor(sliceDur)
+			continue
+		}
+		s.watchSlice(t, dut, sliceDur, s.interval)
+	}
+}
+
+// watchSlice opens a short-lived wildcard SAMPLE subscription on
+// /system/processes/process/state for d and records the updates. It is used only when the
+// long-lived background subscription is not available.
+func (s *ProcessSampleStream) watchSlice(t testing.TB, dut *ondatra.DUTDevice, d, interval time.Duration) {
+	t.Helper()
+	// Request a whole-second sample interval rather than the (possibly fractional) remaining
+	// duration: some devices reject arbitrary SAMPLE frequencies. The first SAMPLE update is sent
+	// immediately on subscription, and the watch still ends after d.
+	sampleInterval := interval
+	if sampleInterval <= 0 {
+		sampleInterval = max(d.Round(time.Second), time.Second)
+	}
+	start := time.Now()
+	sampleOpts := dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(sampleInterval),
+	)
+	_, _ = gnmi.WatchAll(t, sampleOpts, gnmi.OC().System().ProcessAny().State(), d, func(v *ygnmi.Value[*oc.System_Process]) bool {
+		if proc, ok := v.Val(); ok {
+			s.record(proc)
+		}
+		return time.Since(start) >= d
+	}).Await(t)
+}
+
+// Close cancels the underlying gNMI SAMPLE subscription and waits for the background goroutine to
+// exit, so it never logs after the test has completed. Close is safe to call more than once.
+func (s *ProcessSampleStream) Close() {
+	if s == nil {
+		return
+	}
+	if s.cancel != nil {
+		s.cancel()
+	}
+	if s.done != nil {
+		<-s.done
+	}
+}
+
+// InterfaceCounterStream maintains background gNMI SAMPLE subscriptions on leaf
+// interface packet counters ([OC-Group-C]) and provides fast snapshot reads.
+type InterfaceCounterStream struct {
+	mu              sync.Mutex
+	inPkts          map[string]uint64
+	inUnicastPkts   map[string]uint64
+	outPkts         map[string]uint64
+	outUnicastPkts  map[string]uint64
+	onceUnsupported bool
+	cancel          context.CancelFunc
+}
+
+// NewInterfaceCounterStream starts background gNMI SAMPLE leaf watches on
+// in-pkts, in-unicast-pkts, out-pkts, and out-unicast-pkts for each port in portNames.
+// Subscribing to leaf paths ensures ygnmi processes SAMPLE updates immediately even on
+// platforms that do not emit SyncResponse on SAMPLE streams.
+func NewInterfaceCounterStream(t testing.TB, dut *ondatra.DUTDevice, portNames []string, interval time.Duration) *InterfaceCounterStream {
+	t.Helper()
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &InterfaceCounterStream{
+		inPkts:         make(map[string]uint64, len(portNames)),
+		inUnicastPkts:  make(map[string]uint64, len(portNames)),
+		outPkts:        make(map[string]uint64, len(portNames)),
+		outUnicastPkts: make(map[string]uint64, len(portNames)),
+		cancel:         cancel,
+	}
+	t.Cleanup(s.Close)
+
+	if !deviations.InterfaceCountersUpdateDelayed(dut) {
+		return s
+	}
+	c, err := getYGNMIClient(t, dut)
+	if err != nil {
+		return s
+	}
+	dc := gnmi.OC()
+	for _, pName := range portNames {
+		portName := pName
+		cPath := dc.Interface(portName).Counters()
+		s.watchLeafCounter(ctx, c, cPath.InPkts().State(), interval, func(v uint64) {
+			s.mu.Lock()
+			if v > s.inPkts[portName] {
+				s.inPkts[portName] = v
+			}
+			s.mu.Unlock()
+		})
+		s.watchLeafCounter(ctx, c, cPath.InUnicastPkts().State(), interval, func(v uint64) {
+			s.mu.Lock()
+			if v > s.inUnicastPkts[portName] {
+				s.inUnicastPkts[portName] = v
+			}
+			s.mu.Unlock()
+		})
+		s.watchLeafCounter(ctx, c, cPath.OutPkts().State(), interval, func(v uint64) {
+			s.mu.Lock()
+			if v > s.outPkts[portName] {
+				s.outPkts[portName] = v
+			}
+			s.mu.Unlock()
+		})
+		s.watchLeafCounter(ctx, c, cPath.OutUnicastPkts().State(), interval, func(v uint64) {
+			s.mu.Lock()
+			if v > s.outUnicastPkts[portName] {
+				s.outUnicastPkts[portName] = v
+			}
+			s.mu.Unlock()
+		})
+	}
+	return s
+}
+
+func (s *InterfaceCounterStream) watchLeafCounter(
+	ctx context.Context,
+	c *ygnmi.Client,
+	q ygnmi.SingletonQuery[uint64],
+	interval time.Duration,
+	onVal func(uint64),
+) {
+	go func() {
+		_, _ = ygnmi.Watch(
+			ctx,
+			c,
+			q,
+			func(v *ygnmi.Value[uint64]) error {
+				if val, ok := v.Val(); ok {
+					onVal(val)
+				}
+				return ygnmi.Continue
+			},
+			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+			ygnmi.WithSampleInterval(interval),
+		).Await()
+	}()
+}
+
+// SnapshotCounters returns the current ingress and egress packet counter maps for portNames.
+// On platforms where ONCE mode on /interfaces/interface/state/counters responds promptly with
+// SyncResponse, it merges the ONCE lookup with the live SAMPLE stream values; if ONCE mode times
+// out or fails, it marks onceUnsupported so subsequent snapshots read directly from the SAMPLE stream.
+func (s *InterfaceCounterStream) SnapshotCounters(t testing.TB, dut *ondatra.DUTDevice, portNames []string) (map[string]uint64, map[string]uint64) {
+	t.Helper()
+	inMap := make(map[string]uint64, len(portNames))
+	outMap := make(map[string]uint64, len(portNames))
+	if s == nil {
+		return inMap, outMap
+	}
+
+	s.mu.Lock()
+	tryOnce := !s.onceUnsupported
+	s.mu.Unlock()
+
+	if tryOnce {
+		if c, err := getYGNMIClient(t, dut); err == nil {
+			dc := gnmi.OC()
+			for _, pName := range portNames {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				val, lErr := ygnmi.Lookup(ctx, c, dc.Interface(pName).Counters().State())
+				timedOut := ctx.Err() != nil
+				cancel()
+				if timedOut || lErr != nil || val == nil {
+					s.mu.Lock()
+					s.onceUnsupported = true
+					s.mu.Unlock()
+					break
+				}
+				if cnt, ok := val.Val(); ok && cnt != nil {
+					inVal := cnt.GetInPkts()
+					if u := cnt.GetInUnicastPkts() + cnt.GetInMulticastPkts() + cnt.GetInBroadcastPkts(); u > inVal {
+						inVal = u
+					}
+					outVal := cnt.GetOutPkts()
+					if u := cnt.GetOutUnicastPkts() + cnt.GetOutMulticastPkts() + cnt.GetOutBroadcastPkts(); u > outVal {
+						outVal = u
+					}
+					if inVal == 0 && outVal == 0 {
+						s.mu.Lock()
+						s.onceUnsupported = true
+						s.mu.Unlock()
+						break
+					}
+					s.mu.Lock()
+					if inVal > s.inPkts[pName] {
+						s.inPkts[pName] = inVal
+					}
+					if outVal > s.outPkts[pName] {
+						s.outPkts[pName] = outVal
+					}
+					s.mu.Unlock()
+				}
+			}
+		}
+	}
+
+	s.mu.Lock()
+	for _, pName := range portNames {
+		in := s.inPkts[pName]
+		if u := s.inUnicastPkts[pName]; u > in {
+			in = u
+		}
+		out := s.outPkts[pName]
+		if u := s.outUnicastPkts[pName]; u > out {
+			out = u
+		}
+		inMap[pName] = in
+		outMap[pName] = out
+	}
+	s.mu.Unlock()
+	return inMap, outMap
+}
+
+// Close cancels the background leaf SAMPLE subscriptions.
+func (s *InterfaceCounterStream) Close() {
+	if s != nil && s.cancel != nil {
+		s.cancel()
+	}
+}
+
+func findControlPlaneComponentNames(t *testing.T, dut *ondatra.DUTDevice) []string {
+	t.Helper()
+	dutName := dut.Name()
+	cpComponentCacheMu.Lock()
+	if cached, ok := cpComponentCache[dutName]; ok {
+		cpComponentCacheMu.Unlock()
+		return cached
+	}
+	cpComponentCacheMu.Unlock()
+
+	typeVals := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Type().State())
+	var names []string
+	for _, tv := range typeVals {
+		gotType, ok := tv.Val()
+		if !ok {
+			continue
+		}
+		switch gotType {
+		case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS,
+			oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
+			oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU:
+			if elems := tv.Path.GetElem(); len(elems) > 1 {
+				if name := elems[1].GetKey()["name"]; name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+	}
+
+	utilVals := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Memory().Utilized().State())
+	if len(utilVals) > 0 {
+		hasMemory := make(map[string]bool, len(utilVals))
+		for _, uv := range utilVals {
+			if val, ok := uv.Val(); ok && val > 0 {
+				if elems := uv.Path.GetElem(); len(elems) > 1 {
+					if name := elems[1].GetKey()["name"]; name != "" {
+						hasMemory[name] = true
+					}
+				}
+			}
+		}
+		var filtered []string
+		for _, name := range names {
+			if hasMemory[name] {
+				filtered = append(filtered, name)
+			}
+		}
+		if len(filtered) > 0 {
+			names = filtered
+		}
+	}
+
+	cpComponentCacheMu.Lock()
+	cpComponentCache[dutName] = names
+	cpComponentCacheMu.Unlock()
+	return names
+}
+
+// CollectControlPlaneMemory queries [OC-Group-B] (/components/component/state/type,
+// /components/component/state/oper-status, /components/component/state/memory/available,
+// and /components/component/state/memory/utilized) for CHASSIS, CONTROLLER_CARD, and CPU
+// components using a single batched gnmi.OCBatch() query and returns a map keyed by component name.
+func CollectControlPlaneMemory(t *testing.T, dut *ondatra.DUTDevice) map[string]ComponentMemorySample {
+	t.Helper()
+	candidateNames := findControlPlaneComponentNames(t, dut)
+	if len(candidateNames) == 0 {
+		return nil
+	}
+
+	batch := gnmi.OCBatch()
+	for _, name := range candidateNames {
+		cPath := gnmi.OC().Component(name)
+		batch.AddPaths(
+			cPath.Empty(),
+			cPath.RedundantRole(),
+			cPath.Type(),
+			cPath.OperStatus(),
+			cPath.Memory().Available(),
+			cPath.Memory().Utilized(),
+		)
+	}
+	var root *oc.Root
+	var ok bool
+	if c, err := getYGNMIClient(t, dut); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if val, lErr := ygnmi.Lookup(ctx, c, batch.State()); lErr == nil && val != nil {
+			root, ok = val.Val()
+		}
+		cancel()
+	}
+	if !ok || root == nil {
+		root, ok = gnmi.Lookup(t, dut, batch.State()).Val()
+	}
+	if !ok || root == nil {
+		return nil
+	}
+
+	results := make(map[string]ComponentMemorySample, len(candidateNames))
+	for _, name := range candidateNames {
+		comp := root.GetComponent(name)
+		if comp == nil || comp.GetEmpty() {
+			continue
+		}
+		gotType := comp.GetType()
+		if gotType == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD &&
+			deviations.SecondaryControllerCardMemoryUtilizationUnsupported(dut) &&
+			comp.GetRedundantRole() == oc.Platform_ComponentRedundantRole_SECONDARY {
+			t.Logf("Skipping secondary controller card %s due to deviation SecondaryControllerCardMemoryUtilizationUnsupported", name)
+			continue
+		}
+		mem := comp.GetMemory()
+		if mem == nil {
+			continue
+		}
+		avail := mem.GetAvailable()
+		util := mem.GetUtilized()
+		if avail == 0 && util == 0 {
+			continue
+		}
+		results[name] = ComponentMemorySample{
+			Name:       name,
+			Type:       gotType,
+			OperStatus: comp.GetOperStatus(),
+			Available:  avail,
+			Utilized:   util,
+		}
+	}
+	return results
+}
+
+// LinearRegression computes the ordinary least-squares slope and coefficient of determination (R^2)
+// for y = values[0..n-1] against sample index x = 0..n-1.
+func LinearRegression(values []float64) (slope, rSquared float64) {
+	n := len(values)
+	if n < 2 {
+		return 0, 0
+	}
+	nf := float64(n)
+	meanX := float64(n-1) / 2.0
+	var sumY float64
+	for _, y := range values {
+		sumY += y
+	}
+	meanY := sumY / nf
+
+	var ssXY, ssXX, ssYY float64
+	for i, y := range values {
+		dx := float64(i) - meanX
+		dy := y - meanY
+		ssXY += dx * dy
+		ssXX += dx * dx
+		ssYY += dy * dy
+	}
+	if ssXX == 0 || ssYY == 0 {
+		return 0, 0
+	}
+	slope = ssXY / ssXX
+	r := ssXY / math.Sqrt(ssXX*ssYY)
+	rSquared = r * r
+	return slope, rSquared
+}
+
+// VerifyProcessMemoryWithinBounds checks that all tracked persistent daemons remain present with the
+// same PID/name and that their memory-usage growth from baseline to after does not exceed maxPct AND maxBytes.
+func VerifyProcessMemoryWithinBounds(
+	t *testing.T,
+	stepLabel string,
+	persistent map[uint64]ProcessSample,
+	baseline map[uint64]ProcessSample,
+	after map[uint64]ProcessSample,
+	maxPct float64,
+	maxBytes uint64,
+) {
+	t.Helper()
+	tracked := persistent
+	if len(tracked) == 0 {
+		tracked = baseline
+	}
+	for pid, refProc := range tracked {
+		baseSample, ok := baseline[pid]
+		if !ok {
+			baseSample = refProc
+		}
+		afterSample, present := after[pid]
+		if !present || afterSample.Name != refProc.Name {
+			// Check whether the daemon crashed and respawned under a new PID (only when no baseline
+			// instance of refProc.Name remains running at its original PID).
+			var baselineInstanceStillRunning bool
+			for basePID, bProc := range baseline {
+				if bProc.Name == refProc.Name {
+					if cur, ok := after[basePID]; ok && cur.Name == refProc.Name {
+						baselineInstanceStillRunning = true
+						break
+					}
+				}
+			}
+			if !baselineInstanceStillRunning {
+				var respawnedPID uint64
+				for candPID, candProc := range after {
+					if candPID != pid && candProc.Name == refProc.Name {
+						if _, existedAtBaseline := baseline[candPID]; !existedAtBaseline {
+							respawnedPID = candPID
+							break
+						}
+					}
+				}
+				if respawnedPID != 0 {
+					t.Errorf("%s Fail: Persistent daemon pid=%d name=%q restarted under new pid=%d", stepLabel, pid, refProc.Name, respawnedPID)
+				} else {
+					t.Logf("%s: Persistent daemon pid=%d name=%q disappeared without a respawned instance; no longer tracked", stepLabel, pid, refProc.Name)
+				}
+			}
+			delete(persistent, pid)
+			continue
+		}
+		if afterSample.MemoryUsage <= baseSample.MemoryUsage || baseSample.MemoryUsage == 0 {
+			continue
+		}
+		growthBytes := afterSample.MemoryUsage - baseSample.MemoryUsage
+		growthPct := float64(growthBytes) * 100.0 / float64(baseSample.MemoryUsage)
+		if growthPct > maxPct && growthBytes > maxBytes {
+			t.Errorf("%s Fail: Persistent daemon pid=%d name=%q memory-usage grew by %.2f%% (%d bytes, from %d to %d), exceeding <= %.1f%% (or <= %d bytes) threshold",
+				stepLabel, pid, refProc.Name, growthPct, growthBytes, baseSample.MemoryUsage, afterSample.MemoryUsage, maxPct, maxBytes)
+		}
+	}
+}
+
+// VerifyComponentMemoryWithinBounds checks that control-plane components (CONTROLLER_CARD and CHASSIS)
+// do not grow in memory/utilized by more than maxPct between baseline and after.
+func VerifyComponentMemoryWithinBounds(
+	t *testing.T,
+	stepLabel string,
+	baseline map[string]ComponentMemorySample,
+	after map[string]ComponentMemorySample,
+	maxPct float64,
+) {
+	t.Helper()
+	for name, baseComp := range baseline {
+		if baseComp.Type != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD &&
+			baseComp.Type != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
+			continue
+		}
+		afterComp, ok := after[name]
+		if !ok || afterComp.Utilized <= baseComp.Utilized || baseComp.Utilized == 0 {
+			continue
+		}
+		growthPct := float64(afterComp.Utilized-baseComp.Utilized) * 100.0 / float64(baseComp.Utilized)
+		if growthPct > maxPct {
+			t.Errorf("%s Fail: Control-plane component %s memory/utilized grew by %.2f%% (from %d to %d), exceeding <= %.1f%% threshold",
+				stepLabel, name, growthPct, baseComp.Utilized, afterComp.Utilized, maxPct)
+		}
+	}
+}
+
+// normalizeIPAddress returns the canonical string form of an IPv4 or IPv6 address so that
+// differently formatted representations of the same address (e.g. IPv6 zero compression) compare
+// equal. Unparsable input is returned unchanged.
+func normalizeIPAddress(addr string) string {
+	if a, err := netip.ParseAddr(addr); err == nil {
+		return a.String()
+	}
+	return addr
+}
+
+// AwaitNextHopGroupMembers verifies that
+// /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=nhgID] in network
+// instance dni contains exactly one member next-hop per address in wantIPs, resolving each
+// member's /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address. It
+// re-evaluates the next-hop-group with non-fatal ONCE lookups roughly every 2 seconds until it
+// matches or timeout expires. Member ip-addresses that could not be resolved yet (for example
+// because a lookup timed out while the DUT is busy programming routes) are looked up again on
+// every attempt. It never fails the test.
+//
+// A member next-hop reported with an IPv6 link-local address (fe80::/10) is accepted as a valid
+// resolution of a global IPv6 BGP next-hop and counted without being matched by address.
+//
+// It returns the last observed next-hop ip-address list, whether next-hop-group membership
+// telemetry (including at least one next-hop ip-address) was observed at all (populated), and
+// whether the membership matched (ok). Callers should treat populated == false as "AFT
+// next-hop-group telemetry not available".
+func AwaitNextHopGroupMembers(t testing.TB, dut *ondatra.DUTDevice, dni string, nhgID uint64, wantIPs []string, timeout time.Duration) (gotIPs []string, populated, ok bool) {
+	t.Helper()
+	want := make(map[string]bool, len(wantIPs))
+	for _, ip := range wantIPs {
+		want[normalizeIPAddress(ip)] = true
+	}
+	c, err := getYGNMIClient(t, dut)
+	if err != nil {
+		return nil, false, false
+	}
+	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
+	nhIPCache := make(map[uint64]string)
+	anyIPPopulated := false
+	resolve := func(nhg *oc.NetworkInstance_Afts_NextHopGroup) ([]string, bool) {
+		ips := make([]string, 0, len(nhg.NextHop))
+		matched := len(nhg.NextHop) == len(want)
+		for idx := range nhg.NextHop {
+			ip, cached := nhIPCache[idx]
+			if !cached {
+				ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+				val, lErr := ygnmi.Lookup(ctx, c, aftsPath.NextHop(idx).State())
+				cancel()
+				if lErr == nil && val != nil {
+					if nh, present := val.Val(); present && nh != nil && nh.GetIpAddress() != "" {
+						ip = normalizeIPAddress(nh.GetIpAddress())
+						nhIPCache[idx] = ip
+					}
+				}
+			}
+			ips = append(ips, ip)
+			if ip == "" {
+				matched = false
+				continue
+			}
+			anyIPPopulated = true
+			if a, pErr := netip.ParseAddr(ip); pErr == nil && a.Is6() && a.IsLinkLocalUnicast() {
+				continue
+			}
+			if !want[ip] {
+				matched = false
+			}
+		}
+		sort.Strings(ips)
+		return ips, matched
+	}
+
+	// Re-evaluate the next-hop-group with non-fatal ONCE lookups until it matches or timeout
+	// expires. Member ip-addresses that could not be resolved yet are looked up again on every
+	// attempt. Between attempts, a SAMPLE subscription bounded by a 2-second context is used as
+	// the wait, so that no time.Sleep is needed.
+	deadline := time.Now().Add(timeout)
+	for {
+		lctx, lcancel := context.WithTimeout(context.Background(), 4*time.Second)
+		val, lErr := ygnmi.Lookup(lctx, c, aftsPath.NextHopGroup(nhgID).State())
+		lcancel()
+		if lErr == nil && val != nil {
+			if nhg, present := val.Val(); present && nhg != nil {
+				if gotIPs, ok = resolve(nhg); ok {
+					return gotIPs, true, true
+				}
+			}
+		}
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			break
+		}
+		waitDur := 2 * time.Second
+		if rem < waitDur {
+			waitDur = rem
+		}
+		if !awaitSampleInterval(c, waitDur) {
+			// The target rejected every SAMPLE subscription used as a wait; stop rather than spin.
+			break
+		}
+	}
+	return gotIPs, anyIPPopulated, false
+}
+
+// awaitSampleInterval blocks for waitDur using a SAMPLE subscription bounded by a context
+// deadline (instead of time.Sleep). It first subscribes to
+// /system/state/current-datetime and falls back to /system/state if the target rejects the
+// first subscription. It returns false if both subscriptions are rejected before waitDur elapses.
+func awaitSampleInterval(c *ygnmi.Client, waitDur time.Duration) bool {
+	start := time.Now()
+	// Use a whole-second SAMPLE interval: some devices reject arbitrary SAMPLE frequencies. The
+	// wait itself is bounded by the context deadline below.
+	opts := []ygnmi.Option{
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(max(waitDur.Round(time.Second), time.Second)),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), waitDur)
+	_, _ = ygnmi.Watch(ctx, c, gnmi.OC().System().CurrentDatetime().State(), func(*ygnmi.Value[string]) error {
+		return ygnmi.Continue
+	}, opts...).Await()
+	cancel()
+	if rem := waitDur - time.Since(start); rem > 100*time.Millisecond {
+		ctx, cancel := context.WithTimeout(context.Background(), rem)
+		_, _ = ygnmi.Watch(ctx, c, gnmi.OC().System().State(), func(*ygnmi.Value[*oc.System]) error {
+			return ygnmi.Continue
+		}, opts...).Await()
+		cancel()
+	}
+	return waitDur-time.Since(start) <= 100*time.Millisecond
+}
+
+// LogProcessMemoryDeltas logs the baseline, after, and growth memory-usage of every tracked
+// persistent daemon ([OC-Group-A]) so that memory headroom against leak thresholds is recorded on
+// passing runs as well as failing runs. tracked falls back to baseline when empty.
+func LogProcessMemoryDeltas(t testing.TB, stepLabel string, tracked, baseline, after map[uint64]ProcessSample) {
+	t.Helper()
+	if len(tracked) == 0 {
+		tracked = baseline
+	}
+	pids := make([]uint64, 0, len(tracked))
+	for pid := range tracked {
+		pids = append(pids, pid)
+	}
+	sort.Slice(pids, func(i, j int) bool { return pids[i] < pids[j] })
+	for _, pid := range pids {
+		ref := tracked[pid]
+		base, okBase := baseline[pid]
+		if !okBase {
+			base = ref
+		}
+		aft, okAfter := after[pid]
+		if !okAfter || aft.Name != ref.Name {
+			t.Logf("%s Memory: pid=%d name=%q not present after (baseline=%dB)", stepLabel, pid, ref.Name, base.MemoryUsage)
+			continue
+		}
+		delta := int64(aft.MemoryUsage) - int64(base.MemoryUsage)
+		var pct float64
+		if base.MemoryUsage > 0 {
+			pct = float64(delta) * 100.0 / float64(base.MemoryUsage)
+		}
+		t.Logf("%s Memory: pid=%d name=%q baseline=%dB after=%dB delta=%+dB (%+.2f%%)", stepLabel, pid, ref.Name, base.MemoryUsage, aft.MemoryUsage, delta, pct)
+	}
 }

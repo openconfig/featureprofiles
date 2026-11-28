@@ -161,3 +161,37 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 
 	return dev
 }
+
+// AddToOTGDevice adds an emulated device with these attributes to a gosnappi configuration on
+// the given ATE port. Unlike AddToOTG, the ATE port is only added to the configuration if it is
+// not already present, which allows multiple emulated devices (each with a unique MAC and IP
+// address) to share a single ATE port on the same subnet.
+func (a *Attributes) AddToOTGDevice(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) gosnappi.Device {
+	portPresent := false
+	for _, p := range top.Ports().Items() {
+		if p.Name() == ap.ID() {
+			portPresent = true
+			break
+		}
+	}
+	if !portPresent {
+		top.Ports().Add().SetName(ap.ID())
+	}
+	dev := top.Devices().Add().SetName(a.Name)
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
+	eth.Connection().SetPortName(ap.ID())
+
+	if a.MTU > 0 {
+		eth.SetMtu(uint32(a.MTU))
+	}
+	if a.IPv4 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(uint32(a.IPv4Len))
+	}
+	if a.IPv6 != "" {
+		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(uint32(a.IPv6Len))
+	}
+
+	return dev
+}

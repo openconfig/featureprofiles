@@ -15,6 +15,7 @@
 package cfgplugins
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"net"
@@ -1882,4 +1883,142 @@ func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
 	}
 	return sb
+}
+
+// bgpPathKey returns the value of key on the first path element named elemName in p.
+func bgpPathKey(p *gnmipb.Path, elemName, key string) string {
+	for _, e := range p.GetElem() {
+		if e.GetName() == elemName {
+			return e.GetKey()[key]
+		}
+	}
+	return ""
+}
+
+// bgpAfiSafiKeyMatches reports whether a gNMI afi-safi-name key value (with or without a module
+// prefix such as "openconfig-bgp-types:") matches the given AFI/SAFI enum.
+func bgpAfiSafiKeyMatches(keyVal string, afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE) bool {
+	if i := strings.LastIndex(keyVal, ":"); i >= 0 {
+		keyVal = keyVal[i+1:]
+	}
+	return keyVal == afiSafi.String()
+}
+
+// bgpCanonicalIP returns the canonical string form of an IP address so that neighbor-address keys
+// reported in different textual formats (e.g. uncompressed IPv6) compare equal. Unparsable input
+// is returned unchanged.
+func bgpCanonicalIP(addr string) string {
+	if ip := net.ParseIP(addr); ip != nil {
+		return ip.String()
+	}
+	return addr
+}
+
+// AwaitBGPNeighborsPrefixCounts uses a single wildcard ygnmi.WatchAll subscription per leaf
+// (prefixes/received and prefixes/installed) across all BGP neighbors and AFI/SAFIs in network
+// instance dni, and returns true once every neighbor in nbrs reports want received and installed
+// prefixes for its AFI/SAFI. nbrs maps neighbor address to the AFI/SAFI to evaluate. It returns
+// false (without failing the test) if the subscription is rejected or the counts do not converge
+// within timeout, so callers can fall back to per-neighbor checks that report precise errors.
+func AwaitBGPNeighborsPrefixCounts(t *testing.T, dut *ondatra.DUTDevice, dni string, nbrs map[string]oc.E_BgpTypes_AFI_SAFI_TYPE, want uint32, timeout time.Duration) bool {
+	t.Helper()
+	if len(nbrs) == 0 {
+		return true
+	}
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Logf("AwaitBGPNeighborsPrefixCounts: failed to create gNMI client: %v", err)
+		return false
+	}
+	tracked := make(map[string]oc.E_BgpTypes_AFI_SAFI_TYPE, len(nbrs))
+	for nbr, afiSafi := range nbrs {
+		tracked[bgpCanonicalIP(nbr)] = afiSafi
+	}
+	afiSafiAny := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().AfiSafiAny().Prefixes()
+	deadline := time.Now().Add(timeout)
+	for _, leaf := range []ygnmi.WildcardQuery[uint32]{afiSafiAny.Received().State(), afiSafiAny.Installed().State()} {
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			return false
+		}
+		got := make(map[string]uint32, len(tracked))
+		ctx, cancel := context.WithTimeout(context.Background(), rem)
+		_, err := ygnmi.WatchAll(ctx, c, leaf, func(v *ygnmi.Value[uint32]) error {
+			if v == nil || v.Path == nil {
+				return ygnmi.Continue
+			}
+			nbr := bgpCanonicalIP(bgpPathKey(v.Path, "neighbor", "neighbor-address"))
+			afiSafi, ok := tracked[nbr]
+			if !ok || !bgpAfiSafiKeyMatches(bgpPathKey(v.Path, "afi-safi", "afi-safi-name"), afiSafi) {
+				return ygnmi.Continue
+			}
+			if cnt, present := v.Val(); present {
+				got[nbr] = cnt
+			} else {
+				delete(got, nbr)
+			}
+			if len(got) < len(tracked) {
+				return ygnmi.Continue
+			}
+			for n := range tracked {
+				if got[n] != want {
+					return ygnmi.Continue
+				}
+			}
+			return nil
+		}).Await()
+		cancel()
+		if err != nil {
+			t.Logf("AwaitBGPNeighborsPrefixCounts: wildcard watch on %v did not converge to %d: %v (last counts %v)", leaf, want, err, got)
+			return false
+		}
+	}
+	return true
+}
+
+// AwaitBGPNeighborsNotEstablished uses a single wildcard ygnmi.WatchAll subscription on
+// /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
+// and returns true once every neighbor in nbrIPs reports a session-state other than ESTABLISHED.
+// It returns false (without failing the test) if the subscription is rejected or this does not
+// happen within timeout.
+func AwaitBGPNeighborsNotEstablished(t *testing.T, dut *ondatra.DUTDevice, dni string, nbrIPs []string, timeout time.Duration) bool {
+	t.Helper()
+	if len(nbrIPs) == 0 {
+		return true
+	}
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Logf("AwaitBGPNeighborsNotEstablished: failed to create gNMI client: %v", err)
+		return false
+	}
+	wanted := make(map[string]bool, len(nbrIPs))
+	for _, ip := range nbrIPs {
+		wanted[bgpCanonicalIP(ip)] = true
+	}
+	down := make(map[string]bool, len(wanted))
+	q := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().SessionState().State()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	_, err = ygnmi.WatchAll(ctx, c, q, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) error {
+		if v == nil || v.Path == nil {
+			return ygnmi.Continue
+		}
+		nbr := bgpCanonicalIP(bgpPathKey(v.Path, "neighbor", "neighbor-address"))
+		if !wanted[nbr] {
+			return ygnmi.Continue
+		}
+		state, present := v.Val()
+		down[nbr] = present && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		for ip := range wanted {
+			if !down[ip] {
+				return ygnmi.Continue
+			}
+		}
+		return nil
+	}).Await()
+	if err != nil {
+		t.Logf("AwaitBGPNeighborsNotEstablished: wildcard session-state watch did not observe all of %v leave ESTABLISHED: %v", nbrIPs, err)
+		return false
+	}
+	return true
 }
