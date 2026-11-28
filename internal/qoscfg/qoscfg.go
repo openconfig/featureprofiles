@@ -473,7 +473,8 @@ func VerifyInputClassifier(t testing.TB, dut *ondatra.DUTDevice, intfID string, 
 }
 
 // CleanupQosSetup reverts the setup QoS classifiers, forwarding groups,
-// queues, QoS interface bindings, and IPv4/IPv6 interface addresses on ports.
+// queues, and QoS interface bindings on ports. Interface addresses are left
+// to the caller, which knows the exact configuration it added.
 func CleanupQosSetup(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port, classifiers, forwardingGroups, queues []string) {
 	t.Helper()
 	bestEffort := func(desc string, fn func(t testing.TB)) {
@@ -520,14 +521,6 @@ func CleanupQosSetup(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port
 	for _, qName := range allQueues {
 		bestEffort("delete QoS queue "+qName, func(t testing.TB) {
 			gnmi.Delete(t, dut, gnmi.OC().Qos().Queue(qName).Config())
-		})
-	}
-	for _, dp := range ports {
-		bestEffort("delete IPv4 subinterface config on "+dp.Name(), func(t testing.TB) {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Subinterface(0).Ipv4().Config())
-		})
-		bestEffort("delete IPv6 subinterface config on "+dp.Name(), func(t testing.TB) {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(dp.Name()).Subinterface(0).Ipv6().Config())
 		})
 	}
 }

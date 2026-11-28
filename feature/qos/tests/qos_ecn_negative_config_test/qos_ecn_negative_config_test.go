@@ -15,6 +15,8 @@
 package qos_ecn_negative_config_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,6 +30,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -50,6 +55,12 @@ const (
 	baselineWeight                    = uint32(0)
 	baselineMaxDropProbabilityPercent = uint8(100)
 	invalidMaxDropProbabilityPercent  = uint8(101)
+
+	// negativeSetTimeout bounds each gNMI Set that DP-1.20.1 - DP-1.20.4
+	// expect the DUT to reject. The ondatra gnmi helpers use a context with no
+	// deadline, so an unresponsive DUT would otherwise block until the test
+	// times out.
+	negativeSetTimeout = 2 * time.Minute
 )
 
 var (
@@ -199,6 +210,89 @@ func setupEnvironment(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Po
 	}
 }
 
+// expectSetRejected sends the gNMI Set built by op, which the DUT is expected
+// to reject, and reports whether it was rejected. The DUT's error is logged.
+// Errors that do not show a DUT rejection fail the test instead: errors
+// without a gRPC status (raised before the request reached the DUT) and gRPC
+// transport or session errors (Unavailable, DeadlineExceeded, Canceled).
+func expectSetRejected(t *testing.T, dut *ondatra.DUTDevice, step string, op func(context.Context, *ygnmi.Client) (*ygnmi.Result, error)) bool {
+	t.Helper()
+	c, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t), ygnmi.WithTarget(dut.Name()))
+	if err != nil {
+		t.Fatalf("%s: creating gNMI client: %v", step, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), negativeSetTimeout)
+	defer cancel()
+	_, err = op(ctx, c)
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("%s: gNMI Set failed before reaching the DUT: %v", step, err)
+	}
+	switch st.Code() {
+	case codes.Unavailable, codes.DeadlineExceeded, codes.Canceled:
+		t.Fatalf("%s: gNMI Set failed with transport or session error %v, not a configuration rejection: %v", step, st.Code(), err)
+	default:
+		t.Logf("%s: DUT rejected the gNMI Set as expected (code %v): %v", step, st.Code(), err)
+	}
+	return true
+}
+
+// interfaceChange is one interface configuration item added by
+// setupEnvironment, with the gNMI Delete that removes it and a leaf that must
+// be absent afterwards.
+type interfaceChange struct {
+	desc   string
+	delete func(t testing.TB)
+	leaf   ygnmi.ConfigQuery[string]
+}
+
+// setupInterfaceChanges returns the interface configuration that
+// setupEnvironment adds to dp with addresses a, in removal order: the DEFAULT
+// network instance binding (only on DUTs with
+// deviations.ExplicitInterfaceInDefaultVRF), then the IPv6 address, then the
+// IPv4 address of subinterface 0. Addresses are removed individually because
+// deleting the whole subinterface ipv4 container before ipv6 is rejected by
+// some DUTs and leaves the addresses configured. Other interface settings from
+// setup (description, enabled state, port speed) are left in place.
+func setupInterfaceChanges(dut *ondatra.DUTDevice, dp *ondatra.Port, a attrs.Attributes) []interfaceChange {
+	var changes []interfaceChange
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		ni := deviations.DefaultNetworkInstance(dut)
+		// fptest.AssignToNetworkInstance names the binding "<port>.<subinterface>".
+		id := dp.Name() + ".0"
+		niIntf := gnmi.OC().NetworkInstance(ni).Interface(id)
+		changes = append(changes, interfaceChange{
+			desc:   fmt.Sprintf("binding of %s to network instance %s", id, ni),
+			delete: func(t testing.TB) { gnmi.Delete(t, dut, niIntf.Config()) },
+			leaf:   niIntf.Id().Config(),
+		})
+	}
+	sub := gnmi.OC().Interface(dp.Name()).Subinterface(0)
+	ipv6 := sub.Ipv6().Address(a.IPv6)
+	ipv4 := sub.Ipv4().Address(a.IPv4)
+	return append(changes,
+		interfaceChange{
+			desc:   fmt.Sprintf("IPv6 address %s on %s", a.IPv6, dp.Name()),
+			delete: func(t testing.TB) { gnmi.Delete(t, dut, ipv6.Config()) },
+			leaf:   ipv6.Ip().Config(),
+		},
+		interfaceChange{
+			desc:   fmt.Sprintf("IPv4 address %s on %s", a.IPv4, dp.Name()),
+			delete: func(t testing.TB) { gnmi.Delete(t, dut, ipv4.Config()) },
+			leaf:   ipv4.Ip().Config(),
+		},
+	)
+}
+
+// allSetupInterfaceChanges returns setupInterfaceChanges for DUT port-1 and
+// port-2.
+func allSetupInterfaceChanges(dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) []interfaceChange {
+	return append(setupInterfaceChanges(dut, dp1, dutPort1), setupInterfaceChanges(dut, dp2, dutPort2)...)
+}
+
 // removeECNAndSetupConfig detaches any active ECN profile, deletes all ECN
 // profiles, and reverts the setup QoS and interface configurations. Used by
 // t.Cleanup if DP-1.20.5 did not complete.
@@ -218,6 +312,9 @@ func removeECNAndSetupConfig(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ond
 		})
 	}
 	qoscfg.CleanupQosSetup(t, dut, []*ondatra.Port{dp1, dp2}, setupClassifiers, setupForwardingGroups, []string{queueBE1, queueAF1})
+	for _, c := range allSetupInterfaceChanges(dut, dp1, dp2) {
+		bestEffort("remove "+c.desc, c.delete)
+	}
 }
 
 func TestQosEcnNegativeConfig(t *testing.T) {
@@ -288,10 +385,10 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// Pass: The gNMI Set RPC is rejected with a non-nil error.
 		// Fail: The gNMI Set RPC succeeds without error.
 		t.Log("DP-1.20.1 Steps 2-3: Pushing invalid min-threshold > max-threshold config via gNMI Set and verifying rejection")
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
+		rejected := expectSetRejected(t, dut, "DP-1.20.1 Step 3", func(ctx context.Context, c *ygnmi.Client) (*ygnmi.Result, error) {
+			return ygnmi.Update(ctx, c, gnmi.OC().Qos().Config(), q)
 		})
-		if errMsg == nil {
+		if !rejected {
 			t.Errorf("DP-1.20.1 Step 3 failed: expected gNMI Set error when min-threshold (%d) > max-threshold (%d), got nil", cfg.MinThreshold, cfg.MaxThreshold)
 		}
 	})
@@ -313,10 +410,10 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// Pass: The gNMI Set RPC is rejected with a non-nil error.
 		// Fail: The gNMI Set RPC succeeds without error.
 		t.Log("DP-1.20.2 Steps 2-3: Pushing out-of-range max-drop-probability-percent (101) via gNMI Set and verifying rejection")
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
+		rejected := expectSetRejected(t, dut, "DP-1.20.2 Step 3", func(ctx context.Context, c *ygnmi.Client) (*ygnmi.Result, error) {
+			return ygnmi.Update(ctx, c, gnmi.OC().Qos().Config(), q)
 		})
-		if errMsg == nil {
+		if !rejected {
 			t.Errorf("DP-1.20.2 Step 3 failed: expected gNMI Set error when max-drop-probability-percent = %d (> 100), got nil", cfg.MaxDropProbabilityPercent)
 		}
 	})
@@ -336,10 +433,10 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// Pass: The gNMI Set RPC is rejected with a non-nil error.
 		// Fail: The gNMI Set RPC succeeds without error.
 		t.Log("DP-1.20.3 Steps 2-3: Pushing non-existent profile assignment via gNMI Set and verifying rejection")
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Update(t, dut, gnmi.OC().Qos().Config(), q)
+		rejected := expectSetRejected(t, dut, "DP-1.20.3 Step 3", func(ctx context.Context, c *ygnmi.Client) (*ygnmi.Result, error) {
+			return ygnmi.Update(ctx, c, gnmi.OC().Qos().Config(), q)
 		})
-		if errMsg == nil {
+		if !rejected {
 			t.Errorf("DP-1.20.3 Step 3 failed: expected gNMI Set error when assigning non-existent profile %q, got nil", bogusProfileName)
 		}
 	})
@@ -372,8 +469,9 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// /qos/queue-management-profiles/queue-management-profile[name=ECN_VALID_PROFILE]
 		// using gNMI Set (Delete).
 		t.Log("DP-1.20.4 Step 3: Attempting to delete actively applied ECN_VALID_PROFILE using gNMI Set (Delete)")
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Delete(t, dut, gnmi.OC().Qos().QueueManagementProfile(validProfileName).Config())
+		// The rejection itself is the DP-1.20.4 Step 4 pass criterion.
+		rejected := expectSetRejected(t, dut, "DP-1.20.4 Step 4", func(ctx context.Context, c *ygnmi.Client) (*ygnmi.Result, error) {
+			return ygnmi.Delete(ctx, c, gnmi.OC().Qos().QueueManagementProfile(validProfileName).Config())
 		})
 
 		// DP-1.20.4 Step 4 - Validation with pass/fail criteria:
@@ -382,7 +480,7 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// /qos/interfaces/interface[interface-id=Ethernet1]/output/queues/queue[name=0]/state/queue-management-profile
 		// confirms ECN_VALID_PROFILE remains applied.
 		t.Log("DP-1.20.4 Step 4: Verifying deletion was rejected and ECN_VALID_PROFILE remains applied on Ethernet1 queue 0")
-		if errMsg == nil {
+		if !rejected {
 			t.Errorf("DP-1.20.4 Step 4 failed: expected gNMI Delete error when deleting actively applied profile %q, got nil", validProfileName)
 		}
 		qoscfg.VerifyLeaf(t, dut, outQueuePath.QueueManagementProfile().State(), outQueuePath.QueueManagementProfile().Config(), validProfileName, time.Minute)
@@ -427,8 +525,26 @@ func TestQosEcnNegativeConfig(t *testing.T) {
 		// DP-1.20.5 Step 5 - Revert the setup QoS and interface configurations
 		// from Test environment setup using gNMI Set (Delete) to restore the DUT
 		// completely to its baseline state.
-		t.Log("DP-1.20.5 Step 5: Reverting setup QoS classifiers, forwarding groups, queues, and interface configurations")
+		t.Log("DP-1.20.5 Step 5: Reverting setup QoS classifiers, forwarding groups, queues, network instance bindings, and interface addresses")
 		qoscfg.CleanupQosSetup(t, dut, []*ondatra.Port{dp1, dp2}, setupClassifiers, setupForwardingGroups, []string{queueBE1, queueAF1})
+		// Interface changes must be reverted, so failures are reported here
+		// rather than ignored, and each item is read back to confirm removal.
+		for _, c := range allSetupInterfaceChanges(dut, dp1, dp2) {
+			if msg := testt.CaptureFatal(t, c.delete); msg != nil {
+				t.Errorf("DP-1.20.5 Step 5: removing %s failed: %s", c.desc, *msg)
+				continue
+			}
+			var present bool
+			if msg := testt.CaptureFatal(t, func(t testing.TB) {
+				present = gnmi.LookupConfig(t, dut, c.leaf).IsPresent()
+			}); msg != nil {
+				t.Logf("DP-1.20.5 Step 5: could not read back %s to confirm removal: %s", c.desc, *msg)
+				continue
+			}
+			if present {
+				t.Errorf("DP-1.20.5 Step 5: %s is still configured after cleanup", c.desc)
+			}
+		}
 
 		// DP-1.20.5 complete: the t.Cleanup safety net is not needed.
 		teardownVerified = !t.Failed()
