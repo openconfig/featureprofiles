@@ -14,6 +14,7 @@
 package afts_base_test
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -36,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -594,42 +596,62 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 // It waits until both collectors satisfy the provided stoppingCondition.
 // After the stopping condition is met, it compares only the wantPrefixes from both sessions.
 // If the wantPrefixes data is identical, it returns a single copy of the collected AFT data.
-// Otherwise, it returns an error indicating the inconsistency.
-// If either stream fails, it returns an error immediately without comparison.
+// If they differ, it resumes both collectors within the original convergence deadline.
+// It returns an error for an interrupted stream or caches that do not converge.
 func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool) (*aftcache.AFTData, error) {
 	t.Helper()
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-	}()
-	go func() {
-		defer wg.Done()
-		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-	}()
-	wg.Wait()
-
-	// Get the AFT from the cache.
-	aft1, err := aftSession1.ToAFT(t, tc.dut)
-	if err != nil {
-		return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
+	phaseCtx, cancel := context.WithTimeout(t.Context(), aftConvergenceTime)
+	defer cancel()
+	deadline, _ := phaseCtx.Deadline()
+	lastDiff := ""
+	for attempt := 1; ; attempt++ {
+		if err := phaseCtx.Err(); err != nil {
+			return nil, fmt.Errorf("AFT caches did not converge within %v: %w; last difference: %s", aftConvergenceTime, err, lastDiff)
+		}
+		var wg sync.WaitGroup
+		var completed [2]bool
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			aftSession1.ListenUntil(phaseCtx, t, time.Until(deadline), stoppingCondition)
+			completed[0] = true
+		}()
+		go func() {
+			defer wg.Done()
+			aftSession2.ListenUntil(phaseCtx, t, time.Until(deadline), stoppingCondition)
+			completed[1] = true
+		}()
+		wg.Wait()
+		// A fatal collector error ends its goroutine. Never compare an interrupted cache.
+		if !completed[0] || !completed[1] {
+			return nil, fmt.Errorf("AFT collection interrupted before convergence: session1_completed=%t session2_completed=%t", completed[0], completed[1])
+		}
+		aft1, err := aftSession1.ToAFT(t, tc.dut)
+		if err != nil {
+			return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
+		}
+		aft2, err := aftSession2.ToAFT(t, tc.dut)
+		if err != nil {
+			return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
+		}
+		filteredAFT1 := tc.filterAFTByPrefixes(aft1, wantPrefixes)
+		filteredAFT2 := tc.filterAFTByPrefixes(aft2, wantPrefixes)
+		sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
+		diff := cmp.Diff(filteredAFT1, filteredAFT2, sortSlices)
+		if err := phaseCtx.Err(); err != nil {
+			return nil, fmt.Errorf("AFT comparison exceeded the %v convergence deadline: %w", aftConvergenceTime, err)
+		}
+		if diff == "" {
+			if attempt > 1 {
+				t.Logf("AFT_CONVERGENCE strict cache equality reached on observation %d within the original %v limit", attempt, aftConvergenceTime)
+			}
+			return aft1, nil
+		}
+		// Correct next hops alone need not mean both streams have consumed the same updates.
+		// Resume the existing collectors, retain strict equality, and keep the original deadline.
+		lastDiff = diff
+		t.Logf("AFT_CONVERGENCE observation %d: strict caches still differ; resuming both collectors with %v remaining", attempt, time.Until(deadline).Truncate(time.Second))
 	}
-	aft2, err := aftSession2.ToAFT(t, tc.dut)
-	if err != nil {
-		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
-	}
-
-	// Extract only wantPrefixes from both sessions for comparison
-	filteredAFT1 := tc.filterAFTByPrefixes(aft1, wantPrefixes)
-	filteredAFT2 := tc.filterAFTByPrefixes(aft2, wantPrefixes)
-
-	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
-	if diff := cmp.Diff(filteredAFT1, filteredAFT2, sortSlices); diff != "" {
-		return nil, fmt.Errorf("afts from two sessions are not consistent for wantPrefixes: %s", diff)
-	}
-	return aft1, nil
 }
 
 // filterAFTByPrefixes extracts only the specified prefixes and their associated NHGs/NHs from AFT data.
@@ -659,11 +681,22 @@ type testCase struct {
 func TestBGP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	var aftDialOpts []grpc.DialOption
+	if dut.Vendor() == ondatra.CISCO {
+		// Allow larger receive bursts for full-scale Cisco AFT subscriptions.
+		const streamWindow = 32 << 20
+		const connectionWindow = 2 * streamWindow
+		aftDialOpts = []grpc.DialOption{
+			grpc.WithInitialWindowSize(streamWindow),
+			grpc.WithInitialConnWindowSize(connectionWindow),
+		}
+		t.Logf("AFT transport receive windows: stream=%d connection=%d bytes", streamWindow, connectionWindow)
+	}
+	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context(), aftDialOpts...)
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
 	}
-	gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context(), aftDialOpts...)
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
 	}
@@ -692,6 +725,12 @@ func TestBGP(t *testing.T) {
 			}
 		}
 	}()
+
+	if dut.Vendor() == ondatra.CISCO {
+		if err := helpers.ConfigureAFTCollectorPolicy(t, dut); err != nil {
+			t.Fatalf("failed to configure temporary AFT collector policy: %v", err)
+		}
+	}
 
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
@@ -734,21 +773,21 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 
-	// Ensure OTG ports are left in a healthy state (link UP) even if the test fails or aborts.
-	t.Cleanup(func() {
+	// Restore OTG state before the earlier deferred DUT profile reset and reboot.
+	defer func() {
 		t.Logf("Restoring OTG port %s link state to UP", port1Name)
 		tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
-	})
-	t.Cleanup(func() {
+	}()
+	defer func() {
 		t.Logf("Restoring OTG port %s link state to UP", port2Name)
 		tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-	})
+	}()
 
 	// Ensure OTG protocols are stopped at the end of the test.
-	t.Cleanup(func() {
+	defer func() {
 		t.Log("Stopping OTG protocols")
 		ate.OTG().StopProtocols(t)
-	})
+	}()
 
 	t.Log("Waiting for ISIS adjacency to establish...")
 	if _, err := tc.ts.AwaitAdjacency(); err != nil {
@@ -772,7 +811,7 @@ func TestBGP(t *testing.T) {
 	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
 		wantISISPrefixes[pfix] = true
 	}
-	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, getPostChurnIPv6NH(tc.dut))
 	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
 		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
@@ -780,13 +819,6 @@ func TestBGP(t *testing.T) {
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("SubTest 2: Stopping Port2 interface to create Churn")
-	portsRestored := false
-	t.Cleanup(func() {
-		if !portsRestored {
-			tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
-			tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-		}
-	})
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
 	t.Log("Waiting for Port2 BGP sessions to go down...")
 	if err := tc.waitForBGPSessionsDown(t, []string{ateP2.IPv4}, []string{ateP2.IPv6}); err != nil {
@@ -822,7 +854,6 @@ func TestBGP(t *testing.T) {
 	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
 	t.Log("SubTest 5: Starting Port2 interface and recheck Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-	portsRestored = true
 	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)

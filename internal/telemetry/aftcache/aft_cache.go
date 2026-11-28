@@ -490,21 +490,24 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *o
 
 	buffer := make(chan *aftSubscriptionResponse, aftBufferSize)
 	// Don't need to close the buffer channel. We don't need that signal, the stream stopping logic is with the consumer.
-	go func() {
-		for {
-			n, err := sub.Recv()
-			resp := &aftSubscriptionResponse{n, err}
-			select {
-			case buffer <- resp:
-			case <-ctx.Done():
-				// Context cancellation also makes sub.Recv() return an error. We rely on the out channel's
-				// buffer filling up or random chance (select picks a random available case) to hit
-				// <-ctx.Done() and return.
-				return
-			}
-		}
-	}()
+	go receiveAFT(ctx, sub.Recv, buffer)
 	return buffer
+}
+
+func receiveAFT(ctx context.Context, recv func() (*gnmipb.SubscribeResponse, error), buffer chan *aftSubscriptionResponse) {
+	for ctx.Err() == nil {
+		n, err := recv()
+		select {
+		case buffer <- &aftSubscriptionResponse{n, err}:
+		case <-ctx.Done():
+			return
+		}
+		// Deliver a terminal stream error once; never fill the queue with
+		// repeated copies of the same error or reconnect a broken stream.
+		if err != nil {
+			return
+		}
+	}
 }
 
 // AFTStreamSession represents a single gNMI AFT streaming session and cached AFT state. It contains
@@ -620,6 +623,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	periodicTicker := time.NewTicker(periodicInterval)
+	defer periodicTicker.Stop()
 	for {
 		select {
 		case resp := <-ss.buffer:

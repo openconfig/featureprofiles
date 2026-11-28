@@ -17,6 +17,9 @@ package helpers
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,34 +34,11 @@ const (
 	maxRebootTime = 30 // minutes
 )
 
-// ConfigureHwProfile configures Cisco hardware profile with route scale on the DUT.
+// ConfigureHwProfile configures the Cisco hardware profile required for AFT scale on the DUT.
 func ConfigureHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	ciscoConfig := `
-		hw-module profile route scale lpm tcam-banks
-		customshowtech GRPC_CUSTOM
-		command show health gsp
-		command show health sysdb
-		command show tech-support gsp
-		command show tech-support cfgmgr
-		command show tech-support ofa
-		command show tech-support pfi
-		command show tech-support spi
-		command show tech-support mgbl
-		command show tech-support sysdb
-		command show tech-support appmgr
-		command show tech-support fabric
-		command show tech-support yserver
-		command show tech-support interface
-		command show tech-support platform-fwd
-		command show tech-support linux networking
-		command show tech-support ethernet interfaces
-		command show tech-support fabric link-include
-		command show tech-support p2p-ipc process appmgr
-		command show tech-support insight include-database
-		command show tech-support lpts
-		command show tech-support parser
-		command show tech-support telemetry model-driven
+		hw-module profile cef iptunnel scale
 		lpts pifib hardware police flow tpa rate 20000 
 		`
 	GnmiCLIConfig(t, dut, ciscoConfig)
@@ -70,7 +50,7 @@ func ConfigureHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 func ConfigureDefaultHwProfile(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	ciscoConfig := `
-	    no hw-module profile route scale lpm tcam-banks
+		no hw-module profile cef iptunnel scale
 		`
 	GnmiCLIConfig(t, dut, ciscoConfig)
 	RebootDUT(t, dut)
@@ -133,4 +113,172 @@ func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+}
+
+const aftCollectorPolicyCommand = "show running-config telemetry model-driven | include collector"
+
+// A zero value preserves the absence of an explicit override, including when
+// the platform default happens to equal the requested test setting.
+type aftCollectorPolicy struct {
+	minimumMiB   int
+	minimumItems int
+	stallSeconds int
+}
+
+var aftScaleCollectorPolicy = aftCollectorPolicy{minimumMiB: 1, minimumItems: 1000, stallSeconds: 10}
+
+func (p aftCollectorPolicy) config() string {
+	rate := "no collector minimum-dequeue-rate"
+	if p.minimumMiB != 0 {
+		rate = fmt.Sprintf("collector minimum-dequeue-rate %d %d", p.minimumMiB, p.minimumItems)
+	}
+	stall := "no collector stall-timeout"
+	if p.stallSeconds != 0 {
+		stall = fmt.Sprintf("collector stall-timeout %d", p.stallSeconds)
+	}
+	return fmt.Sprintf("telemetry model-driven\n %s\n %s\n!\n", rate, stall)
+}
+
+func parseAFTCollectorPolicy(output string) (aftCollectorPolicy, error) {
+	var policy aftCollectorPolicy
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "%") || strings.Contains(strings.ToLower(line), "syntax error") {
+			return aftCollectorPolicy{}, fmt.Errorf("collector policy CLI failed: %s", line)
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "collector" {
+			continue
+		}
+		switch fields[1] {
+		case "minimum-dequeue-rate":
+			if len(fields) != 4 || policy.minimumMiB != 0 {
+				return aftCollectorPolicy{}, fmt.Errorf("unsupported or duplicate collector rate: %q", line)
+			}
+			mib, err1 := strconv.Atoi(fields[2])
+			items, err2 := strconv.Atoi(fields[3])
+			if err1 != nil || err2 != nil || mib < 1 || mib > 100 || items < 1000 || items > 100000 {
+				return aftCollectorPolicy{}, fmt.Errorf("invalid collector rate: %q", line)
+			}
+			policy.minimumMiB, policy.minimumItems = mib, items
+		case "stall-timeout":
+			if len(fields) != 3 || policy.stallSeconds != 0 {
+				return aftCollectorPolicy{}, fmt.Errorf("unsupported or duplicate collector timeout: %q", line)
+			}
+			seconds, err := strconv.Atoi(fields[2])
+			if err != nil || seconds < 1 || seconds > 10 {
+				return aftCollectorPolicy{}, fmt.Errorf("invalid collector timeout: %q", line)
+			}
+			policy.stallSeconds = seconds
+		}
+	}
+	return policy, nil
+}
+
+// changeAFTCollectorPolicy registers restoration before attempting a write: a
+// failed RPC can still have committed configuration on the device.
+func changeAFTCollectorPolicy(read func() (aftCollectorPolicy, error), write func(aftCollectorPolicy) error, cleanup func(func() error)) error {
+	previous, err := read()
+	if err != nil {
+		return fmt.Errorf("read original AFT collector policy: %w", err)
+	}
+	apply := func(want aftCollectorPolicy) error {
+		if err := write(want); err != nil {
+			return err
+		}
+		got, err := read()
+		if err != nil {
+			return err
+		}
+		if got != want {
+			return fmt.Errorf("AFT collector policy readback mismatch: got %q, want %q", got.config(), want.config())
+		}
+		return nil
+	}
+	cleanup(func() error { return apply(previous) })
+	return apply(aftScaleCollectorPolicy)
+}
+
+// ConfigureAFTCollectorPolicy temporarily adjusts Cisco collector protection for
+// full-scale AFT collection. Call after the initial profile reboot and before
+// opening subscriptions. Cleanup restores and verifies the original overrides
+// after the test's deferred hardware-profile reset and reboot, even on failure.
+// These values come from dedicated XR slow-collector tests, not a qualification
+// recommendation; a pass uses adjusted collector protection.
+func ConfigureAFTCollectorPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
+	t.Helper()
+	read := func() (aftCollectorPolicy, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		// Some bindings ignore command contexts. Bound our wait and let the
+		// worker finish without retaining or logging through a completed test.
+		type result struct {
+			output string
+			err    error
+		}
+		done := make(chan result, 1)
+		go func() {
+			cli, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+			if err != nil {
+				done <- result{err: err}
+				return
+			}
+			if cli == nil {
+				done <- result{err: fmt.Errorf("binding returned no CLI client")}
+				return
+			}
+			if closer, ok := cli.(interface{ Close() error }); ok {
+				defer closer.Close()
+			}
+			response, err := cli.RunCommand(ctx, aftCollectorPolicyCommand)
+			if err != nil {
+				done <- result{err: err}
+				return
+			}
+			if response == nil {
+				done <- result{err: fmt.Errorf("binding returned no collector policy result")}
+				return
+			}
+			if response.Error() != "" {
+				done <- result{err: fmt.Errorf("collector policy CLI: %s", response.Error())}
+				return
+			}
+			done <- result{output: response.Output()}
+		}()
+		select {
+		case got := <-done:
+			if got.err != nil {
+				return aftCollectorPolicy{}, got.err
+			}
+			policy, err := parseAFTCollectorPolicy(got.output)
+			if err == nil {
+				t.Logf("AFT_COLLECTOR_POLICY readback: %q", policy.config())
+			}
+			return policy, err
+		case <-ctx.Done():
+			return aftCollectorPolicy{}, fmt.Errorf("collector policy read timed out: %w", ctx.Err())
+		}
+	}
+	write := func(policy aftCollectorPolicy) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		client, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+		if err != nil {
+			return err
+		}
+		request, err := buildCliConfigRequest(policy.config())
+		if err != nil {
+			return err
+		}
+		t.Logf("AFT_COLLECTOR_POLICY applying: %q", policy.config())
+		_, err = client.Set(ctx, request)
+		return err
+	}
+	return changeAFTCollectorPolicy(read, write, func(restore func() error) {
+		t.Cleanup(func() {
+			if err := restore(); err != nil {
+				t.Errorf("failed to restore original AFT collector policy: %v", err)
+			}
+		})
+	})
 }
