@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "4755e9ec-5457-4e05-8af4-035707ddc00e"
+plan_id:  "RT-6.2"
+description:  "LLDP configuration"
+testbed:  TESTBED_DUT

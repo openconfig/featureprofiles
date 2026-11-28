@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "bb9c55f0-833e-44d8-8be5-01f9c91cdf86"
+plan_id:  "RT-1.74"
+description:  "Static route configuration"
+testbed:  TESTBED_DUT

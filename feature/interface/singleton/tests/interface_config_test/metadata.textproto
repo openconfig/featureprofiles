@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "5f1ce74a-8a95-426f-bced-593a01b3d9c0"
+plan_id:  "RT-5.21"
+description:  "Interface configuration leaves"
+testbed:  TESTBED_DUT

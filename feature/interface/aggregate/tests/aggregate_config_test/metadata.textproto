@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "aa5e3ec7-7d8a-41f7-9aa6-b718690ab7af"
+plan_id:  "RT-5.22"
+description:  "Aggregate interface configuration"
+testbed:  TESTBED_DUT
