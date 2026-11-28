@@ -1,4 +1,4 @@
-# bootz-1.0: General bootz bootstrap tests
+# BOOTZ-1.0: General bootz bootstrap tests
 
 ## Summary
 

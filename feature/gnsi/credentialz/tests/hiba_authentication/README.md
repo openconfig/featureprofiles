@@ -1,4 +1,4 @@
-# Credentialz-5: Hiba Authentication
+# CREDENTIALZ-5: Hiba Authentication
 
 ## Summary
 

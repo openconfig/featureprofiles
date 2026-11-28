@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "3e6294aa-8f9d-4c8d-9041-4a2f4cd84c36"
-plan_id: "Credentialz-4"
+plan_id: "CREDENTIALZ-4"
 description: "SSH Public Key Authentication"
 testbed: TESTBED_DUT
 

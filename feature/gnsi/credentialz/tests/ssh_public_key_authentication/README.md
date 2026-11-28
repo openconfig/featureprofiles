@@ -1,4 +1,4 @@
-# Credentialz-4: SSH Public Key Authentication
+# CREDENTIALZ-4: SSH Public Key Authentication
 
 ## Summary
 

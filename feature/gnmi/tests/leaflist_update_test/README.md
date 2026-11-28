@@ -1,4 +1,4 @@
-# gNMI-1.24: gNMI Leaf-List Update Test
+# GNMI-1.24: gNMI Leaf-List Update Test
 
 ## Description
 

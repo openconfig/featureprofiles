@@ -39,7 +39,7 @@ featureprofile_test_result: {
   result: PASSED
 }
 featureprofile_test_result: {
-  plan_id: "gNMI-1.23"
+  plan_id: "GNMI-1.23"
   commit: "a1b2c3d4e5f6g7h8i9j0"
   result: FAILED
 }

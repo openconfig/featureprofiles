@@ -1,4 +1,4 @@
-# System-1.4: System time test
+# SYSTEM-1.4: System time test
 
 ## Summary
 

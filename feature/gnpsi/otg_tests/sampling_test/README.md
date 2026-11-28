@@ -1,4 +1,4 @@
-# gNPSI-1: Sampling and Subscription Check
+# GNPSI-1: Sampling and Subscription Check
 
 ## Summary
 

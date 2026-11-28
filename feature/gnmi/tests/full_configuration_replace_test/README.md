@@ -1,4 +1,4 @@
-# gNMI-1.2: Benchmarking: Full Configuration Replace 
+# GNMI-1.2: Benchmarking: Full Configuration Replace 
 
 ## Summary
 

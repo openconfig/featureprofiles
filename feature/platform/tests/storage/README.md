@@ -1,4 +1,4 @@
-# Storage-1.1: Storage File System Check
+# STORAGE-1.1: Storage File System Check
 
 ## Summary
 

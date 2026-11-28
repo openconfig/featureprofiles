@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid:  "4fdd3abd-24b6-482c-9b32-da96910ef080"
-plan_id:  "System-1.2"
+plan_id:  "SYSTEM-1.2"
 description:  "System g protocol test"
 testbed:  TESTBED_DUT
 platform_exceptions: {

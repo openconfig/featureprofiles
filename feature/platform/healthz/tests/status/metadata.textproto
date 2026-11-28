@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "Health-1.2"
+plan_id: "HEALTH-1.2"
 description: "Healthz component status paths"
 uuid: "6935156f-d42f-4bb0-9926-79235859c029"
 

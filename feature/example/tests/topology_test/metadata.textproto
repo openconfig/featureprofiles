@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid:  "7e63e9af-44d2-40a9-a77d-ab7b11c080a7"
-plan_id:  "example-0.1"
+plan_id:  "EXAMPLE-0.1"
 description:  "Topology Test"
 testbed:  TESTBED_DUT_ATE_4LINKS

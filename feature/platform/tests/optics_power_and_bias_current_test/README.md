@@ -1,4 +1,4 @@
-# gNMI-1.13: Optics Telemetry, Instant, threshold, and miscellaneous static info
+# GNMI-1.13: Optics Telemetry, Instant, threshold, and miscellaneous static info
 
 ## Summary
 

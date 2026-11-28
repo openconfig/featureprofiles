@@ -1,4 +1,4 @@
-# Certz-4: Trust Bundle
+# CERTZ-4: Trust Bundle
 
 ## Summary
 

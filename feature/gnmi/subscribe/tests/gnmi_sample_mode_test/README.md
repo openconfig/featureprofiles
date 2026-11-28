@@ -1,4 +1,4 @@
-# gNMI-1.27: gNMI Sample Mode Test
+# GNMI-1.27: gNMI Sample Mode Test
 
 ## Summary
 

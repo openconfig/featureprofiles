@@ -1,4 +1,4 @@
-# enrollz-1: enrollz test for TPM 2.0 HMAC-based Enrollment flow
+# ENROLLZ-1: enrollz test for TPM 2.0 HMAC-based Enrollment flow
 
 ## Summary
 

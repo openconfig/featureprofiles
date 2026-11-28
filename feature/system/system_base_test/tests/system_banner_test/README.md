@@ -1,4 +1,4 @@
-# System-1.1: System banner test
+# SYSTEM-1.1: System banner test
 
 ## Summary
 

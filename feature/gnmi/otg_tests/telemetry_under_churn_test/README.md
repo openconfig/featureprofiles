@@ -1,4 +1,4 @@
-# gNMI-1.30: gNMI Telemetry Performance under Dynamic Control Plane Churn
+# GNMI-1.30: gNMI Telemetry Performance under Dynamic Control Plane Churn
 
 ## Summary
 

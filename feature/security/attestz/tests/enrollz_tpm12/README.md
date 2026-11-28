@@ -1,4 +1,4 @@
-# enrollz-2: enrollz test for TPM 1.2 Enrollment flow
+# ENROLLZ-2: enrollz test for TPM 1.2 Enrollment flow
 
 ## Summary
 

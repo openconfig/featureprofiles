@@ -1,4 +1,4 @@
-# gNMI-1.4: Telemetry: Inventory
+# GNMI-1.4: Telemetry: Inventory
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# gNMI-1.17: Controller card redundancy test
+# GNMI-1.17: Controller card redundancy test
 
 ## Summary
 

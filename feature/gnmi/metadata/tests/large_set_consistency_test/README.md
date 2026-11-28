@@ -1,4 +1,4 @@
-# gNMI-1.14: OpenConfig metadata consistency during large config push
+# GNMI-1.14: OpenConfig metadata consistency during large config push
 
 ## Summary
 This test verifies if OpenConfig metadata leaf at the root is updated according to
