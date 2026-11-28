@@ -621,22 +621,49 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
 
-	// Extract only wantPrefixes from both sessions for comparison
-	filteredAFT1 := tc.filterAFTByPrefixes(aft1, wantPrefixes)
-	filteredAFT2 := tc.filterAFTByPrefixes(aft2, wantPrefixes)
+	// Compare wantPrefixes and their referenced NHGs/NHs directly across both
+	// sessions without cloning full maps.
+	usedNHGIDs := make(map[uint64]struct{})
+	for p := range wantPrefixes {
+		nhg1, ok1 := aft1.Prefixes[p]
+		nhg2, ok2 := aft2.Prefixes[p]
+		if ok1 != ok2 || nhg1 != nhg2 {
+			return nil, fmt.Errorf("afts from two sessions are not consistent for prefix %s: session1=(present=%v, nhg=%d), session2=(present=%v, nhg=%d)", p, ok1, nhg1, ok2, nhg2)
+		}
+		if ok1 {
+			usedNHGIDs[nhg1] = struct{}{}
+		}
+	}
 
 	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
-	if diff := cmp.Diff(filteredAFT1, filteredAFT2, sortSlices); diff != "" {
-		return nil, fmt.Errorf("afts from two sessions are not consistent for wantPrefixes: %s", diff)
+	usedNHIDs := make(map[uint64]struct{})
+	for nhgID := range usedNHGIDs {
+		g1, ok1 := aft1.NextHopGroups[nhgID]
+		g2, ok2 := aft2.NextHopGroups[nhgID]
+		if ok1 != ok2 {
+			return nil, fmt.Errorf("afts from two sessions are not consistent for NHG %d: session1 present=%v, session2 present=%v", nhgID, ok1, ok2)
+		}
+		if diff := cmp.Diff(g1, g2, sortSlices); diff != "" {
+			return nil, fmt.Errorf("afts from two sessions are not consistent for NHG %d: %s", nhgID, diff)
+		}
+		if ok1 && g1 != nil {
+			for _, nhID := range g1.NHIDs {
+				usedNHIDs[nhID] = struct{}{}
+			}
+		}
+	}
+
+	for nhID := range usedNHIDs {
+		nh1, ok1 := aft1.NextHops[nhID]
+		nh2, ok2 := aft2.NextHops[nhID]
+		if ok1 != ok2 {
+			return nil, fmt.Errorf("afts from two sessions are not consistent for NH %d: session1 present=%v, session2 present=%v", nhID, ok1, ok2)
+		}
+		if diff := cmp.Diff(nh1, nh2); diff != "" {
+			return nil, fmt.Errorf("afts from two sessions are not consistent for NH %d: %s", nhID, diff)
+		}
 	}
 	return aft1, nil
-}
-
-// filterAFTByPrefixes extracts only the specified prefixes and their associated NHGs/NHs from AFT data.
-// Since aftNextHopGroup and aftNextHop are unexported, we create a new AFTData by copying
-// only the wanted prefixes and their dependencies from the full AFT.
-func (tc *testCase) filterAFTByPrefixes(aft *aftcache.AFTData, wantPrefixes map[string]bool) *aftcache.AFTData {
-	return aft.FilterByPrefixes(wantPrefixes)
 }
 
 func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
@@ -772,7 +799,8 @@ func TestBGP(t *testing.T) {
 	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
 		wantISISPrefixes[pfix] = true
 	}
-	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{ateP1.IPv6: true})
+	// Per RFC 5308, IS-IS IPv6 routes resolve to the peer's IPv6 link-local next hop.
+	isisStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantISISPrefixes, map[string]bool{ateP1.IPv4: true}, map[string]bool{linkLocalAddress: true})
 	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, isisStoppingCondition, wantISISPrefixes); err != nil {
 		t.Fatalf("Failed to verify ISIS prefixes in AFT: %v", err)
 	}
