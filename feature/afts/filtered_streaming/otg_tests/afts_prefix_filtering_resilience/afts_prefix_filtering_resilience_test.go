@@ -12,9 +12,13 @@ package afts_prefix_filtering_resilience_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"net"
+	"net/netip"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -28,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -35,9 +40,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -60,13 +65,16 @@ const (
 	// policyChangeWait is the maximum time allowed, per AFT-6.3.3, for a
 	// collector to observe prefixes newly admitted by a global-filter change.
 	policyChangeWait = 60 * time.Second
+	// Check before the shortest (60-second) deadline. The AFT cache default
+	// of two minutes also races the initial subscription deadline.
+	collectorCheckInterval = 5 * time.Second
 	// streamTerminationWait is the maximum time to wait for an active gNMI AFT
 	// stream to terminate after the DUT reboot is issued.
 	streamTerminationWait = 2 * time.Minute
-	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
+	// maxRebootTime bounds the reboot request and the initial boot-time read.
 	maxRebootTime = 5 * time.Minute
-	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval   = 30 * time.Second
+	// rebootPollInterval separates bounded readiness probes after a reboot.
+	rebootPollInterval   = 10 * time.Second
 	matchPrefixAft1      = "198.51.100.0/24"
 	matchPrefixAft2      = "203.0.113.0/28"
 	matchVrfPfx1         = "100.64.1.0/24"
@@ -102,6 +110,9 @@ const (
 )
 
 var (
+	rebootRecoveryTimeout = flag.Duration("reboot_recovery_timeout", 15*time.Minute, "Maximum time to recover gNMI and observe a newer boot time after the AFT-6.3 cold reboot.")
+	rebootProbeTimeout    = flag.Duration("reboot_probe_timeout", 10*time.Second, "Maximum time for one AFT-6.3 reboot readiness probe, including dialing gNMI.")
+	rebootBGPTimeout      = flag.Duration("reboot_bgp_timeout", 10*time.Minute, "Maximum time for each AFT-6.3 BGP session to re-establish after the cold reboot.")
 	// AFT-6.3.2 user adjustable values: X (IPv4 routes), Y (IPv6 routes) and
 	// K (maximum allowed initial synchronization time).
 	scaleIPv4Routes = flag.Int("scale_ipv4_routes", 5000, "Number of IPv4 routes (X) advertised from the ATE for the AFT-6.3.2 scale test.")
@@ -190,6 +201,9 @@ func TestMain(m *testing.M) {
 
 // TestAFTPrefixFilteringResilience implements AFT-6.3.
 func TestAFTPrefixFilteringResilience(t *testing.T) {
+	if *rebootRecoveryTimeout <= 0 || *rebootProbeTimeout <= 0 || *rebootBGPTimeout <= 0 {
+		t.Fatal("Reboot recovery, probe and BGP timeouts must be positive")
+	}
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	if deviations.GetRetainGnmiCfgAfterReboot(dut) {
@@ -199,7 +213,14 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 		defer aftpf.UnconfigureToStoreRunningGNMIConfig(t, dut)
 	}
 	batch := configureDUT(t, dut)
-	configurePolicies(t, dut, batch)
+	filterClient := &resilienceFilterClient{ctx: t.Context()}
+	filterClient.connect(t, dut)
+	t.Cleanup(func() { filterClient.close(t) })
+	configureGlobalFilterPoliciesWithDiagnostics(t, dut, filterClient, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: ipv4Policy,
+		V6Policy: ipv6Policy,
+		VRFName:  deviations.DefaultNetworkInstance(dut),
+	})
 	aftpf.ConfigureNetworkInstanceStaticRoute(t, dut, batch, aftpf.NetworkInstanceStaticRouteParams{
 		DefaultPrefixes:     defaultIPv4Prefixes,
 		VRFPrefixes:         vrfV4Prefixes,
@@ -222,10 +243,11 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 	awaitScaleBGPConvergence(t, dut)
+	filterClient.readyForDependentTests = true
 	tests := []struct {
 		name string
 		desc string
-		test func(t *testing.T, dut *ondatra.DUTDevice)
+		test func(t *testing.T, dut *ondatra.DUTDevice, filterClient *resilienceFilterClient)
 	}{
 		{
 			name: "AFTValidationAfterDeviceReboot",
@@ -245,19 +267,24 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.name != "AFTValidationAfterDeviceReboot" && !filterClient.readyForDependentTests {
+				t.Skip("DUT reboot recovery or BGP convergence failed; dependent AFT checks cannot run")
+			}
 			t.Log("Starting test")
-			tc.test(t, dut)
+			tc.test(t, dut, filterClient)
 			t.Log("Finished test")
 		})
 	}
 }
 
-// configureDUT configures the DUT with the necessary VRF, interfaces, BGP, and redistribution policies.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
+// configureOpenConfigDUT preserves the original non-Cisco configuration
+// sequence, with policies installed before BGP attaches their references.
+func configureOpenConfigDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	configureHardwareInit(t, dut)
+	installRoutingPolicies(t, dut)
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	configureDUTInterface(t, dut, batch, &dutPort1, p1)
@@ -273,6 +300,224 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	return batch
 }
 
+func configureNetworkInstanceOnDUTPort(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port, niName string) {
+	t.Helper()
+	d := gnmi.OC()
+	cfgplugins.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
+	i := attrs.NewOCInterface(p.Name(), dut)
+	gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
+}
+
+// configureDUT selects the original setup sequence or Cisco's XR prerequisites.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
+	t.Helper()
+	if dut.Vendor() != ondatra.CISCO {
+		return configureOpenConfigDUT(t, dut)
+	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	configureHardwareInit(t, dut)
+	installRoutingPolicies(t, dut)
+
+	// IOS XR needs the VRF address families before BGP can configure its
+	// address families and neighbors in this network instance.
+	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, vrfName, false)
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, vrfName, nonDefaultNI)
+	if dut.Vendor() == ondatra.CISCO {
+		helpers.GnmiCLIConfig(t, dut,
+			"vrf "+vrfName+"\n address-family ipv4 unicast\n address-family ipv6 unicast\n!\n")
+	}
+	verifyVRFAddressFamilies(t, dut)
+
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+	configureDUTInterfaceBase(t, dut, p1)
+	configureDUTInterfaceBase(t, dut, p2)
+	// Cisco's unassigned port 1 is already in DEFAULT; explicitly assigning
+	// the reserved routing-table name is rejected by XR.
+	cfgplugins.AssignToNetworkInstance(t, dut, p2.Name(), vrfName, 0)
+	verifyVRFAddressFamilies(t, dut)
+	interfaceBatch := &gnmi.SetBatch{}
+	configureDUTInterface(t, dut, interfaceBatch, &dutPort1, p1)
+	configureDUTInterface(t, dut, interfaceBatch, &dutPort2, p2)
+	interfaceBatch.Set(t, dut)
+
+	cfgplugins.EnableDefaultNetworkInstanceBgp(t, dut, aftFilterDUTAS)
+	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut), true)
+	configureScaleBGP(t, dut, defaultNI, nonDefaultNI)
+	configureBGPGlobal(t, dut, defaultNI)
+	initializeCiscoVRFBGPAddressFamilies(t, dut)
+	configureBGPGlobal(t, dut, nonDefaultNI)
+	configureBGPNeighbors(t, dut, defaultNI)
+	configureBGPNeighbors(t, dut, nonDefaultNI)
+	return &gnmi.SetBatch{}
+}
+
+// initializeCiscoVRFBGPAddressFamilies creates the global VPN parents and
+// per-VRF BGP address families before OpenConfig updates the VRF's BGP protocol
+// and neighbors.
+func initializeCiscoVRFBGPAddressFamilies(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.CISCO {
+		return
+	}
+	// IOS XR requires VPNv4/VPNv6 in the same BGP instance before enabling
+	// IPv4/IPv6 unicast within a BGP VRF.
+	t.Log("Configuring global BGP VPNv4 and VPNv6 parent address families in instance BGP")
+	helpers.GnmiCLIConfig(t, dut, fmt.Sprintf(
+		"router bgp %d instance BGP\n address-family vpnv4 unicast\n !\n address-family vpnv6 unicast\n !\n!\n", aftFilterDUTAS))
+	config := readCiscoBGPInstanceConfig(t, dut)
+	for _, family := range []string{"vpnv4", "vpnv6"} {
+		if !strings.Contains(config, "\n address-family "+family+" unicast\n") {
+			t.Fatalf("BGP instance BGP is missing global %s unicast", family)
+		}
+	}
+	rd := fmt.Sprintf("%d:63", aftFilterDUTAS)
+	steps := []struct {
+		name          string
+		cli           string
+		wantVRFConfig []string
+	}{
+		{
+			name:          "BGP VRF context and route distinguisher",
+			cli:           fmt.Sprintf("router bgp %d instance BGP\n vrf %s\n  rd %s\n !\n!\n", aftFilterDUTAS, vrfName, rd),
+			wantVRFConfig: []string{"  rd " + rd},
+		},
+		{
+			name:          "IPv4 BGP VRF address family",
+			cli:           fmt.Sprintf("router bgp %d instance BGP\n vrf %s\n  address-family ipv4 unicast\n  !\n !\n!\n", aftFilterDUTAS, vrfName),
+			wantVRFConfig: []string{"  rd " + rd, "  address-family ipv4 unicast"},
+		},
+		{
+			name:          "IPv6 BGP VRF address family",
+			cli:           fmt.Sprintf("router bgp %d instance BGP\n vrf %s\n  address-family ipv6 unicast\n  !\n !\n!\n", aftFilterDUTAS, vrfName),
+			wantVRFConfig: []string{"  rd " + rd, "  address-family ipv4 unicast", "  address-family ipv6 unicast"},
+		},
+	}
+	for _, step := range steps {
+		t.Logf("Configuring %s in %s", step.name, vrfName)
+		helpers.GnmiCLIConfig(t, dut, step.cli)
+		verifyCiscoVRFBGPConfig(t, dut, step.wantVRFConfig...)
+	}
+}
+
+func readCiscoBGPInstanceConfig(t *testing.T, dut *ondatra.DUTDevice) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	response, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "show running-config router bgp")
+	if err != nil {
+		t.Fatalf("failed to read BGP running config: %v", err)
+	}
+	config := strings.ReplaceAll(response.Output(), "\r\n", "\n")
+	t.Logf("BGP running config while initializing VRF %s:\n%s", vrfName, config)
+	config = "\n" + config
+	instanceMarker := fmt.Sprintf("router bgp %d instance BGP\n", aftFilterDUTAS)
+	instanceIndex := strings.Index(config, "\n"+instanceMarker)
+	if instanceIndex < 0 {
+		t.Fatalf("BGP running config is missing %q", strings.TrimSpace(instanceMarker))
+	}
+	instanceConfig := config[instanceIndex+1:]
+	if end := strings.Index(instanceConfig, "\nrouter bgp "); end >= 0 {
+		instanceConfig = instanceConfig[:end]
+	}
+	return instanceConfig
+}
+
+func verifyCiscoVRFBGPConfig(t *testing.T, dut *ondatra.DUTDevice, wantLines ...string) {
+	t.Helper()
+	config := readCiscoBGPInstanceConfig(t, dut)
+	vrfMarker := " vrf " + vrfName + "\n"
+	vrfIndex := strings.Index(config, vrfMarker)
+	if vrfIndex < 0 {
+		t.Fatalf("BGP running config is missing VRF %s", vrfName)
+	}
+	vrfConfig := config[vrfIndex+len(vrfMarker):]
+	if end := strings.Index(vrfConfig, "\n !"); end >= 0 {
+		vrfConfig = vrfConfig[:end]
+	}
+	for _, want := range wantLines {
+		if !strings.Contains("\n"+vrfConfig+"\n", "\n"+want+"\n") {
+			t.Fatalf("BGP VRF %s running config is missing %q", vrfName, want)
+		}
+	}
+}
+
+// verifyVRFAddressFamilies checks that both VRF address families are present
+// on Cisco before configuring BGP under the VRF.
+func verifyVRFAddressFamilies(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.CISCO {
+		return
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	response, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "show running-config vrf "+vrfName)
+	if err != nil {
+		t.Fatalf("failed to verify VRF %s address families in running config: %v", vrfName, err)
+	}
+	t.Logf("VRF %s running config:\n%s", vrfName, response.Output())
+	if !strings.Contains(response.Output(), "vrf "+vrfName) {
+		t.Fatalf("VRF %s is missing from the running config", vrfName)
+	}
+	for _, want := range []string{"address-family ipv4 unicast", "address-family ipv6 unicast"} {
+		if !strings.Contains(response.Output(), want) {
+			t.Fatalf("VRF %s running config is missing %q", vrfName, want)
+		}
+	}
+}
+
+// configureBGPGlobal commits the protocol's global address families before
+// any neighbors are configured in either network instance.
+func configureBGPGlobal(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
+	t.Helper()
+	const bgpName = "BGP"
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	bgp := proto.GetOrCreateBgp()
+	globalOnly := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		Name:       ygot.String(bgpName),
+		Enabled:    ygot.Bool(true),
+		Bgp:        &oc.NetworkInstance_Protocol_Bgp{Global: bgp.GetOrCreateGlobal()},
+	}
+	path := gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	t.Logf("Configuring BGP global address families in %s before neighbors", ni.GetName())
+	gnmi.Update(t, dut, path.Config(), globalOnly)
+}
+
+// configureBGPNeighbors commits each neighbor and its AF-specific policies
+// after the global BGP address families exist on the DUT.
+func configureBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
+	t.Helper()
+	const bgpName = "BGP"
+	bgp := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp()
+	path := gnmi.OC().NetworkInstance(ni.GetName()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName)
+	var neighbors []string
+	for addr := range bgp.Neighbor {
+		neighbors = append(neighbors, addr)
+	}
+	sort.Strings(neighbors)
+	for _, addr := range neighbors {
+		t.Logf("Configuring BGP neighbor %s in %s", addr, ni.GetName())
+		gnmi.Update(t, dut, path.Bgp().Neighbor(addr).Config(), bgp.Neighbor[addr])
+	}
+}
+
+// configureDUTInterfaceBase creates the interface and subinterface before
+// attaching them to a network instance; IP addresses are added afterward.
+func configureDUTInterfaceBase(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) {
+	t.Helper()
+	i := &oc.Interface{
+		Name: ygot.String(p.Name()),
+		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+	}
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+	i.GetOrCreateEthernet()
+	i.GetOrCreateSubinterface(0)
+	gnmi.Update(t, dut, gnmi.OC().Interface(p.Name()).Config(), i)
+}
+
 // configureDUTInterface configure interfaces on DUT.
 func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
@@ -285,22 +530,15 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	}
 	i.GetOrCreateEthernet()
 	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
+	if dut.Vendor() != ondatra.CISCO || (deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut)) {
+		i4.Enabled = ygot.Bool(true)
+	}
 	av4 := i4.GetOrCreateAddress(attrs.IPv4)
 	av4.PrefixLength = ygot.Uint8(attrs.IPv4Len)
 	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	i6.Enabled = ygot.Bool(true)
 	av6 := i6.GetOrCreateAddress(attrs.IPv6)
 	av6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
-	gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
-}
-
-// configureNetworkInstanceOnDUTPort configure DUT ports.
-func configureNetworkInstanceOnDUTPort(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port, niName string) {
-	t.Helper()
-	d := gnmi.OC()
-	cfgplugins.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
-	i := attrs.NewOCInterface(p.Name(), dut)
 	gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
 }
 
@@ -381,8 +619,8 @@ func configureScaleBGP(t *testing.T, dut *ondatra.DUTDevice, defaultNI, nonDefau
 // sequential collections.
 func fetchAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool, timeout time.Duration) (*aftcache.AFTData, error) {
 	t.Helper()
-	runCollectorsConcurrently(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout},
-		aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout})
+	runCollectorsConcurrently(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession1, Stop: stoppingCondition, Timeout: timeout, CheckInterval: collectorCheckInterval},
+		aftpf.RunCollectorParams{Ctx: ctx, Collector: aftSession2, Stop: stoppingCondition, Timeout: timeout, CheckInterval: collectorCheckInterval})
 	aft1, err := aftSession1.ToAFT(t, dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session1: %v", err)
@@ -429,25 +667,41 @@ func runCollectorsConcurrently(t *testing.T, cfgs ...aftpf.RunCollectorParams) {
 }
 
 // awaitScaleBGPConvergence waits for the eBGP sessions in the default network
-// instance and in the non-default VRF to establish and for the expected scale
-// IPv4/IPv6 route counts to be installed.
-func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice) {
+// instance and in the non-default VRF to establish and for route readiness.
+// The shared helper retains DEFAULT's installed-counter checks. For Cisco
+// VRFs, whose per-peer RIB-installed counter is unsupported, it checks native
+// BGP accepted/best-path counts and BGP-origin AFT summaries instead. This is
+// only setup validation; the later per-prefix/filter-isolation checks remain.
+func awaitScaleBGPConvergence(t *testing.T, dut *ondatra.DUTDevice, clients ...gpb.GNMIClient) {
 	t.Helper()
+	var client gpb.GNMIClient
+	var sessionTimeout time.Duration
+	if len(clients) != 0 {
+		client = clients[0]
+	}
+	if client != nil {
+		sessionTimeout = *rebootBGPTimeout
+		t.Logf("Post-reboot BGP session setup timeout=%v; route-count and AFT synchronization checks are unchanged", sessionTimeout)
+	}
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		V4Neighbor:      atePort1.IPv4, V6Neighbor: atePort1.IPv6,
 		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
+		Client:         client,
+		SessionTimeout: sessionTimeout,
 	})
 	aftpf.AwaitScaleBGPConvergence(t, dut, aftpf.BGPConvergenceParams{
 		NetworkInstance: vrfName,
 		V4Neighbor:      atePort2.IPv4, V6Neighbor: atePort2.IPv6,
 		V4RouteCount: uint32(*scaleIPv4Routes), V6RouteCount: uint32(*scaleIPv6Routes),
+		Client:         client,
+		SessionTimeout: sessionTimeout,
 	})
 }
 
 // testAfterReboot validates that AFT filtering policies and filtered entries
 // are preserved across a DUT reboot.
-func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
+func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice, filterClient *resilienceFilterClient) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -459,7 +713,7 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftClient1, dut)
 	aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	t.Log("Collecting initial filtered AFT entries")
-	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
+	stoppingCondition := aftcache.InitialSyncStoppingConditionWithNextHopValidator(t, dut, wantPrefixes, verifiedDefaultPeerValidator(ctx, t, dut))
 	aftBefore, err := fetchAFT(ctx, t, dut, aftSession1, aftSession2, stoppingCondition, wantPrefixes, aftConvergenceTime)
 	if err != nil {
 		t.Fatalf("Failed to fetch initial AFT: %v", err)
@@ -476,24 +730,35 @@ func testAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	// created after the DUT is already down).
 	monitoredStream := startAFTStream(ctx, t, aftClient1)
 	t.Log("Rebooting DUT")
+	filterClient.close(t)
+	t.Logf("AFT reboot marker: issuing reboot UTC=%s; test-owned filter client retired", time.Now().UTC().Format(time.RFC3339Nano))
 	rebootDUT(t, dut)
 	// The subscription is active while the DUT reboots; verify the stream is
 	// terminated by the DUT going down.
 	verifyStreamTerminated(t, monitoredStream)
 	// Wait for DUT recovery.
 	waitForReboot(t, dut, lastBootTime)
+	t.Logf("AFT reboot marker: DUT recovery observed UTC=%s", time.Now().UTC().Format(time.RFC3339Nano))
+	// Never send the next policy Set over the pre-reboot transport. Reconnect
+	// explicitly; a failed Set still fails the test and is not retried.
+	filterClient.connect(t, dut)
 	// Verify policy persistence after reboot.
 	verifyGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy)
 	// The reboot tears down the eBGP sessions, so wait for them to re-establish
 	// and for the scale routes to be re-learned before continuing. Otherwise the
 	// subsequent subtests would start against a partially converged RIB/AFT.
 	t.Log("Waiting for BGP sessions and scale routes to re-converge after reboot")
-	awaitScaleBGPConvergence(t, dut)
+	awaitScaleBGPConvergence(t, dut, filterClient.client)
+	if t.Failed() {
+		t.Fatal("Post-reboot BGP route readiness failed; dependent AFT checks cannot run")
+	}
+	filterClient.readyForDependentTests = true
 	// Re-establish subscriptions.
 	t.Log("Re-establishing AFT subscriptions")
 	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 	aftSession4 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	stoppingCondition2 := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true})
+	// Re-read neighbor identity after reboot rather than trusting pre-reboot ND.
+	stoppingCondition2 := aftcache.InitialSyncStoppingConditionWithNextHopValidator(t, dut, wantPrefixes, verifiedDefaultPeerValidator(ctx, t, dut))
 	aftAfter, err := fetchAFT(ctx, t, dut, aftSession3, aftSession4, stoppingCondition2, wantPrefixes, aftConvergenceTime)
 	if err != nil {
 		t.Fatalf("Failed to fetch AFT after reboot: %v", err)
@@ -594,97 +859,288 @@ func isEndpointUnreachableError(err error) bool {
 func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Policy, wantIPv6Policy string) {
 	t.Helper()
 	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
+		if dut.Vendor() == ondatra.ARISTA {
 			aftpf.VerifyGlobalFilterPoliciesCLI(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: wantIPv4Policy, V6Policy: wantIPv6Policy})
 		}
-	} else {
-		// network-instance is a keyed list, so the query must be scoped to a
-		// single instance. Without the [name=...] key the DUT would either
-		// reject the request or return the global-filter policies of every
-		// network instance, and the last notification received would
-		// non-deterministically overwrite the values checked below.
-		niName := deviations.DefaultNetworkInstance(dut)
-		ocPolicyConfigPathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv4-policy", niName)
-		ocPolicyConfigPathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/config/ipv6-policy", niName)
-		ocPolicyStatePathV4 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv4-policy", niName)
-		ocPolicyStatePathV6 := fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/global-filter/state/ipv6-policy", niName)
-		gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
-		if err != nil {
-			t.Fatalf("Failed to dial GNMI: %v", err)
-		}
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		configReq := &gpb.GetRequest{
-			Path: []*gpb.Path{
-				gnmiPath(t, ocPolicyConfigPathV4),
-				gnmiPath(t, ocPolicyConfigPathV6),
-			},
-			Type: gpb.GetRequest_CONFIG,
-		}
-		configResp, err := gnmiClient.Get(ctx, configReq)
-		if err != nil {
-			t.Fatalf("GNMI Get for global-filter config failed: %v", err)
-		}
-		stateReq := &gpb.GetRequest{
-			Path: []*gpb.Path{
-				gnmiPath(t, ocPolicyStatePathV4),
-				gnmiPath(t, ocPolicyStatePathV6),
-			},
-			Type: gpb.GetRequest_STATE,
-		}
-		stateResp, err := gnmiClient.Get(ctx, stateReq)
-		if err != nil {
-			t.Fatalf("GNMI Get for global-filter state failed: %v", err)
-		}
-		var gotConfigIPv4Policy string
-		var gotConfigIPv6Policy string
-		for _, notif := range configResp.GetNotification() {
-			for _, upd := range notif.GetUpdate() {
-				path, err := ygot.PathToString(upd.GetPath())
-				if err != nil {
-					t.Fatalf("PathToString failed: %v", err)
-				}
-				val := upd.GetVal().GetStringVal()
-				switch {
-				case strings.Contains(path, "ipv4-policy"):
-					gotConfigIPv4Policy = val
-				case strings.Contains(path, "ipv6-policy"):
-					gotConfigIPv6Policy = val
-				}
-			}
-		}
-		var gotStateIPv4Policy string
-		var gotStateIPv6Policy string
-		for _, notif := range stateResp.GetNotification() {
-			for _, upd := range notif.GetUpdate() {
-				path, err := ygot.PathToString(upd.GetPath())
-				if err != nil {
-					t.Fatalf("PathToString failed: %v", err)
-				}
-				val := upd.GetVal().GetStringVal()
-				switch {
-				case strings.Contains(path, "ipv4-policy"):
-					gotStateIPv4Policy = val
-				case strings.Contains(path, "ipv6-policy"):
-					gotStateIPv6Policy = val
-				}
-			}
-		}
-		if gotConfigIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 config policy mismatch got=%q want=%q", gotConfigIPv4Policy, wantIPv4Policy)
-		}
-		if gotConfigIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 config policy mismatch got=%q want=%q", gotConfigIPv6Policy, wantIPv6Policy)
-		}
-		if gotStateIPv4Policy != wantIPv4Policy {
-			t.Fatalf("IPv4 state policy mismatch got=%q want=%q", gotStateIPv4Policy, wantIPv4Policy)
-		}
-		if gotStateIPv6Policy != wantIPv6Policy {
-			t.Fatalf("IPv6 state policy mismatch got=%q want=%q", gotStateIPv6Policy, wantIPv6Policy)
-		}
-		t.Logf("Verified persisted global-filter config/state policies for %q: ipv4=%q ipv6=%q", niName, gotConfigIPv4Policy, gotConfigIPv6Policy)
+		return
 	}
+	niName := deviations.DefaultNetworkInstance(dut)
+	transport, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI: %v", err)
+	}
+	client, err := aftpf.TypedGNMIClient(t, dut, transport)
+	if err != nil {
+		t.Fatalf("Failed to create typed GNMI client: %v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	filter := gnmi.OC().NetworkInstance(niName).Afts().GlobalFilter()
+	checks := []struct {
+		name  string
+		query ygnmi.SingletonQuery[string]
+		want  string
+	}{
+		{"IPv4 config", filter.Ipv4Policy().Config(), wantIPv4Policy},
+		{"IPv6 config", filter.Ipv6Policy().Config(), wantIPv6Policy},
+		{"IPv4 state", filter.Ipv4Policy().State(), wantIPv4Policy},
+		{"IPv6 state", filter.Ipv6Policy().State(), wantIPv6Policy},
+	}
+	for _, check := range checks {
+		got, err := ygnmi.Get(ctx, client, check.query, ygnmi.WithUseGet())
+		if err != nil {
+			t.Fatalf("Typed GNMI Get for global-filter %s failed: %v", check.name, err)
+		}
+		if got != check.want {
+			t.Fatalf("%s policy mismatch got=%q want=%q", check.name, got, check.want)
+		}
+	}
+	t.Logf("Verified persisted global-filter config/state policies for %q: ipv4=%q ipv6=%q", niName, wantIPv4Policy, wantIPv6Policy)
+}
+
+// typedStringLeaves handles both scalar and container JSON_IETF responses.
+// Namespace prefixes on JSON field names are stripped, not policy values.
+func typedStringLeaves(value *gpb.TypedValue, leaf string, fullPath string) ([]string, error) {
+	var decoded any
+	switch v := value.GetValue().(type) {
+	case *gpb.TypedValue_StringVal:
+		decoded = v.StringVal
+	case *gpb.TypedValue_JsonIetfVal:
+		if err := json.Unmarshal(v.JsonIetfVal, &decoded); err != nil {
+			return nil, err
+		}
+	case *gpb.TypedValue_JsonVal:
+		if err := json.Unmarshal(v.JsonVal, &decoded); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("unsupported string-leaf value %T", value.GetValue())
+	}
+	if scalar, ok := decoded.(string); ok {
+		if strings.HasSuffix(fullPath, "/"+leaf) {
+			return []string{scalar}, nil
+		}
+		return nil, nil
+	}
+	var values []string
+	var visit func(any) error
+	visit = func(node any) error {
+		switch node := node.(type) {
+		case map[string]any:
+			for key, child := range node {
+				if i := strings.LastIndex(key, ":"); i >= 0 {
+					key = key[i+1:]
+				}
+				if key == leaf {
+					s, ok := child.(string)
+					if !ok {
+						return fmt.Errorf("%s is %T, not a string", leaf, child)
+					}
+					values = append(values, s)
+				} else if err := visit(child); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, child := range node {
+				if err := visit(child); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	err := visit(decoded)
+	return values, err
+}
+
+func notificationUpdatePath(t *testing.T, prefix, path *gpb.Path) string {
+	t.Helper()
+	// A scalar update may carry its entire path in either field.
+	if prefix == nil {
+		prefix = &gpb.Path{}
+	}
+	if path == nil {
+		path = &gpb.Path{}
+	}
+	prefixText, err := ygot.PathToString(prefix)
+	if err != nil {
+		t.Fatalf("Invalid notification prefix: %v", err)
+	}
+	pathText, err := ygot.PathToString(path)
+	if err != nil {
+		t.Fatalf("Invalid update path: %v", err)
+	}
+	return strings.TrimRight(prefixText, "/") + "/" + strings.TrimLeft(pathText, "/")
+}
+
+// verifiedDefaultPeerValidator accepts the exact expected global next hop,
+// permitting an absent interface-ref but rejecting a conflicting one. A
+// link-local next hop additionally requires a verified MAC/interface mapping.
+// It never accepts an arbitrary fe80:: address or rewrites cached telemetry.
+func verifiedDefaultPeerValidator(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) func(string, []*aftcache.NextHop) (bool, error) {
+	t.Helper()
+	if dut.Vendor() != ondatra.CISCO {
+		// Retain the original exact ATE IP checks. The verified link-local
+		// alternative and interface checks below address Cisco telemetry.
+		return func(prefix string, nextHops []*aftcache.NextHop) (bool, error) {
+			if len(nextHops) == 0 {
+				return false, nil
+			}
+			want := atePort1.IPv4
+			if strings.Contains(prefix, ":") {
+				want = atePort1.IPv6
+			}
+			for _, nextHop := range nextHops {
+				if nextHop == nil || nextHop.IP != want {
+					return false, nil
+				}
+			}
+			return true, nil
+		}
+	}
+	intf := dut.Port(t, "port1").Name()
+	mac, err := net.ParseMAC(atePort1.MAC)
+	if err != nil || len(mac) != 6 {
+		t.Fatalf("ATE port1 must have a 48-bit MAC, got %q (%v)", atePort1.MAC, err)
+	}
+	// OTG's default IPv6 link-local address uses modified EUI-64. Derivation
+	// gives a candidate only; ND must confirm that address belongs to this MAC.
+	address := [16]byte{0xfe, 0x80}
+	copy(address[8:], []byte{mac[0] ^ 0x02, mac[1], mac[2], 0xff, 0xfe, mac[3], mac[4], mac[5]})
+	linkLocal := netip.AddrFrom16(address)
+	global := netip.MustParseAddr(atePort1.IPv6)
+	neighborPath := fmt.Sprintf("/interfaces/interface[name=%s]/subinterfaces/subinterface[index=0]/ipv6/neighbors/neighbor[ip=%s]/state/link-layer-address", intf, linkLocal)
+	path := gnmiPath(t, neighborPath)
+	path.Origin = "openconfig"
+	readCtx, readCancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
+	response, readErr := dut.RawAPIs().GNMI(t).Get(readCtx, &gpb.GetRequest{
+		Prefix: &gpb.Path{Target: dut.Name()}, Path: []*gpb.Path{path},
+		Type: gpb.GetRequest_STATE, Encoding: aftpf.ConfigEncoding(dut),
+	})
+	readCancel()
+	verified := false
+	verificationDetail := "gNMI returned no matching neighbor MAC"
+	if readErr != nil {
+		verificationDetail = fmt.Sprintf("gNMI lookup failed: %v", readErr)
+		t.Logf("Cannot verify IPv6 link-local peer via %s: %v", neighborPath, readErr)
+	} else {
+		var returnedMACs []string
+		for _, notification := range response.GetNotification() {
+			for _, update := range notification.GetUpdate() {
+				values, err := typedStringLeaves(update.GetVal(), "link-layer-address", notificationUpdatePath(t, notification.GetPrefix(), update.GetPath()))
+				if err != nil {
+					t.Logf("Cannot decode IPv6 neighbor MAC: %v", err)
+					continue
+				}
+				returnedMACs = append(returnedMACs, values...)
+			}
+		}
+		// A missing or conflicting mapping must not broaden the expectation.
+		verified = len(returnedMACs) > 0
+		for _, value := range returnedMACs {
+			got, err := net.ParseMAC(value)
+			if err != nil || !strings.EqualFold(got.String(), mac.String()) {
+				verified = false
+			}
+		}
+		verificationDetail = fmt.Sprintf("gNMI returned MACs=%v, expected=%s", returnedMACs, mac)
+		t.Logf("IPv6 peer identity: interface=%s global=%s candidate link-local=%s expected MAC=%s returned MACs=%v verified=%t", intf, global, linkLocal, mac, returnedMACs, verified)
+	}
+	if !verified && dut.Vendor() == ondatra.CISCO {
+		// The image may not expose the OC neighbor MAC leaf. Verify the same
+		// address/MAC/interface association through native ND, not merely
+		// the EUI-64 derivation or a match on an arbitrary link-local address.
+		cliCtx, cliCancel := context.WithDeadline(ctx, time.Now().Add(20*time.Second))
+		neighbors, cliErr := dut.RawAPIs().CLI(t).RunCommand(cliCtx, "show ipv6 neighbors")
+		cliCancel()
+		if cliErr != nil {
+			verificationDetail += fmt.Sprintf("; native ND lookup failed: %v", cliErr)
+			t.Logf("Native IPv6 neighbor verification failed: %v", cliErr)
+		} else {
+			t.Logf("Native IPv6 neighbors for peer identity verification:\n%s", neighbors.Output())
+			var matchErr error
+			verified, matchErr = ciscoIPv6NeighborMatches(t, neighbors.Output(), intf, linkLocal, mac)
+			verificationDetail += fmt.Sprintf("; native ND verified=%t, detail=%v", verified, matchErr)
+			t.Logf("Native IPv6 peer identity: interface=%s link-local=%s expected MAC=%s verified=%t detail=%v", intf, linkLocal, mac, verified, matchErr)
+		}
+	}
+	var logMu sync.Mutex
+	logged := map[string]bool{}
+	diagnosed := map[uint64]bool{}
+	return func(prefix string, nextHops []*aftcache.NextHop) (bool, error) {
+		if len(nextHops) == 0 {
+			return false, nil
+		}
+		wantIPv4 := netip.MustParseAddr(atePort1.IPv4)
+		for _, nextHop := range nextHops {
+			if nextHop == nil || nextHop.IP == "" {
+				// A partially received NH can carry its interface before its IP.
+				return false, nil
+			}
+			ip, err := netip.ParseAddr(nextHop.IP)
+			if err != nil {
+				return false, fmt.Errorf("invalid next-hop address %q: %w", nextHop.IP, err)
+			}
+			ip = ip.WithZone("")
+			correctInterface := nextHop.IntfName == intf || nextHop.IntfName == intf+".0"
+			// Static/global IP next hops may omit interface-ref. Restore the
+			// original exact-IP validation in that case, but never ignore an
+			// explicitly wrong interface. Link-local next hops remain scoped.
+			if !ip.IsLinkLocalUnicast() && nextHop.IntfName == "" {
+				correctInterface = true
+				logMu.Lock()
+				// Limit raw Gets to four distinct NH entries per validator;
+				// concurrent collectors must not repeatedly dump the NH table.
+				diagnose := !diagnosed[nextHop.Index] && len(diagnosed) < 4
+				if diagnose {
+					diagnosed[nextHop.Index] = true
+				}
+				logMu.Unlock()
+				if diagnose {
+					logRawNextHop(ctx, t, dut, prefix, nextHop)
+				}
+			}
+			correctIP := ip == wantIPv4
+			if strings.Contains(prefix, ":") {
+				if ip == linkLocal && !verified {
+					// Repeating AFT convergence checks cannot repair a missing
+					// identity lookup. Fail with both lookup results immediately.
+					return false, fmt.Errorf("cannot verify IPv6 next hop %s on %s for prefix %s: %s", ip, intf, prefix, verificationDetail)
+				}
+				correctIP = ip == global || (verified && ip == linkLocal)
+			}
+			if !correctInterface || !correctIP {
+				key := nextHop.IP + "@" + nextHop.IntfName
+				logMu.Lock()
+				if !logged[key] {
+					t.Logf("Next-hop identity mismatch for %s: IP=%s interface=%q, want port1=%s; link-local %s verified=%t", prefix, nextHop.IP, nextHop.IntfName, intf, linkLocal, verified)
+					logged[key] = true
+				}
+				logMu.Unlock()
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+}
+
+func logRawNextHop(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, prefix string, nextHop *aftcache.NextHop) {
+	t.Helper()
+	t.Logf("Global next hop has no decoded interface-ref: prefix=%s index=%d IP=%s decoded=%+v; checking raw DUT telemetry", prefix, nextHop.Index, nextHop.IP, nextHop)
+	path := gnmiPath(t, fmt.Sprintf("/network-instances/network-instance[name=%s]/afts/next-hops/next-hop[index=%d]", deviations.DefaultNetworkInstance(dut), nextHop.Index))
+	readCtx, cancel := context.WithDeadline(ctx, time.Now().Add(10*time.Second))
+	defer cancel()
+	response, err := dut.RawAPIs().GNMI(t).Get(readCtx, &gpb.GetRequest{
+		Prefix: &gpb.Path{Origin: "openconfig", Target: dut.Name()}, Path: []*gpb.Path{path},
+		Type: gpb.GetRequest_STATE, Encoding: aftpf.ConfigEncoding(dut),
+	})
+	if err != nil {
+		t.Logf("Raw next-hop diagnostic for index %d failed: %v", nextHop.Index, err)
+		return
+	}
+	// This is a fresh read, not a replacement for the subscription cache.
+	t.Logf("Raw next-hop diagnostic for index %d: %v", nextHop.Index, response)
 }
 
 // gnmiPath converts a string-based gNMI path into a structured gNMI Path.
@@ -697,11 +1153,9 @@ func gnmiPath(t *testing.T, path string) *gpb.Path {
 	return p
 }
 
-// configurePolicies configures all routing policies required for AFT filtering
-// validation, including base policies and scale filtering policies. It also
-// applies the default global filter policies and pushes the routing policy
-// configuration to the DUT.
-func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
+// installRoutingPolicies installs all routing policies before BGP or the AFT
+// global filter references them.
+func installRoutingPolicies(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -709,14 +1163,9 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	ipv6ScalePrefixes := generateScaleIPv6Prefixes(t)
 	configureBasePolicies(t, rp)
 	configureScalePolicies(t, rp, ipv4ScalePrefixes, ipv6ScalePrefixes)
-	aftpf.ConfigureGlobalFilterPolicies(t, dut,
-		aftpf.ConfigureGlobalFilterPoliciesParams{
-			V4Policy: ipv4Policy,
-			V6Policy: ipv6Policy,
-			VRFName:  deviations.DefaultNetworkInstance(dut),
-		})
-	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	batch.Set(t, dut)
+	policyBatch := &gnmi.SetBatch{}
+	gnmi.BatchReplace(policyBatch, gnmi.OC().RoutingPolicy().Config(), rp)
+	policyBatch.Set(t, dut)
 }
 
 // configureBasePolicies configures the common routing policies used by the
@@ -861,70 +1310,38 @@ func bootTime(t *testing.T, dut *ondatra.DUTDevice) (uint64, error) {
 	return bootTime, nil
 }
 
-// waitForReboot waits for the DUT to become unreachable, come back online,
-// and report a boot time newer than the previous boot time.
+// waitForReboot verifies serving gNMI telemetry and a newer boot time. The
+// pre-existing AFT stream separately proves interruption by the reboot, so a
+// readiness poll need not catch the DUT while it is down.
 func waitForReboot(t *testing.T, dut *ondatra.DUTDevice, lastBootTime uint64) {
 	t.Helper()
 	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	{
-		ticker := time.NewTicker(rebootPollInterval)
-		defer ticker.Stop()
-		timeout := time.After(maxRebootTime)
-		var deviceWentDown bool
-	rebootLoop:
-		for {
-			select {
-			case <-timeout:
-				t.Fatalf("Timeout exceeded: DUT did not reboot within maximum boot time(%v).", maxRebootTime)
-			case <-ticker.C:
-				var currentTime string
-				errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-				})
-				if errMsg != nil {
-					if !deviceWentDown {
-						t.Logf("Device is now unreachable. Waiting for it to come back up.")
-						deviceWentDown = true
-					}
-					t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %q.", time.Since(startReboot).Seconds(), *errMsg)
-				} else {
-					if deviceWentDown {
-						t.Logf("Device rebooted successfully with received time: %v.", currentTime)
-						break rebootLoop
-					}
-					t.Logf("Device is still reachable; reboot hasn't started yet.")
-				}
+	ctx, cancel := context.WithTimeout(t.Context(), *rebootRecoveryTimeout)
+	defer cancel()
+	t.Logf("Waiting for gNMI recovery and a newer boot time: recovery timeout=%v probe timeout=%v", *rebootRecoveryTimeout, *rebootProbeTimeout)
+	// Avoid the shared pre-reboot Ondatra transport. A successful blocking dial
+	// alone is insufficient: a typed Get must also return an increased boot time.
+	var client *ygnmi.Client
+	currentBootTime, err := awaitBootTime(ctx, lastBootTime, rebootPollInterval, *rebootProbeTimeout, func(probeCtx context.Context) (uint64, error) {
+		if client == nil {
+			transport, err := dut.RawAPIs().BindingDUT().DialGNMI(probeCtx, grpc.WithBlock())
+			if err != nil {
+				t.Logf("Reboot readiness dial after %v: %v", time.Since(startReboot), err)
+				return 0, err
+			}
+			client, err = aftpf.TypedGNMIClient(t, dut, transport)
+			if err != nil {
+				return 0, err
 			}
 		}
+		observed, err := ygnmi.Get(probeCtx, client, gnmi.OC().System().BootTime().State(), ygnmi.WithUseGet())
+		t.Logf("Reboot readiness after %v: boot-time=%d previous=%d error=%v", time.Since(startReboot), observed, lastBootTime, err)
+		return observed, err
+	})
+	if err != nil {
+		t.Fatalf("DUT did not recover serving gNMI with a newer boot time within %v: %v", *rebootRecoveryTimeout, err)
 	}
-	t.Logf("DUT became reachable again after %.2f seconds; waiting for the boot time telemetry to update.", time.Since(startReboot).Seconds())
-	// No explicit gNMI dial is performed here: gRPC dialing in Go is
-	// non-blocking, so a successful Dial would not prove the gNMI server is
-	// serving again. The Watch below issues real RPCs and is therefore the
-	// actual readiness check.
-	// Wait for boot time to change. The Watch below already returns the boot
-	// time it last observed, so the value is reused instead of starting another
-	// watch just to read it back.
-	val, ok := gnmi.Watch(t, dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
-	if !ok {
-		lastObserved, present := val.Val()
-		if !present {
-			t.Fatalf("Boot time did not update after reboot; no boot time reported. Last: %d", lastBootTime)
-		}
-		t.Fatalf("Boot time did not update after reboot. Current: %d, Last: %d", lastObserved, lastBootTime)
-	}
-	currentBootTime, _ := val.Val()
 	t.Logf("Reboot completed in %.2f seconds; boot time successfully changed from %d to %d.", time.Since(startReboot).Seconds(), lastBootTime, currentBootTime)
-}
-
-// bootTimePredicate returns a predicate that evaluates to true when the DUT
-// reports a boot time greater than the provided previous boot time.
-func bootTimePredicate(lastBootTime uint64) func(val *ygnmi.Value[uint64]) bool {
-	return func(val *ygnmi.Value[uint64]) bool {
-		currentBootTime, ok := val.Val()
-		return ok && currentBootTime > lastBootTime
-	}
 }
 
 // rebootDUT performs gNOI reboot.
@@ -960,7 +1377,7 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 //  4. Measure synchronization time.
 //  5. Verify synchronization completes within deadline.
 //  6. Verify only expected filtered prefixes are streamed.
-func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
+func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice, filterClient *resilienceFilterClient) {
 	t.Helper()
 	var ipv4Prefixes, ipv6Prefixes []string
 	// Enumerate the scale routes advertised via BGP from the ATE
@@ -1030,6 +1447,9 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			ipv4:         false,
 		},
 	}
+	// Record the post-reboot baseline before scale policy Sets, so old MDT
+	// closures can be distinguished from any new transport/queue failure.
+	logAFTDiagnosticCLI(t.Context(), t, dut, "show logging")
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Scope the streaming context to this scenario. Each scenario opens two
@@ -1057,11 +1477,11 @@ func testScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			aftSession1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
 			if tc.ipv4 {
-				aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: tc.policyName, V6Policy: "", VRFName: deviations.DefaultNetworkInstance(dut)})
+				configureGlobalFilterPoliciesWithDiagnostics(t, dut, filterClient, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: tc.policyName, V6Policy: "", VRFName: deviations.DefaultNetworkInstance(dut)})
 				stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, nil)
 			} else {
-				aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: "", V6Policy: tc.policyName, VRFName: deviations.DefaultNetworkInstance(dut)})
-				stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, map[string]bool{atePort1.IPv6: true})
+				configureGlobalFilterPoliciesWithDiagnostics(t, dut, filterClient, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: "", V6Policy: tc.policyName, VRFName: deviations.DefaultNetworkInstance(dut)})
+				stoppingCondition = aftcache.InitialSyncStoppingConditionWithNextHopValidator(t, dut, wantPrefixes, verifiedDefaultPeerValidator(ctx, t, dut))
 			}
 			// Measure synchronization time
 			start := time.Now()
@@ -1158,27 +1578,43 @@ func unmatchedScalePrefixes(prefixes []string, matchPercent int) []string {
 // 5. No leakage between collectors.
 // 6. Policy-change behavior.
 // 7. Collector stability during filter updates.
-func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
+func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice, filterClient *resilienceFilterClient) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	// Configure NI-specific AFT filters
 	t.Log("Configuring per-network-instance AFT filters")
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: ipv4Policy, V6Policy: ipv6Policy, VRFName: deviations.DefaultNetworkInstance(dut)})
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: vrfAPolicy, V6Policy: vrfAPolicy, VRFName: vrfName})
+	configureGlobalFilterPoliciesWithDiagnostics(t, dut, filterClient, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: ipv4Policy, V6Policy: ipv6Policy, VRFName: deviations.DefaultNetworkInstance(dut)})
+	configureGlobalFilterPoliciesWithDiagnostics(t, dut, filterClient, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: vrfAPolicy, V6Policy: vrfAPolicy, VRFName: vrfName})
 	// Expected prefixes
 	defaultWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1, matchPrefixAft2}, V6Prefixes: nil, PfxCount: pfxCount})
-	vrfWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchPrefixAft1}, V6Prefixes: nil, PfxCount: pfxCount})
+	// POLICY-PREFIX-SET-VRF-A admits 100.64.1.0/24, not the DEFAULT
+	// policy's 198.51.100.0/24 (which the negative check below excludes).
+	vrfWant := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: []string{matchVrfPfx1}, V6Prefixes: nil, PfxCount: pfxCount})
 	// Collector-1 (DEFAULT)
 	collector1 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
-	// Collector-2 (VRF-A)
-	collector2 := aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	// Collector-2: prefixes remain scoped to VRF-A. The session helper uses
+	// DEFAULT for Cisco's global NHGs/NHs, and VRF-A for other vendors.
+	// Shared forwarding objects are not leaked prefixes; the route-isolation
+	// checks below still examine only this collector's VRF-A prefix tables.
+	collector2 := aftcache.NewAFTStreamSessionForNetworkInstance(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut, vrfName)
+	defer func() {
+		if t.Failed() {
+			logVRFNextHopDiagnostics(t, dut, collector2, matchVrfPfx1)
+		}
+	}()
+	t.Logf("AFT per-NI collectors created UTC=%s DEFAULT=%+v VRF-A=%+v", time.Now().UTC().Format(time.RFC3339Nano), collector1.Progress(), collector2.Progress())
 	// Initial sync validation
 	t.Log("Validating initial filtered AFT state")
 	defaultStop := aftcache.InitialSyncStoppingCondition(t, dut, defaultWant, map[string]bool{atePort1.IPv4: true}, nil)
 	vrfStop := aftcache.InitialSyncStoppingCondition(t, dut, vrfWant, map[string]bool{atePort2.IPv4: true}, nil)
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait})
-	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait})
+	checkVRF := vrfStop.PeriodicFunc
+	vrfStop.PeriodicFunc = func(session *aftcache.AFTStreamSession) (bool, error) {
+		t.Logf("AFT VRF-A readiness UTC=%s stream=%+v (CLIENT buffer, not DUT queue)", time.Now().UTC().Format(time.RFC3339Nano), session.Progress())
+		return checkVRF(session)
+	}
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector1, Stop: defaultStop, Timeout: subscriptionWait, CheckInterval: collectorCheckInterval})
+	aftpf.RunCollector(t, aftpf.RunCollectorParams{Ctx: ctx, Collector: collector2, Stop: vrfStop, Timeout: subscriptionWait, CheckInterval: collectorCheckInterval})
 	defaultAFT, err := collector1.ToAFT(t, dut)
 	if err != nil {
 		t.Fatalf("Collector1 ToAFT failed: %v", err)
@@ -1226,7 +1662,7 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	})
 	// Change VRF-A policy to MATCH-ALL
 	t.Log("Changing VRF-A policy to POLICY-MATCH-ALL")
-	aftpf.ConfigureGlobalFilterPolicies(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: matchAllPolicy, V6Policy: matchAllPolicy, VRFName: vrfName})
+	configureGlobalFilterPoliciesWithDiagnostics(t, dut, filterClient, aftpf.ConfigureGlobalFilterPoliciesParams{V4Policy: matchAllPolicy, V6Policy: matchAllPolicy, VRFName: vrfName})
 	// Collector1 should remain stable
 	defaultAFTAfter, err := collector1.ToAFT(t, dut)
 	if err != nil {
@@ -1238,7 +1674,7 @@ func testPerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Collector 2's stream, so re-establish the subscription and validate the
 	// full set of VRF-A prefixes after SYNC on the new stream.
 	t.Log("Re-establishing Collector2 subscription after the VRF-A filter policy change")
-	collector2 = reestablishAFTSession(ctx, t, dut)
+	collector2 = reestablishAFTSession(ctx, t, dut, vrfName)
 	// Collector2 should now receive all VRF-A routes within 60 seconds.
 	t.Log("Waiting for Collector2 to receive all VRF-A routes")
 	wantAllVRF := []string{matchPrefixAft1, matchVrfPfx1, matchVrfPfx3, matchVrfPfx2}
@@ -1289,7 +1725,7 @@ func verifyPrefixesFilteredDuringStream(ctx context.Context, t *testing.T, dut *
 			return true, nil
 		},
 	}
-	session.ListenUntil(ctx, t, cfg.Timeout, stoppingCondition)
+	session.ListenUntilWithInterval(ctx, t, cfg.Timeout, collectorCheckInterval, stoppingCondition)
 }
 
 // waitForPrefixesPresent validates that all prefixes appear on the collector's
@@ -1298,7 +1734,7 @@ func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	t.Helper()
 	wantPrefixes := aftpf.GeneratePrefixes(t, aftpf.GeneratePrefixesParams{V4Prefixes: prefixes, V6Prefixes: nil, PfxCount: pfxCount})
 	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{nextHop: true}, nil)
-	session.ListenUntil(ctx, t, timeout, stoppingCondition)
+	session.ListenUntilWithInterval(ctx, t, timeout, collectorCheckInterval, stoppingCondition)
 }
 
 // reestablishAFTSession dials a new gNMI client and returns a fresh AFT stream
@@ -1307,7 +1743,8 @@ func waitForPrefixesPresent(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 // previous session's stream may therefore already be closed, and continuing to
 // listen on it would fail instead of validating the new filter behaviour, so
 // the verification is always performed on a re-established subscription.
-func reestablishAFTSession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *aftcache.AFTStreamSession {
+// The constructor preserves the prefix NI and Cisco's DEFAULT NHG/NH scope.
+func reestablishAFTSession(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, networkInstance string) *aftcache.AFTStreamSession {
 	t.Helper()
-	return aftcache.NewAFTStreamSession(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut)
+	return aftcache.NewAFTStreamSessionForNetworkInstance(ctx, t, aftpf.GnmiClientSession(t, dut, aftpf.PrefixesParams{Ctx: ctx}), dut, networkInstance)
 }

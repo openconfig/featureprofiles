@@ -19,3 +19,12 @@ platform_exceptions: {
     link_local_instead_of_nh: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}

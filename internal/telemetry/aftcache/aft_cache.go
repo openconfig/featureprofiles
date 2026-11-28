@@ -26,6 +26,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -106,17 +107,34 @@ var unusedPaths = []string{
 }
 
 func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
-	defaultNetworkInstance := deviations.DefaultNetworkInstance(dut)
+	return subscriptionPathsForNetworkInstance(dut, deviations.DefaultNetworkInstance(dut))
+}
+
+// nextHopNetworkInstanceName separates the route's NI from the NI holding its
+// forwarding objects. Cisco AFT NHGs and NHs are globally scoped in DEFAULT,
+// including those referenced by prefixes in non-default VRFs. Other vendors
+// retain the existing per-NI scope for all AFT objects.
+func nextHopNetworkInstanceName(dut *ondatra.DUTDevice, prefixNetworkInstance string) string {
+	if dut.Vendor() == ondatra.CISCO {
+		return deviations.DefaultNetworkInstance(dut)
+	}
+	return prefixNetworkInstance
+}
+
+// Use the same path mapping for the request and cache traversal: collecting
+// global NHGs/NHs is insufficient if ToAFT still searches under the route's NI.
+func subscriptionPathsForNetworkInstance(dut *ondatra.DUTDevice, networkInstance string) map[string][]string {
+	nextHopNI := nextHopNetworkInstanceName(dut, networkInstance)
 	return map[string][]string{
 		"prefix": {
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv4-unicast/ipv4-entry", defaultNetworkInstance),
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv6-unicast/ipv6-entry", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv4-unicast/ipv4-entry", networkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv6-unicast/ipv6-entry", networkInstance),
 		},
 		"nhg": {
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hop-groups/next-hop-group", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hop-groups/next-hop-group", nextHopNI),
 		},
 		"nh": {
-			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hops/next-hop", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hops/next-hop", nextHopNI),
 		},
 	}
 }
@@ -200,6 +218,8 @@ type aftNextHopGroupConditional struct {
 
 // aftNextHop represents an AFT next hop.
 type aftNextHop struct {
+	// Index identifies the received NH entry for targeted raw telemetry diagnostics.
+	Index uint64
 	// IntfName contains the interface name of the next hop.
 	IntfName string
 	// IP contains the IP address of the next hop.
@@ -207,6 +227,9 @@ type aftNextHop struct {
 	// LSPName contains the LSP name of the next hop.
 	LSPName string
 }
+
+// NextHop exposes the resolved IP address and interface to opt-in validators.
+type NextHop = aftNextHop
 
 // generateCacheTraversalPaths converts a map of subscription paths to a map of cache traversal paths.
 // For example:
@@ -287,7 +310,7 @@ func (ss *AFTStreamSession) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTDat
 		}
 		return nil
 	}
-	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPaths(dut))
+	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPathsForNetworkInstance(dut, ss.networkInstanceName(dut)))
 	if err != nil {
 		return nil, err
 	}
@@ -430,6 +453,14 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 	if update == nil {
 		return fmt.Errorf("SubscribeResponse missing Update: %v", n)
 	}
+	// Require an explicit delete path instead of deleting the notification
+	// prefix through an empty relative path. Check here so every collector,
+	// including those without notification hooks, validates this format.
+	for i, path := range update.GetDelete() {
+		if len(path.GetElem()) == 0 && len(path.GetElement()) == 0 {
+			return fmt.Errorf("delete path at index %d is empty; expected an explicit path relative to the notification prefix. Notification: %v", i, update)
+		}
+	}
 	if update.GetPrefix() == nil {
 		update.Prefix = &gnmipb.Path{}
 	}
@@ -468,18 +499,40 @@ type aftSubscriptionResponse struct {
 	err          error
 }
 
+type streamCounters struct {
+	received        atomic.Uint64
+	processed       atomic.Uint64
+	syncReceived    atomic.Uint64
+	processingSince atomic.Int64
+	lastReceived    atomic.Int64
+	receiveFailure  atomic.Pointer[aftSubscriptionResponse]
+}
+
+// StreamProgress reports how far a subscription has progressed without traversing its cache.
+type StreamProgress struct {
+	ReceivedResponses  uint64
+	ProcessedResponses uint64
+	SyncReceived       uint64
+	Buffered           int
+	BufferCapacity     int
+	ProcessingFor      time.Duration
+	LastReceivedAt     time.Time
+	ReceiveError       string
+	StreamStopped      bool
+}
+
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
 // TODO: Split out the watching logic into a blocking function.
 // This is somewhat bad practice. I was surprised that this function spawned a goroutine.
 // Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
 // on return.)
-func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
+func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice, counters *streamCounters, networkInstance string) (<-chan *aftSubscriptionResponse, <-chan struct{}) {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("error in Subscribe(): %v", err)
 	}
-	req, err := checkForRoutesRequest(dut)
+	req, err := checkForRoutesRequestForNetworkInstance(dut, networkInstance)
 	if err != nil {
 		t.Fatalf("error preparing subscribe request: %v", err)
 	}
@@ -489,50 +542,138 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *o
 	}
 
 	buffer := make(chan *aftSubscriptionResponse, aftBufferSize)
+	stopped := make(chan struct{})
 	// Don't need to close the buffer channel. We don't need that signal, the stream stopping logic is with the consumer.
 	go func() {
+		defer close(stopped)
 		for {
 			n, err := sub.Recv()
-			resp := &aftSubscriptionResponse{n, err}
+			if err != nil {
+				counters.receiveFailure.Store(&aftSubscriptionResponse{err: err})
+				if ctx.Err() == nil {
+					// Record the client queue at the actual receive failure,
+					// before its error waits behind any buffered notifications.
+					// This is not the DUT's MDT destination queue.
+					t.Logf("DUT %s NI=%s AFT stream receive failed UTC=%s: %v; CLIENT buffered notifications=%d/%d received=%d processed=%d (not the DUT queue)",
+						dut.Name(), networkInstance, time.Now().UTC().Format(time.RFC3339Nano), err,
+						len(buffer), cap(buffer), counters.received.Load(), counters.processed.Load())
+					select {
+					case buffer <- &aftSubscriptionResponse{err: err}:
+					case <-ctx.Done():
+					}
+				}
+				return
+			}
+			counters.received.Add(1)
+			counters.lastReceived.Store(time.Now().UnixNano())
+			if n.GetSyncResponse() {
+				counters.syncReceived.Add(1)
+				t.Logf("DUT %s gNMI AFT SyncResponse arrived; buffered notifications=%d/%d",
+					dut.Name(), len(buffer), cap(buffer))
+			}
+			resp := &aftSubscriptionResponse{notification: n}
 			select {
 			case buffer <- resp:
 			case <-ctx.Done():
-				// Context cancellation also makes sub.Recv() return an error. We rely on the out channel's
-				// buffer filling up or random chance (select picks a random available case) to hit
-				// <-ctx.Done() and return.
 				return
 			}
 		}
 	}()
-	return buffer
+	return buffer, stopped
 }
 
 // AFTStreamSession represents a single gNMI AFT streaming session and cached AFT state. It contains
 // a subscription that can be used across multiple calls to ListenUntil().
 type AFTStreamSession struct {
+	networkInstance   string
 	buffer            <-chan *aftSubscriptionResponse
+	streamStopped     <-chan struct{}
+	counters          *streamCounters
 	Cache             *aftCache
 	start             time.Time
 	notifications     []*gnmipb.SubscribeResponse
 	missingPrefixes   map[string]bool
 	failingNHPrefixes map[string]bool
+	syncResponses     int
 	debugMode         bool
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
-	return fmt.Sprintf("[%s-%d]", ss.Cache.target, ss.start.UnixNano())
+	return fmt.Sprintf("[%s-%s-%d]", ss.Cache.target, ss.networkInstance, ss.start.UnixNano())
+}
+
+func (ss *AFTStreamSession) networkInstanceName(dut *ondatra.DUTDevice) string {
+	if ss.networkInstance != "" {
+		return ss.networkInstance
+	}
+	return deviations.DefaultNetworkInstance(dut)
 }
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
 func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) *AFTStreamSession {
+	return NewAFTStreamSessionForNetworkInstance(ctx, t, c, dut, deviations.DefaultNetworkInstance(dut))
+}
+
+// NewAFTStreamSessionForNetworkInstance scopes prefix subscriptions and cache
+// traversal to the selected NI. On Cisco, NHGs/NHs are collected and traversed
+// in DEFAULT instead; this does not subscribe to DEFAULT prefixes or relax
+// per-VRF prefix isolation. Recreated sessions use the same mapping.
+func NewAFTStreamSessionForNetworkInstance(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice, networkInstance string) *AFTStreamSession {
+	t.Helper()
+	if networkInstance == "" {
+		t.Fatal("AFT subscription requires a nonempty network instance")
+	}
+	t.Logf("AFT collector scope: vendor=%s prefixNI=%s nextHopGroupNI=%s nextHopNI=%s",
+		dut.Vendor(), networkInstance, nextHopNetworkInstanceName(dut, networkInstance), nextHopNetworkInstanceName(dut, networkInstance))
+	counters := &streamCounters{}
+	buffer, stopped := aftSubscribe(ctx, t, c, dut, counters, networkInstance)
 	return &AFTStreamSession{
-		buffer:            aftSubscribe(ctx, t, c, dut),
+		networkInstance:   networkInstance,
+		buffer:            buffer,
+		streamStopped:     stopped,
+		counters:          counters,
 		Cache:             newAFTCache(dut.Name()),
 		notifications:     []*gnmipb.SubscribeResponse{},
 		missingPrefixes:   make(map[string]bool),
 		failingNHPrefixes: make(map[string]bool),
 		debugMode:         false,
 	}
+}
+
+// WaitStopped waits for the subscription receive loop to exit after its context is cancelled.
+func (ss *AFTStreamSession) WaitStopped(ctx context.Context) error {
+	select {
+	case <-ss.streamStopped:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Progress returns cheap, concurrency-safe stream counters for diagnostics.
+func (ss *AFTStreamSession) Progress() StreamProgress {
+	p := StreamProgress{
+		ReceivedResponses:  ss.counters.received.Load(),
+		ProcessedResponses: ss.counters.processed.Load(),
+		SyncReceived:       ss.counters.syncReceived.Load(),
+		Buffered:           len(ss.buffer),
+		BufferCapacity:     cap(ss.buffer),
+	}
+	if since := ss.counters.processingSince.Load(); since != 0 {
+		p.ProcessingFor = time.Since(time.Unix(0, since))
+	}
+	if received := ss.counters.lastReceived.Load(); received != 0 {
+		p.LastReceivedAt = time.Unix(0, received).UTC()
+	}
+	if failure := ss.counters.receiveFailure.Load(); failure != nil {
+		p.ReceiveError = failure.err.Error()
+	}
+	select {
+	case <-ss.streamStopped:
+		p.StreamStopped = true
+	default:
+	}
+	return p
 }
 
 // WithDebug enables the storage of all gNMI notifications for debugging purposes.
@@ -605,21 +746,44 @@ func (ss *AFTStreamSession) ListenUntil(ctx context.Context, t *testing.T, timeo
 	ss.ListenUntilPreUpdateHook(ctx, t, timeout, nil, stoppingCondition)
 }
 
+// ListenUntilWithInterval is like ListenUntil, but checks the stopping condition
+// at the requested interval. Other sessions retain the default interval.
+func (ss *AFTStreamSession) ListenUntilWithInterval(ctx context.Context, t *testing.T, timeout, checkInterval time.Duration, stoppingCondition PeriodicHook) {
+	t.Helper()
+	ss.listenUntilPreUpdateHookWithInterval(ctx, t, timeout, checkInterval, nil, stoppingCondition)
+}
+
 // ListenUntilPreUpdateHook updates AFT with notifications from a gNMI client in streaming mode,
 // and stops listening based on the stoppingCondition hook. It also runs the preUpdateHooks before updating the AFT cache.
 func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
 	t.Helper()
+	ss.listenUntilPreUpdateHookWithInterval(ctx, t, timeout, periodicInterval, preUpdateHooks, stoppingCondition)
+}
+
+// ListenUntilPreUpdateHookWithInterval is like ListenUntilPreUpdateHook, but
+// checks the stopping condition at the requested interval.
+func (ss *AFTStreamSession) ListenUntilPreUpdateHookWithInterval(ctx context.Context, t *testing.T, timeout, checkInterval time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
+	t.Helper()
+	ss.listenUntilPreUpdateHookWithInterval(ctx, t, timeout, checkInterval, preUpdateHooks, stoppingCondition)
+}
+
+func (ss *AFTStreamSession) listenUntilPreUpdateHookWithInterval(ctx context.Context, t *testing.T, timeout, checkInterval time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
+	t.Helper()
+	if checkInterval <= 0 {
+		t.Fatalf("AFT stopping-condition check interval must be positive, got %v", checkInterval)
+	}
 	ss.start = time.Now()
 	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
 	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
-	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
+	ss.listenUntil(ctx, t, timeout, checkInterval, preUpdateHooks, phs)
 }
 
-func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) {
+func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeout, checkInterval time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	periodicTicker := time.NewTicker(periodicInterval)
+	periodicTicker := time.NewTicker(checkInterval)
+	defer periodicTicker.Stop()
 	for {
 		select {
 		case resp := <-ss.buffer:
@@ -631,6 +795,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			if ss.debugMode {
 				ss.notifications = append(ss.notifications, resp.notification)
 			}
+			ss.counters.processingSince.Store(time.Now().UnixNano())
 			for _, hook := range preUpdateHooks {
 				err := hook.NotificationFunc(ss.Cache, resp.notification)
 				if err != nil {
@@ -638,6 +803,8 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				}
 			}
 			err := ss.Cache.addAFTNotification(resp.notification)
+			ss.counters.processingSince.Store(0)
+			ss.counters.processed.Add(1)
 			switch {
 			case errors.Is(err, cache.ErrStale):
 				// TODO: The log line below is currently commented out to avoid stale log messages. Uncomment it later if the additional logging is required.
@@ -646,18 +813,38 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
+			if resp.notification.GetSyncResponse() {
+				ss.syncResponses++
+				t.Logf("%s gNMI AFT SyncResponse processed after %v; buffered notifications=%d/%d",
+					ss.sessionPrefix(), time.Since(ss.start).Truncate(time.Millisecond),
+					len(ss.buffer), cap(ss.buffer))
+			}
 		case <-periodicTicker.C:
 			s := time.Now()
+			t.Logf("%s periodic check start: syncResponsesProcessed=%d buffered notifications=%d/%d",
+				ss.sessionPrefix(), ss.syncResponses, len(ss.buffer), cap(ss.buffer))
+			stop := false
 			for _, hook := range periodicHooks {
+				hookStart := time.Now()
 				done, err := hook.PeriodicFunc(ss)
+				t.Logf("%s periodic hook %q took %v; buffered notifications=%d/%d",
+					ss.sessionPrefix(), hook.Description,
+					time.Since(hookStart).Truncate(time.Millisecond), len(ss.buffer), cap(ss.buffer))
 				if err != nil {
 					t.Fatalf("error in PeriodicHook %q: %v", hook.Description, err)
 				}
 				if done {
-					return
+					stop = true
+					break
 				}
 			}
 			d := time.Since(s)
+			t.Logf("%s periodic check end: duration=%v syncResponsesProcessed=%d buffered notifications=%d/%d",
+				ss.sessionPrefix(), d.Truncate(time.Millisecond), ss.syncResponses,
+				len(ss.buffer), cap(ss.buffer))
+			if stop {
+				return
+			}
 			if d > periodicDeadline {
 				// If periodic hooks take too long, we can't guarantee we can catch up on processing
 				// notifications and the test may slow down artificially. The periodic hooks should be
@@ -700,7 +887,31 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 
 // InitialSyncStoppingCondition returns a PeriodicHook which can be used to check if all wanted prefixes have been received with given next hop IP addresses.
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
-	nhFailCount := 0
+	return initialSyncStoppingCondition(t, dut, wantPrefixes, nil, wantIPV4NHs, wantIPV6NHs, nil)
+}
+
+// InitialSyncStoppingConditionWithAbsentPrefixes also waits for unwanted
+// prefixes to disappear. It checks presence, absence, and next hops against
+// the same cache snapshot, avoiding another expensive AFT conversion.
+func InitialSyncStoppingConditionWithAbsentPrefixes(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, absentPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
+	return initialSyncStoppingCondition(t, dut, wantPrefixes, absentPrefixes, wantIPV4NHs, wantIPV6NHs, nil)
+}
+
+// InitialSyncStoppingConditionWithNextHopValidator checks all expected prefixes
+// and their resolved next hops using a caller-supplied identity check. It does
+// not modify telemetry or change the exact-IP behavior of existing callers.
+// The validator must be safe for concurrent collectors and must not mutate NHs.
+func InitialSyncStoppingConditionWithNextHopValidator(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[string]bool, validate func(string, []*NextHop) (bool, error)) PeriodicHook {
+	t.Helper()
+	if validate == nil {
+		t.Fatal("next-hop validator is required")
+	}
+	return initialSyncStoppingCondition(t, dut, wantPrefixes, nil, nil, nil, validate)
+}
+
+func initialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, absentPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool, validate func(string, []*NextHop) (bool, error)) PeriodicHook {
+	// Two collectors may share the hook. Keep the retry counter race-free.
+	var nhFailCount atomic.Int32
 	const nhFailLimit = 20
 	const maxSamplePrefixes = 10
 	logDuration := func(start time.Time, stage, prefix string) {
@@ -710,6 +921,12 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 		Description: "Initial sync stopping condition",
 		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
 			prefix := ss.sessionPrefix()
+			// With only negative expectations, an empty pre-sync cache would
+			// otherwise satisfy the condition before any DUT state arrives.
+			if len(wantPrefixes) == 0 && len(absentPrefixes) > 0 && ss.syncResponses == 0 {
+				t.Logf("%s Waiting for initial AFT SyncResponse before checking absent prefixes.", prefix)
+				return false, nil
+			}
 			start := time.Now()
 			a, err := ss.ToAFT(t, dut)
 			logDuration(start, "Convert cache to AFT", prefix)
@@ -746,6 +963,12 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				return false, nil
 			}
 			ss.missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
+			for p := range absentPrefixes {
+				if _, ok := gotPrefixes[p]; ok {
+					t.Logf("%s Unwanted prefix %s is still present; waiting for its streamed deletion.", prefix, p)
+					return false, nil
+				}
+			}
 
 			// Check next hops.
 			checkNHStart := time.Now()
@@ -754,6 +977,24 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			ss.failingNHPrefixes = make(map[string]bool)
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
+				if validate != nil {
+					if err != nil && !errors.Is(err, ErrNotExist) {
+						return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
+					}
+					valid := false
+					if err == nil {
+						valid, err = validate(p, resolved)
+						if err != nil {
+							return false, fmt.Errorf("next-hop validation for %s: %w", p, err)
+						}
+					}
+					if valid {
+						nCorrect++
+					} else {
+						ss.failingNHPrefixes[p] = true
+					}
+					continue
+				}
 				got := map[string]bool{}
 				switch {
 				// Skip the check if NH is not found, retry on next periodic hook. Report missing NHs after timeout.
@@ -786,8 +1027,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			t.Logf("%s Got %d of %d correct NH so far.", prefix, nCorrect, nPrefixes)
 			logDuration(checkNHStart, "Check Next Hops", prefix)
 			if nCorrect != nPrefixes {
-				nhFailCount++
-				if nhFailCount == nhFailLimit {
+				if nhFailCount.Add(1) == nhFailLimit {
 					return false, fmt.Errorf("after %d tries, next hop validation still fails", nhFailLimit)
 				}
 				t.Logf("%s %d prefixes with failing next hop validation", prefix, len(ss.failingNHPrefixes))
@@ -925,7 +1165,7 @@ func parseNH(n *gnmipb.Notification) (uint64, *aftNextHop, error) {
 	}
 	// Loop over update, looking for ip-address, lsp-name, and/or interface name.
 	found := false
-	nh := &aftNextHop{}
+	nh := &aftNextHop{Index: nhID}
 	for _, u := range updates {
 		path, err = ygot.PathToSchemaPath(u.Path)
 		switch {
@@ -1060,6 +1300,10 @@ func parsePrefix(t *testing.T, n *gnmipb.Notification, sessionPrefix string) (st
 }
 
 func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, error) {
+	return checkForRoutesRequestForNetworkInstance(dut, deviations.DefaultNetworkInstance(dut))
+}
+
+func checkForRoutesRequestForNetworkInstance(dut *ondatra.DUTDevice, networkInstance string) (*gnmipb.SubscribeRequest, error) {
 	subReq := &gnmipb.SubscribeRequest_Subscribe{
 		Subscribe: &gnmipb.SubscriptionList{
 			Mode:     gnmipb.SubscriptionList_STREAM,
@@ -1067,7 +1311,7 @@ func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, er
 			Encoding: gnmipb.Encoding_PROTO,
 		},
 	}
-	for _, paths := range subscriptionPaths(dut) {
+	for _, paths := range subscriptionPathsForNetworkInstance(dut, networkInstance) {
 		for _, p := range paths {
 			pp, err := ygot.StringToPath(p, ygot.StructuredPath)
 			if err != nil {
@@ -1150,6 +1394,9 @@ type NotificationExpectation struct {
 	AddPrefix        string
 	DeletePrefix     string
 	NotificationWait time.Duration
+	// SinceIndex excludes notifications already processed before a mutation.
+	// It is an index in AFTStreamSession.Notifications and requires WithDebug.
+	SinceIndex int
 }
 
 // WaitForNotification returns a PeriodicHook that waits for the expected update
@@ -1165,7 +1412,10 @@ func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook
 				updateFound: cfg.AddPrefix == "",
 				deleteFound: cfg.DeletePrefix == "",
 			}
-			for _, resp := range ss.Notifications() {
+			if cfg.SinceIndex < 0 || cfg.SinceIndex > len(ss.Notifications()) {
+				return false, fmt.Errorf("invalid notification checkpoint %d (processed %d)", cfg.SinceIndex, len(ss.Notifications()))
+			}
+			for _, resp := range ss.Notifications()[cfg.SinceIndex:] {
 				update := resp.GetUpdate()
 				if update == nil {
 					// Ignore SubscribeResponse messages that do not contain an Update,
@@ -1190,57 +1440,32 @@ func WaitForNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook
 	}
 }
 
-// pathHasPrefixKey returns true if path contains the supplied route-prefix key.
-func pathHasPrefixKey(path *gnmipb.Path, prefix string) bool {
-	if path == nil {
-		return false
-	}
+// entryPathHasPrefix looks for an exact AFT entry key in a notification path.
+func entryPathHasPrefix(path *gnmipb.Path, prefix string) bool {
 	for _, elem := range path.GetElem() {
-		for _, keyVal := range elem.GetKey() {
-			if keyVal == prefix {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// hasUpdateNotification returns true if the specified prefix appears in the
-// notification prefix or in any UPDATE path. For atomic containers in
-// Subscribe and Get responses, gNMI section 3.5.2.5 permits a server to place
-// the list key in Notification.Prefix and make the UPDATE path relative to
-// that prefix. Checking both locations handles this encoding as well as
-// notifications with the key directly in an UPDATE path.
-func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
-	if len(update.GetUpdate()) == 0 {
-		return false
-	}
-	if pathHasPrefixKey(update.GetPrefix(), prefix) {
-		return true
-	}
-	for _, upd := range update.GetUpdate() {
-		if pathHasPrefixKey(upd.GetPath(), prefix) {
+		if (elem.GetName() == "ipv4-entry" || elem.GetName() == "ipv6-entry") && elem.GetKey()["prefix"] == prefix {
 			return true
 		}
 	}
 	return false
 }
 
-// hasDeleteNotification returns true if the specified prefix appears in the
-// notification prefix or in any DELETE path. For atomic containers in
-// Subscribe and Get responses, gNMI section 3.5.2.5 permits a server to place
-// the list key in Notification.Prefix and make the DELETE path relative to
-// that prefix. Checking both locations handles this encoding as well as
-// notifications with the key directly in a DELETE path.
+// hasUpdateNotification matches an entry key in either the notification prefix
+// or the relative update path.
+func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
+	for _, upd := range update.GetUpdate() {
+		if entryPathHasPrefix(update.GetPrefix(), prefix) || entryPathHasPrefix(upd.GetPath(), prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasDeleteNotification matches an entry key in either the notification prefix
+// or the relative delete path.
 func hasDeleteNotification(update *gnmipb.Notification, prefix string) bool {
-	if len(update.GetDelete()) == 0 {
-		return false
-	}
-	if pathHasPrefixKey(update.GetPrefix(), prefix) {
-		return true
-	}
 	for _, del := range update.GetDelete() {
-		if pathHasPrefixKey(del, prefix) {
+		if entryPathHasPrefix(update.GetPrefix(), prefix) || entryPathHasPrefix(del, prefix) {
 			return true
 		}
 	}
