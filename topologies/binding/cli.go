@@ -17,6 +17,7 @@ package binding
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/openconfig/ondatra/binding"
 	"golang.org/x/crypto/ssh"
@@ -32,14 +33,52 @@ func newCLI(sc *ssh.Client) (*cli, error) {
 	return &cli{ssh: sc}, nil
 }
 
-func (c *cli) RunCommand(_ context.Context, cmd string) (binding.CommandResult, error) {
+func (c *cli) RunCommand(ctx context.Context, cmd string) (binding.CommandResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	type commandOutcome struct {
+		result binding.CommandResult
+		err    error
+	}
+	// Session creation and command completion can both wait on the SSH peer.
+	outcome := make(chan commandOutcome, 1)
+	go func() {
+		result, err := c.runCommand(ctx, cmd)
+		outcome <- commandOutcome{result: result, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case got := <-outcome:
+		return got.result, got.err
+	}
+}
+
+func (c *cli) runCommand(ctx context.Context, cmd string) (binding.CommandResult, error) {
 	sess, err := c.ssh.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("could not create session: %w", err)
 	}
 	defer sess.Close()
 
+	// Close only this session so other commands can keep using the client.
+	stop := context.AfterFunc(ctx, func() { sess.Close() })
+	defer stop()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	// IOS XR may prompt for confirmation when clearing interface counters.
+	if strings.HasPrefix(cmd, "clear counters interface ") && !strings.ContainsAny(cmd, "\r\n") {
+		sess.Stdin = strings.NewReader("\n")
+	}
+
 	out, err := sess.CombinedOutput(cmd)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, ctxErr
+	}
 	switch err.(type) {
 	case nil:
 		return &cmdResult{output: string(out)}, nil

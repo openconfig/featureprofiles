@@ -27,6 +27,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -162,6 +163,7 @@ func (f *cliFixture) start(t testing.TB) error {
 		return err
 	}
 	f.cli = cli
+	t.Cleanup(func() { client.Close() })
 	return nil
 }
 
@@ -205,6 +207,8 @@ func which(b bool, yes, no string) string {
 func (f *cliFixture) handleServerChannel(c ssh.Channel, reqs <-chan *ssh.Request) {
 	var shell, pty bool
 	r := bufio.NewReader(c)
+	confirmation := make(chan bool, 1)
+	defer close(confirmation)
 
 	go func() {
 		for req := range reqs {
@@ -216,7 +220,7 @@ func (f *cliFixture) handleServerChannel(c ssh.Channel, reqs <-chan *ssh.Request
 				pty = true
 				req.Reply(true, nil)
 			case "exec":
-				f.handleExec(c, req)
+				f.handleExec(c, req, confirmation)
 			default:
 				req.Reply(false, nil)
 			}
@@ -227,6 +231,13 @@ func (f *cliFixture) handleServerChannel(c ssh.Channel, reqs <-chan *ssh.Request
 		line, err := r.ReadString('\n')
 		if err != nil {
 			return // io.EOF or otherwise.
+		}
+		if line == "\n" {
+			select {
+			case confirmation <- true:
+			default:
+			}
+			continue
 		}
 
 		output := fmt.Sprintf("%s %s %s",
@@ -247,20 +258,30 @@ func (f *cliFixture) handleServerChannel(c ssh.Channel, reqs <-chan *ssh.Request
 //
 //   - stdout: exec command: <command>
 //   - stderr: exec stderr
-func (f *cliFixture) handleExec(c ssh.Channel, req *ssh.Request) {
+func (f *cliFixture) handleExec(c ssh.Channel, req *ssh.Request, confirmation <-chan bool) {
 	var execMsg struct{ Command string }
 	if err := ssh.Unmarshal(req.Payload, &execMsg); err != nil {
 		req.Reply(false, nil)
 		return
 	}
 	req.Reply(true, nil)
+	if execMsg.Command == "hang" {
+		return
+	}
+
+	var exitStatus uint32
+	wantConfirmation := execMsg.Command == "clear counters interface Ethernet1"
+	if got := <-confirmation; got != wantConfirmation {
+		fmt.Fprintf(c.Stderr(), "Enter confirmation: got %t, want %t\n", got, wantConfirmation)
+		exitStatus = 1
+	}
 	output := fmt.Sprintf("exec command: %s\n", execMsg.Command)
 	c.Write([]byte(output))
 	c.Stderr().Write([]byte("exec stderr\n"))
 	c.CloseWrite()
 
 	statusMsg := make([]byte, 4)
-	binary.BigEndian.PutUint32(statusMsg, 0)
+	binary.BigEndian.PutUint32(statusMsg, exitStatus)
 	c.SendRequest("exit-status", false, statusMsg)
 	c.Close()
 }
@@ -284,5 +305,45 @@ func TestCLI(t *testing.T) {
 	want := []string{"exec command: xyzzy", "exec stderr", ""}
 	if diff := cmp.Diff(want, got, cmpSortStrings); diff != "" {
 		t.Errorf("Command output -want, +got:\n%s", diff)
+	}
+}
+
+func TestCLICommandContextTimeout(t *testing.T) {
+	f := &cliFixture{}
+	if err := f.start(t); err != nil {
+		t.Fatalf("Could not start cliFixture: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	if _, err := f.cli.RunCommand(ctx, "hang"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("RunCommand() got error %v, want %v", err, context.DeadlineExceeded)
+	}
+
+	nextCtx, nextCancel := context.WithTimeout(t.Context(), time.Second)
+	defer nextCancel()
+	res, err := f.cli.RunCommand(nextCtx, "xyzzy")
+	if err != nil {
+		t.Fatalf("RunCommand() after cancellation got error %v", err)
+	}
+	if got := res.Error(); got != "" {
+		t.Errorf("RunCommand() after cancellation got command error: %s", got)
+	}
+}
+
+func TestCLICommandConfirmation(t *testing.T) {
+	f := &cliFixture{}
+	if err := f.start(t); err != nil {
+		t.Fatalf("Could not start cliFixture: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	res, err := f.cli.RunCommand(ctx, "clear counters interface Ethernet1")
+	if err != nil {
+		t.Fatalf("RunCommand() got error %v", err)
+	}
+	if got := res.Error(); got != "" {
+		t.Errorf("RunCommand() command error: %s", got)
 	}
 }
