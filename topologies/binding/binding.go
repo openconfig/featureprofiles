@@ -214,7 +214,11 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	if err != nil {
 		return nil, err
 	}
-	return gpb.NewGNMIClient(conn), nil
+	cli := gpb.NewGNMIClient(conn)
+	if d.useRestconfGNMI() {
+		return &restconfGNMIClient{GNMIClient: cli}, nil
+	}
+	return cli, nil
 }
 
 func (d *staticDUT) DialGNPSI(ctx context.Context, opts ...grpc.DialOption) (gnpsipb.GNPSIClient, error) {
