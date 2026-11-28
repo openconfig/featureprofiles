@@ -1,9 +1,10 @@
 # gNMI-2: gnmi_subscriptionlist_test
 
 ## Summary
-This is to test for gNMI `Subscription` to multiple paths with different `SubscriptionMode` in a single `SubscriptionRequest` message using the `Subscriptionlist` field. Goal here is to,
+This is to test for gNMI `Subscription` to multiple paths with different `SubscriptionMode` in a single `SubscriptionRequest` message using the `Subscriptionlist` field, as well as parallel gNMI subscription requests. Goal here is to,
   * Ensure that the NOS supports "Subscriptionlist" field with multiple `Subscription` messages and also supports the desired `Subscriptionmode` per path in each `Subscription` message.
   * The tests also check if the DUT is responding back everytime with a `SubscriptionResponse` message that has the `sync_response` field set to `true`
+  * Ensure that the NOS supports parallel, concurrent gNMI subscription streams targeting specific interface paths in separate sessions.
 
 ## Procedure
 ### gNMI-2.1: Verify single subscription request with a Subscriptionlist and different SubscriptionModes:
@@ -12,6 +13,51 @@ This is to test for gNMI `Subscription` to multiple paths with different `Subscr
 ### gNMI-2.2: Change SubscriptionModes in the subscription list and verify receipt of sync_response:
   * In the "Telemetry Parameter coverage" section below, change the `Subscribe` message for each of the paths with `SubscriptionMode` as `ON_CHANGE` to `TARGET_DEFINED` and the ones that are `TARGET_DEFINED` to `SAMPLE` w/ a sampe_interval of 10secs and send all the subscribe messages in a single `SubscribeRequest` message to the DUT. Confirm that a `SubscribeResponse` message is received by the client with the `sync_reponse` field set to `true`. The client should then close the RPC session
   * Again, switch the `SubscriptionMode` in each `Subscription` message to its original state i.e. from `TARGET_DEFINED` to `ON_CHANGE` and from `SAMPLE` to `TARGET_DEFINED` and resend the `SubscriptionRequest` with `Mode` as `STREAM`. Confirm that the DUT is responding back to the client with a `SubscriptionResponse` and the `Sync_Response` field set to `true`
+### gNMI-2.3: Verify parallel subscription requests on multiple interfaces simultaneously:
+  * Retrieve at least two ports from the DUT.
+  * Construct interface-specific state paths (using the explicit interface names) for those ports.
+  * Start separate concurrent sessions to execute parallel gNMI subscription streams concurrently for each interface.
+  * Verify that a `SubscribeResponse` message is received by the client with the `sync_response` field set to `true` for all parallel streams within the timeout window.
+
+#### Canonical OC
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd",          
+          "enabled": true
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0,
+                "enabled": true
+              },
+              "ipv4": {
+                "config": {
+                  "enabled": true
+                }
+              },
+              "ipv6": {
+                "config": {
+                  "enabled": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -74,4 +120,5 @@ rpcs:
       Mode: [ "TARGET_DEFINED", "ON_CHANGE" ]
     gNMI.Set:
 ```
+
 
