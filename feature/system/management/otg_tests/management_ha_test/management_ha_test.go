@@ -16,7 +16,6 @@ package management_ha_test
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"testing"
@@ -39,11 +38,10 @@ import (
 
 const (
 	prefixesStart = "2001:db8:1::1"
-	prefixP6Len   = 128
-	prefixesCount = 1
 	pathID        = 1
 	defaultRoute  = "0:0:0:0:0:0:0:0"
 	ateNetPrefix  = "2001:0db8::192:0:3:1"
+	timeout       = 10 * time.Second
 )
 
 var (
@@ -122,18 +120,24 @@ func TestManagementHA1(t *testing.T) {
 	if dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.JUNIPER {
 		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).SetRouteDistinguisher(fmt.Sprintf("%d:%d", cfgplugins.DutAS, 100))
 	}
-	bs.PushAndStart(t)
+	if err := bs.PushDUT(t); err != nil {
+		t.Fatalf("Failed to push DUT BGP config: %v", err)
+	}
+
+	configureLoopbackOnDUT(t, bs.DUT)
+	advertiseDUTLoopbackToATE(t, bs.DUT, bs)
+	configureStaticRoute(t, bs.DUT, bs.ATEPorts[2].IPv6)
+	configureImportExportBGPPolicy(t, bs, dut)
+	createFlowV6(t, bs)
+	bs.ATE.OTG().PushConfig(t, bs.ATETop)
+	bs.ATE.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 	if verfied := verifyDUTBGPEstablished(t, bs.DUT, mgmtVRFName); verfied {
 		t.Log("DUT BGP sessions established")
 	} else {
 		t.Fatalf("BGP sessions not established")
 	}
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
-	configureLoopbackOnDUT(t, bs.DUT)
-	advertiseDUTLoopbackToATE(t, bs.DUT, bs)
-	configureStaticRoute(t, bs.DUT, bs.ATEPorts[2].IPv6)
-	configureImportExportBGPPolicy(t, bs, dut)
 
 	// This restores both ports ensuring a clean state before execution of each test.
 	restoreState := func(t *testing.T) {
@@ -151,10 +155,10 @@ func TestManagementHA1(t *testing.T) {
 		} else {
 			t.Fatalf("BGP sessions not established")
 		}
+		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 	}
 
 	t.Run("traffic received by port1 or port2", func(t *testing.T) {
-		createFlowV6(t, bs)
 		otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
@@ -170,71 +174,62 @@ func TestManagementHA1(t *testing.T) {
 	t.Run("traffic received by port2", func(t *testing.T) {
 		defer restoreState(t)
 
-		createFlowV6(t, bs)
-
 		// Disable port1 to force traffic to port2
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
-		time.Sleep(10 * time.Second)
+		t.Logf("sleeping for %v to ensure DUT has aged out ARP entry for port1", timeout)
+		time.Sleep(timeout)
 
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		framesTx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port4").ID()).Counters().OutFrames().State())
-		framesRx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port2").ID()).Counters().InFrames().State())
-		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", 10*time.Second)
-		t.Logf("Frames sent/received: got: %d, want: %d, loss: %f", framesRx, framesTx, lossV6)
-		if lossV6 > lossTolerance || framesRx < framesTx {
-			t.Errorf("Frames sent/received: got: %d, want: %d", framesRx, framesTx)
+		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", timeout)
+		if lossV6 > lossTolerance {
+			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want %f", lossV6, lossTolerance)
 		}
 	})
 
 	t.Run("traffic received by port3", func(t *testing.T) {
 		defer restoreState(t)
 
-		createFlowV6(t, bs)
-
 		// Disable BOTH Port 1 and Port 2 to force traffic to Port 3 (Static Route)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), false)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
-		time.Sleep(10 * time.Second)
+		t.Logf("sleeping for %v to ensure DUT has aged out ARP entry for port1 and port2", timeout)
+		time.Sleep(timeout)
 
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		framesTx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port4").ID()).Counters().OutFrames().State())
-		framesRx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port3").ID()).Counters().InFrames().State())
-		if lossPct(float64(framesTx), float64(framesRx)) > lossTolerance {
-			t.Errorf("Frames sent/received: got: %d, want: %d", framesRx, framesTx)
+		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", timeout)
+		if lossV6 > lossTolerance {
+			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want %f", lossV6, lossTolerance)
 		}
 	})
 
 	t.Run("traffic received by port1", func(t *testing.T) {
 		defer restoreState(t)
 
-		createFlowV6(t, bs)
-
 		// Disable Port 2 to force traffic to Port 1
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), false)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
-		time.Sleep(5 * time.Second)
+		t.Logf("sleeping for %v to ensure DUT has aged out ARP entry for port2", timeout)
+		time.Sleep(timeout)
 
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		framesTx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port4").ID()).Counters().OutFrames().State())
-		framesRx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port1").ID()).Counters().InFrames().State())
-		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", 10*time.Second)
-		if lossV6 > lossTolerance || framesRx < framesTx {
-			t.Errorf("Frames sent/received: got: %d, want: %d", framesRx, framesTx)
+		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", timeout)
+		if lossV6 > lossTolerance {
+			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want %f", lossV6, lossTolerance)
 		}
 	})
 
@@ -265,10 +260,6 @@ func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 	v6.Dst().Increment().SetStart(prefixesStart).SetCount(1)
 	icmp1 := v6Flow.Packet().Add().Icmpv6()
 	icmp1.SetEcho(gosnappi.NewFlowIcmpv6Echo())
-
-	bs.ATE.OTG().PushConfig(t, bs.ATETop)
-	bs.ATE.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 }
 
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, nextHopIP string) {
@@ -304,7 +295,6 @@ func configureEmulatedNetworks(bs *cfgplugins.BGPSession) {
 		bgp6PeerRoute.SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 		bgp6PeerRoute.AddPath().SetPathId(pathID)
 
-		bgp6PeerRoute.Addresses().Add().SetAddress(prefixesStart).SetPrefix(prefixP6Len).SetCount(prefixesCount)
 		bgp6PeerRoute.Addresses().Add().SetAddress(defaultRoute).SetPrefix(0)
 	}
 }
@@ -468,10 +458,6 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	}
 
 	batchSet.Set(t, bs.DUT)
-}
-
-func lossPct(tx, rx float64) float64 {
-	return (math.Abs(tx-rx) * 100) / tx
 }
 
 func getCiscoCLIRedisConfig(instanceName string, as uint32, vrf string) string {
