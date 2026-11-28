@@ -116,6 +116,11 @@ func testSimultaneousDualStackPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		V6Policy: policyPfxSetB,
 		VRFName:  ni,
 	})
+	aftpf.AwaitGlobalFilterPolicyState(t, dut, aftpf.ConfigureGlobalFilterPoliciesParams{
+		V4Policy: policyPfxSetA,
+		V6Policy: policyPfxSetB,
+		VRFName:  ni,
+	})
 
 	wantPrefixes := map[string]bool{}
 	for _, p := range allMatch {

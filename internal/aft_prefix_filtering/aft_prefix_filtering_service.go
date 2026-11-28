@@ -149,6 +149,15 @@ func VerifyPrefixesAbsent(t *testing.T, cfg PrefixesParams) {
 	}
 }
 
+// PrefixSet converts a prefix slice to a membership map.
+func PrefixSet(prefixes []string) map[string]bool {
+	set := make(map[string]bool, len(prefixes))
+	for _, prefix := range prefixes {
+		set[prefix] = true
+	}
+	return set
+}
+
 // RunCollectorParams contains the parameters required to execute an AFT collector.
 // It runs until the supplied stopping condition is satisfied.
 type RunCollectorParams struct {
@@ -696,6 +705,87 @@ type ConfigureGlobalFilterPoliciesParams struct {
 	V4Policy string
 	V6Policy string
 	VRFName  string
+}
+
+// AwaitGlobalFilterPolicyState waits until the configured policy names are
+// visible in afts/global-filter/state before a new AFT subscription is opened.
+func AwaitGlobalFilterPolicyState(t *testing.T, dut *ondatra.DUTDevice, cfg ConfigureGlobalFilterPoliciesParams) {
+	t.Helper()
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		VerifyGlobalFilterPoliciesCLI(t, dut, cfg)
+		return
+	}
+
+	want := map[string]string{}
+	paths := []*gpb.Path{}
+	for _, policy := range []struct {
+		leaf  string
+		value string
+	}{{leaf: "ipv4-policy", value: cfg.V4Policy}, {leaf: "ipv6-policy", value: cfg.V6Policy}} {
+		if policy.value == "" {
+			continue
+		}
+		want[policy.leaf] = policy.value
+		paths = append(paths, &gpb.Path{Elem: []*gpb.PathElem{
+			{Name: "network-instances"},
+			{Name: "network-instance", Key: map[string]string{"name": cfg.VRFName}},
+			{Name: "afts"},
+			{Name: "global-filter"},
+			{Name: "state"},
+			{Name: policy.leaf},
+		}})
+	}
+	if len(paths) == 0 {
+		return
+	}
+	client, err := DialGNMI(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI while waiting for global-filter state: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), AFTSubscriptionWait)
+	defer cancel()
+	request := &gpb.GetRequest{Path: paths, Type: gpb.GetRequest_STATE}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	var lastErr error
+	var got map[string]string
+	for {
+		response, err := client.Get(ctx, request)
+		if err != nil {
+			lastErr = err
+		} else {
+			got = map[string]string{}
+			for _, notification := range response.GetNotification() {
+				for _, update := range notification.GetUpdate() {
+					path := append([]*gpb.PathElem(nil), notification.GetPrefix().GetElem()...)
+					path = append(path, update.GetPath().GetElem()...)
+					if len(path) == 0 {
+						continue
+					}
+					leaf := path[len(path)-1].GetName()
+					if _, ok := want[leaf]; ok {
+						got[leaf] = update.GetVal().GetStringVal()
+					}
+				}
+			}
+			matches := true
+			for leaf, value := range want {
+				if got[leaf] != value {
+					matches = false
+					break
+				}
+			}
+			if matches {
+				t.Logf("Observed global-filter state for %q: %v", cfg.VRFName, got)
+				return
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("Timed out waiting for global-filter state in network instance %q: got=%v want=%v last error=%v", cfg.VRFName, got, want, lastErr)
+		case <-ticker.C:
+		}
+	}
 }
 
 // ConfigureGlobalFilterPolicies configures AFT global-filter policies for the specified network-instance.
