@@ -79,6 +79,7 @@ func DhcpRelayConfig(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cf
 		// Enable relay-agent globally (DHCPv6) + enable on the interface.
 		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcpv6().EnableRelayAgent().Config(), true)
 		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcpv6().Interface(intfID).Enable().Config(), true)
+		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcpv6().Interface(intfID).Id().Config(), intfID)
 
 		if cfgParams.IPv6HelperAddress != "" {
 			gnmi.BatchReplace(
