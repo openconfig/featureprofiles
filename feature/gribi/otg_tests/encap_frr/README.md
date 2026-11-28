@@ -6,14 +6,10 @@ Test FRR behaviors with encapsulation scenarios.
 
 ## Topology
 
--   ATE port-1 <------> port-1 DUT
--   DUT port-2 <------> port-2 ATE
--   DUT port-3 <------> port-3 ATE
--   DUT port-4 <------> port-4 ATE
--   DUT port-5 <------> port-5 ATE
--   DUT port-6 <------> port-6 ATE
--   DUT port-7 <------> port-7 ATE
--   DUT port-8 <------> port-8 ATE
+-   ATE port-1 <------> port-1 DUT (bidirectional: test ingress + IS-IS/iBGP + DEFAULT VRF fallback egress)
+-   DUT port-2 <------> port-2 ATE (Tunnel 1 primary egress: NH#11, NH#12, NH#13 via magic_mac, magic_mac_2, magic_mac_3)
+-   DUT port-3 <------> port-3 ATE (Tunnel 2 primary egress: NH#15)
+-   DUT port-4 <------> port-4 ATE (shared backup egress: NH#14 via magic_mac, NH#16 via magic_mac_2)
 
 ## Baseline setup
 
@@ -35,8 +31,10 @@ Test FRR behaviors with encapsulation scenarios.
 * ipv4_outer_src_111 = 198.51.100.111
 * ipv4_outer_src_222 = 198.51.100.222
 
-# Magic destination MAC address
-* magic_mac = 02:00:00:00:00:01`
+# Magic destination MAC addresses
+* magic_mac = 02:00:00:00:00:01
+* magic_mac_2 = 02:00:00:00:00:02
+* magic_mac_3 = 02:00:00:00:00:03
 ```
 
 ```
@@ -293,10 +291,10 @@ IPv4Entry {203.0.113.1/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> {
 }
 IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#11 (DEFAULT VRF) -> {
   {NH#11, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
-  {NH#12, DEFAULT VRF, weight:3,mac_address:magic_mac, interface-ref:dut-port-3-interface},
+  {NH#12, DEFAULT VRF, weight:3,mac_address:magic_mac_2, interface-ref:dut-port-2-interface},
 }
 IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#12 (DEFAULT VRF) -> {
-  {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
+  {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac_3, interface-ref:dut-port-2-interface},
 }
 
 NHG#1000 (DEFAULT VRF) {
@@ -317,7 +315,7 @@ IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#2 (DEFAULT VRF) -> {
   backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
-  {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
+  {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-4-interface},
 }
 
 // 203.10.113.2 is the tunnel IP address. Note that the NHG#3 is different than NHG#1.
@@ -327,7 +325,7 @@ IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
   backup_next_hop_group: 1001 // re-encap to 203.0.113.101
 }
 IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#14 (DEFAULT VRF) -> {
-  {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
+  {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-3-interface},
 }
 NHG#1001 (DEFAULT VRF) {
   {NH#1001, DEFAULT VRF}
@@ -346,7 +344,7 @@ IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
   backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
 IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
-  {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
+  {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac_2, interface-ref:dut-port-4-interface},
 }
 
 NHG#2000 (DEFAULT VRF) {
@@ -359,7 +357,7 @@ NH#2000 -> {
 ```
 
 *   Install a BGP route resolved by ISIS in default VRF to route 138.0.11.8
-    traffic out of DUT port-8.
+    traffic out of bidirectional DUT port-1.
 
 ## Procedure
 
@@ -368,17 +366,19 @@ At the start of each of the following scenarios, ensure:
 *   all ports are up and baseline is reset as above.
 *   Send packets to DUT port-1. The outer v4 header has the destination
     addresses 138.0.11.8.
-*   Validate that traffic is encapsulated to 203.0.113.1 and 203.0.113.2, and is
-    distributed per the hierarchical weights.
+*   Validate that traffic is encapsulated to 203.0.113.1 (on DUT port-2 across
+    magic_mac, magic_mac_2, magic_mac_3 in 1:3:12 ratio) and 203.0.113.2 (on
+    DUT port-3), and is distributed per the hierarchical weights (25% / 75%).
 
 #### Test-1, primary encap unviable but backup encap viable for single tunnel
 
 Tests that if the primary NHG for an encap tunnel is unviable, then the traffic
 for that tunnel is re-encaped into its specified backup tunnel.
 
-1.  Shutdown DUT port-2, port-3, and port-4.
+1.  Shutdown DUT port-2.
 2.  Validate that corresponding traffic that was encapped to 203.0.113.1 should
-    now be encapped with 203.0.113.100.
+    now be encapped with 203.0.113.100 out of DUT port-4 (25%), while 75%
+    continues out of DUT port-3.
 
 #### Test-2, primary and backup encap unviable for single tunnel
 
@@ -387,10 +387,11 @@ are unviable, then the traffic for that tunnel is not encapped. Instead, that
 fraction of traffic should be forwarded according to the BGP/IS-IS routes in the
 DEFAULT VRF.
 
-1.  Shutdown DUT port-2, port-3, port-4 and port-5.
+1.  Shutdown DUT port-2 and port-4.
 2.  Validate that corresponding traffic (25% of the total traffic) that was
     encapped to 203.0.113.1 are no longer encapped, and forwarded per BGP-ISIS
-    routes (in the default VRF) out of DUT port-8.
+    routes (in the default VRF) out of DUT port-1, while 75% continues out of
+    DUT port-3.
 
 #### Test-3, primary encap unviable with backup to routing for single tunnel
 
@@ -412,10 +413,10 @@ NH#1000 -> {
 ```
 
 1.  Validate that all traffic is distributed per the hierarchical weights.
-2.  Shutdown DUT port-2, port-3, and port-4.
+2.  Shutdown DUT port-2.
 3.  Validate that corresponding traffic (25% of the total traffic) that was
     encapped to 203.0.113.1 are no longer encapped, and forwarded per BGP-ISIS
-    routes (in the default VRF) out of DUT port-8.
+    routes (in the default VRF) out of DUT port-1.
 
 #### Test-4, primary encap unviable but backup encap viable for all tunnels
 
@@ -423,8 +424,9 @@ Tests that if the primary NHG for all encap tunnels are unviable, then the
 traffic is re-encaped into the specified backup tunnels. This test ensures that
 the device does not withdraw this IPv4Entry and sends this traffic to routing.
 
-1.  Shutdown DUT port-2, port-3, port-4 and port-6.
-2.  Validate that traffic is encapsulated to 203.0.113.100 and 203.0.113.101 per
+1.  Shutdown DUT port-2 and port-3.
+2.  Validate on shared backup DUT port-4 that traffic is encapsulated to
+    203.0.113.100 (`magic_mac`, 25%) and 203.0.113.101 (`magic_mac_2`, 75%) per
     the weights.
 
 #### Test-5, primary and backup encap unviable for all tunnels
@@ -436,9 +438,9 @@ the BGP/IS-IS routes in the DEFAULT VRF. This stresses the double failure
 handling, and ensures that the fallback to DEFAULT is activated through the
 backup NHGs of the tunnels instead of withdrawing the IPv4Entry.
 
-1.  Shutdown DUT port-2, port-3, port-4, port-5, port-6 and port-7.
+1.  Shutdown DUT port-2, port-3, and port-4.
 2.  Validate that all traffic is no longer encapsulated, and is all egressing
-    out of DUT port-8 per the BGP-ISIS routes in the default VRF.
+    out of DUT port-1 per the BGP-ISIS routes in the default VRF.
 
 #### Test-6, primary encap unviable with backup to routing for all tunnels
 
@@ -469,9 +471,9 @@ NH#1001 -> {
 ```
 
 1.  Validate that all traffic is distributed per the hierarchical weights.
-2.  Shutdown DUT port-2, port-3, and port-4, and port-6.
+2.  Shutdown DUT port-2 and port-3.
 3.  Validate that all traffic is no longer encapsulated, and is all egressing
-    out of DUT port-8 per the BGP-ISIS routes in the default VRF.
+    out of DUT port-1 per the BGP-ISIS routes in the default VRF.
 
 #### Test-7, no match in encap VRF
 
@@ -482,7 +484,18 @@ be routed to the DEFAULT VRF for further lookup.
 2.  Send traffic with destination address 20.0.0.1, which should produce no
     match in `ENCAP_TE_VRF_A`.
 3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
-    VR) out of DUT port-8.
+    VR) out of DUT port-1.
+
+### Cleanup
+
+*   Restore all disabled DUT/ATE interfaces (`port2`, `port3`, `port4`) back to
+    the `UP` state via `t.Cleanup` after each subtest and verify operational
+    status returns to `UP`.
+*   Stop all active OTG packet capture sessions via `defer` / `t.Cleanup` and
+    remove temporary PCAP files.
+*   Flush all programmed gRIBI AFT entries (IPv4 entries, NextHopGroups, and
+    NextHops) across `DEFAULT`, `ENCAP_TE_VRF_A`, `TE_VRF_111`, and `TE_VRF_222`
+    via `gRIBI.Flush` to restore the DUT to its baseline operational state.
 
 #### Canonical OC
 ```json

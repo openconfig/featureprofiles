@@ -56,17 +56,29 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Settings for configuring the baseline testbed with the test
-// topology.
+// 4-Link Testbed Topology & Failure Triage Guide (TESTBED_DUT_ATE_4LINKS):
 //
-// ATE port-1 <------> port-1 DUT
-// DUT port-2 <------> port-2 ATE
-// DUT port-3 <------> port-3 ATE
-// DUT port-4 <------> port-4 ATE
-// DUT port-5 <------> port-5 ATE
-// DUT port-6 <------> port-6 ATE
-// DUT port-7 <------> port-7 ATE
-// DUT port-8 <------> port-8 ATE
+//   ATE port-1 <------> port-1 DUT  Bidirectional native L3 link (always UP):
+//                                   - ATE -> DUT (Rx): test ingress (DSCP 10 -> ENCAP_TE_VRF_A)
+//                                   - DUT <-> ATE (Tx/Rx): DEFAULT VRF IS-IS L2 + iBGP (203.0.113.10)
+//                                   - DUT -> ATE (Tx): unencapsulated DEFAULT VRF decap fallback
+//   DUT port-2 -------> port-2 ATE  Tunnel 1 Primary (203.0.113.1, 25% baseline):
+//                                   - NHG#11: NH#11 (w=1, MagicMAC1), NH#12 (w=3, MagicMAC2)
+//                                   - NHG#12: NH#13 (w=2, MagicMAC3) -> 1:3:12 MAC ratio
+//   DUT port-3 -------> port-3 ATE  Tunnel 2 Primary (203.0.113.2, 75% baseline):
+//                                   - NHG#14: NH#15 (w=1, MagicMAC1)
+//   DUT port-4 -------> port-4 ATE  Shared Repair Backup (REPAIR_VRF -> TE_VRF_222):
+//                                   - NHG#13: NH#14 (MagicMAC1) -> Tunnel 1 Bkp (203.0.113.100)
+//                                   - NHG#15: NH#16 (MagicMAC2) -> Tunnel 2 Bkp (.101 / .102)
+//
+// Triage notes if a subtest fails:
+//   - Baseline [0, 0.25, 0.75, 0] or port2 MAC ratio [0.0625, 0.1875, 0.75]: check hierarchical
+//     weights across NHG#101 -> NHG#1 -> NHG#11/NHG#12 and static ARP/route programming on port2.
+//   - Test-1 [0, 0, 0.75, 0.25]: check NHG#1 backup NHG#3000 -> REPAIR_VRF -> NHG#1000 -> port4.
+//   - Test-2/Test-3 [0.25, 0, 0.75, 0] or Test-5..9 [1, 0, 0, 0]: check decap/fallback to DEFAULT
+//     VRF and iBGP/IS-IS reachability out bidirectional port1.
+//   - Test-4 [0, 0, 0, 1] or port4 backup ratio [0.25, 0.75]: check both NHG#1000 (MagicMAC1)
+//     and NHG#1001 ECMP .101/.102 (MagicMAC2) on shared backup port4.
 
 const (
 	plenIPv4               = 30
@@ -112,8 +124,8 @@ const (
 	otgSysID1      = "640000000001"
 	isisInstance   = "DEFAULT"
 
-	otgIsisPort8LoopV4 = "203.0.113.10"
-	otgIsisPort8LoopV6 = "2001:db8::203:0:113:10"
+	otgIsisPort1LoopV4 = "203.0.113.10"
+	otgIsisPort1LoopV6 = "2001:db8::203:0:113:10"
 
 	dutAS        = 65501
 	peerGrpName1 = "BGP-PEER-GROUP1"
@@ -144,18 +156,6 @@ var (
 
 		"dut:port4": "192.0.2.13",
 		"ate:port4": "192.0.2.14",
-
-		"dut:port5": "192.0.2.17",
-		"ate:port5": "192.0.2.18",
-
-		"dut:port6": "192.0.2.21",
-		"ate:port6": "192.0.2.22",
-
-		"dut:port7": "192.0.2.25",
-		"ate:port7": "192.0.2.26",
-
-		"dut:port8": "192.0.2.29",
-		"ate:port8": "192.0.2.30",
 	}
 	portsIPv6 = map[string]string{
 		"dut:port1": "2001:db8::192:0:2:1",
@@ -169,18 +169,6 @@ var (
 
 		"dut:port4": "2001:db8::192:0:2:d",
 		"ate:port4": "2001:db8::192:0:2:e",
-
-		"dut:port5": "2001:db8::192:0:2:11",
-		"ate:port5": "2001:db8::192:0:2:12",
-
-		"dut:port6": "2001:db8::192:0:2:15",
-		"ate:port6": "2001:db8::192:0:2:16",
-
-		"dut:port7": "2001:db8::192:0:2:19",
-		"ate:port7": "2001:db8::192:0:2:1a",
-
-		"dut:port8": "2001:db8::192:0:2:1d",
-		"ate:port8": "2001:db8::192:0:2:1e",
 	}
 	otgPortDevices []gosnappi.Device
 	dutlo0Attrs    = attrs.Attributes{
@@ -207,7 +195,7 @@ type testArgs struct {
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
 	otgConfig  gosnappi.Config
-	top        gosnappi.Config
+	flowDestIP string
 	electionID gribi.Uint128
 	otg        *otg.OTG
 }
@@ -242,8 +230,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // dutInterface builds a DUT interface ygot struct for a given port
-// according to portsIPv4.  Returns nil if the port has no IP address
-// mapping.
+// according to portsIPv4. Returns nil if the port has no IP address mapping.
 func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
 	i := &oc.Interface{
@@ -289,7 +276,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 
 	dc := gnmi.OC()
 	for _, dp := range dutPortList {
-
 		if i := dutInterface(dp, dut); i != nil {
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
@@ -297,12 +283,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		}
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		for _, dp := range dut.Ports() {
+		for _, dp := range dutPortList {
 			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
 	if deviations.ExplicitPortSpeed(dut) {
-		for _, dp := range dut.Ports() {
+		for _, dp := range dutPortList {
 			fptest.SetPortSpeed(t, dp)
 		}
 	}
@@ -312,7 +298,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
 	}
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		baseScenario.StaticARPWithSpecificIP(t, dut)
+		baseScenario.StaticARPWithSpecificIP4Links(t, dut)
 	}
 }
 
@@ -320,7 +306,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *fluent.GRIBIClient) {
 	t.Helper()
 
-	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, client)
+	baseScenario.ConfigureBaseGribiRoutes4Links(ctx, t, dut, client)
 
 	// Programming AFT entries for backup NHG
 	client.Modify().AddEntry(t,
@@ -487,46 +473,6 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 	}
 }
 
-// configStaticArp configures static arp entries
-func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
-	i := &oc.Interface{Name: ygot.String(p)}
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	n4 := s4.GetOrCreateNeighbor(ipv4addr)
-	n4.LinkLayerAddress = ygot.String(macAddr)
-	return i
-}
-
-func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	sb := &gnmi.SetBatch{}
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
-	p6 := dut.Port(t, "port6")
-	p7 := dut.Port(t, "port7")
-	portList := []*ondatra.Port{p2, p3, p4, p5, p6, p7}
-	for idx, p := range portList {
-		s := &oc.NetworkInstance_Protocol_Static{
-			Prefix: ygot.String(magicIP + "/32"),
-			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-				strconv.Itoa(idx): {
-					Index: ygot.String(strconv.Itoa(idx)),
-					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-						Interface: ygot.String(p.Name()),
-					},
-				},
-			},
-		}
-		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), s)
-		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIP, magicMAC))
-	}
-	sb.Set(t, dut)
-}
-
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
@@ -582,7 +528,7 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
 	pg1.PeerAs = ygot.Uint32(localAs)
 
-	bgpNbr := bgp.GetOrCreateNeighbor(otgIsisPort8LoopV4)
+	bgpNbr := bgp.GetOrCreateNeighbor(otgIsisPort1LoopV4)
 	bgpNbr.PeerGroup = ygot.String(peerGrpName1)
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
@@ -624,8 +570,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	nbrPath := bgpPath.Neighbor(otgIsisPort8LoopV4)
-	// Get BGP adjacency state.
+	nbrPath := bgpPath.Neighbor(otgIsisPort1LoopV4)
 	t.Logf("Waiting for BGP neighbor to establish...")
 	var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
 	status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -637,22 +582,23 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatal("No BGP neighbor formed")
 	}
 	state, _ := status.Val()
-	t.Logf("BGP adjacency for %s: %v", otgIsisPort8LoopV4, state)
+	t.Logf("BGP adjacency for %s: %v", otgIsisPort1LoopV4, state)
 	if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-		t.Errorf("BGP peer %s status got %d, want %d", otgIsisPort8LoopV4, state, want)
+		t.Errorf("BGP peer %s status got %d, want %d", otgIsisPort1LoopV4, state, want)
 	}
 }
 
-// configureOTG configures the topology of the ATE.
-func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
+// configureOTG configures the 4-link topology of the ATE (bidirectional IS-IS + iBGP on port1).
+func configureOTG(t *testing.T, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
+	atePortNamelist = nil
+	otgPortDevices = nil
 	pmd100GFRPorts := []string{}
 	for i, ap := range atePorts {
 		if ap.PMD() == ondatra.PMD100GBASEFR {
 			pmd100GFRPorts = append(pmd100GFRPorts, ap.ID())
 		}
-		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
 		ateid := fmt.Sprintf("ate:%s", ap.ID())
 
@@ -671,11 +617,11 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			SetPrefix(plenIPv6)
 
 		otgPortDevices = append(otgPortDevices, dev)
-		if i == 7 {
-			iDut8LoopV4 := dev.Ipv4Loopbacks().Add().SetName("Port8LoopV4").SetEthName(eth.Name())
-			iDut8LoopV4.SetAddress(otgIsisPort8LoopV4)
-			iDut8LoopV6 := dev.Ipv6Loopbacks().Add().SetName("Port8LoopV6").SetEthName(eth.Name())
-			iDut8LoopV6.SetAddress(otgIsisPort8LoopV6)
+		if i == 0 {
+			iDut1LoopV4 := dev.Ipv4Loopbacks().Add().SetName("Port1LoopV4").SetEthName(eth.Name())
+			iDut1LoopV4.SetAddress(otgIsisPort1LoopV4)
+			iDut1LoopV6 := dev.Ipv6Loopbacks().Add().SetName("Port1LoopV6").SetEthName(eth.Name())
+			iDut1LoopV6.SetAddress(otgIsisPort1LoopV6)
 			isisDut := dev.Isis().SetName("ISIS1").SetSystemId(otgSysID1)
 			isisDut.Basic().SetIpv4TeRouterId(portsIPv4[ateid]).SetHostname(isisDut.Name()).SetLearnedLspFilter(true)
 			isisDut.Interfaces().Add().SetEthName(dev.Ethernets().Items()[0].Name()).
@@ -683,19 +629,19 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 				SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
 				SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-			// Advertise OTG Port8 loopback address via ISIS.
-			isisPort2V4 := dev.Isis().V4Routes().Add().SetName("ISISPort8V4").SetLinkMetric(10)
-			isisPort2V4.Addresses().Add().SetAddress(otgIsisPort8LoopV4).SetPrefix(32)
-			isisPort2V6 := dev.Isis().V6Routes().Add().SetName("ISISPort8V6").SetLinkMetric(10)
-			isisPort2V6.Addresses().Add().SetAddress(otgIsisPort8LoopV6).SetPrefix(uint32(128))
-			iDutBgp := dev.Bgp().SetRouterId(otgIsisPort8LoopV4)
-			iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(iDut8LoopV4.Name()).Peers().Add().SetName(ap.ID() + ".BGP4.peer")
+			// Advertise OTG Port1 loopback address via ISIS on bidirectional port1.
+			isisPort1V4 := dev.Isis().V4Routes().Add().SetName("ISISPort1V4").SetLinkMetric(10)
+			isisPort1V4.Addresses().Add().SetAddress(otgIsisPort1LoopV4).SetPrefix(32)
+			isisPort1V6 := dev.Isis().V6Routes().Add().SetName("ISISPort1V6").SetLinkMetric(10)
+			isisPort1V6.Addresses().Add().SetAddress(otgIsisPort1LoopV6).SetPrefix(uint32(128))
+			iDutBgp := dev.Bgp().SetRouterId(otgIsisPort1LoopV4)
+			iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1LoopV4.Name()).Peers().Add().SetName(ap.ID() + ".BGP4.peer")
 			iDutBgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 			iDutBgp4Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
 			iDutBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 			bgpNeti1Bgp4PeerRoutes := iDutBgp4Peer.V4Routes().Add().SetName(port.Name() + ".BGP4.Route")
-			bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(otgIsisPort8LoopV4).
+			bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(otgIsisPort1LoopV4).
 				SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 				SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
 				Advanced().SetLocalPreference(100).SetIncludeLocalPreference(true)
@@ -704,11 +650,9 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(noMatchEncapDest).SetPrefix(32).
 				SetCount(1).SetStep(1)
 		}
-
 	}
 	config.Captures().Add().SetName("packetCapture").
-		SetPortNames([]string{atePortNamelist[1], atePortNamelist[2], atePortNamelist[3], atePortNamelist[4],
-			atePortNamelist[5], atePortNamelist[6], atePortNamelist[7]}).
+		SetPortNames(atePortNamelist).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
@@ -719,27 +663,27 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 		autoNegotiate.SetRsFec(false)
 	}
 
+	setEncapFlow(config, ipv4InnerDst)
+
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 	pb, _ := config.Marshal().ToProto()
 	t.Log(pb.GetCaptures())
 	return config
 }
 
-func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestIP string) {
-	t.Helper()
-
+func setEncapFlow(config gosnappi.Config, trafficDestIP string) {
 	config.Flows().Clear()
 
 	flow1 := gosnappi.NewFlow().SetName(encapFlow)
 	flow1.Metrics().SetEnable(true)
 	flow1.TxRx().Device().
 		SetTxNames([]string{otgPortDevices[0].Name() + ".IPv4"}).
-		SetRxNames([]string{otgPortDevices[1].Name() + ".IPv4", otgPortDevices[2].Name() + ".IPv4", otgPortDevices[3].Name() + ".IPv4",
-			otgPortDevices[4].Name() + ".IPv4", otgPortDevices[5].Name() + ".IPv4", otgPortDevices[6].Name() + ".IPv4",
-			otgPortDevices[7].Name() + ".IPv4",
+		SetRxNames([]string{
+			otgPortDevices[1].Name() + ".IPv4",
+			otgPortDevices[2].Name() + ".IPv4",
+			otgPortDevices[3].Name() + ".IPv4",
 		})
 	flow1.Size().SetFixed(512)
 	flow1.Rate().SetPps(100)
@@ -758,31 +702,28 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestI
 	UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 
 	config.Flows().Append(flow1)
-
-	t.Logf("Pushing traffic flows to OTG and starting protocols...")
-	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
-	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 }
 
-func startCapture(t *testing.T, args *testArgs, capturePortList []string) gosnappi.ControlState {
+func createFlow(t *testing.T, args *testArgs, trafficDestIP string) {
 	t.Helper()
-	args.otgConfig.Captures().Clear()
-	args.otgConfig.Captures().Add().SetName("packetCapture").
-		SetPortNames(capturePortList).
-		SetFormat(gosnappi.CaptureFormat.PCAP)
+	if args.flowDestIP == trafficDestIP {
+		return
+	}
+
+	setEncapFlow(args.otgConfig, trafficDestIP)
+
+	t.Logf("Pushing traffic flow (dst=%s) to OTG and starting protocols...", trafficDestIP)
 	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
 	args.otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
-	return otgutils.StartCapture(t, args.otg)
+	otgutils.WaitForARP(t, args.otg, args.otgConfig, "IPv4")
+	verifyISISTelemetry(t, args.dut, args.dut.Port(t, "port1").Name())
+	verifyBgpTelemetry(t, args.dut)
+	args.flowDestIP = trafficDestIP
 }
 
-func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosnappi.ControlState) {
+func sendTraffic(t *testing.T, args *testArgs, cs gosnappi.ControlState) {
 	t.Helper()
 	defer otgutils.StopCapture(t, args.otg, cs)
-	otgutils.WaitForARP(t, args.otg, args.top, "IPv4")
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
@@ -790,33 +731,82 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 	args.otg.StopTraffic(t)
 }
 
-func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
+func readPortInFrames(t *testing.T, otgDev *otg.OTG) []uint64 {
 	t.Helper()
-	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
+	counts := make([]uint64, len(atePortNamelist))
+	for i, p := range atePortNamelist {
+		counts[i] = gnmi.Get(t, otgDev, gnmi.OTG().Port(p).Counters().InFrames().State())
+	}
+	return counts
+}
+
+func captureAndVerifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) []string {
+	t.Helper()
+	var pcapFileList []string
+	for idx, capturePort := range capturePortList {
+		cs := gosnappi.NewControlState()
+		cs.Port().Capture().SetPortNames([]string{capturePort}).SetState(gosnappi.StatePortCaptureState.START)
+		args.otg.SetControlState(t, cs)
+		t.Cleanup(func() {
+			otgutils.StopCapture(t, args.otg, cs)
+		})
+
+		sendTraffic(t, args, cs)
+		waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
+
+		if idx == 0 {
+			// OTG resets both flow counters and port InFrames on every StartTraffic().
+			txPkts := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).Counters().OutPkts().State())
+			portInFrames := readPortInFrames(t, args.otg)
+			t.Logf("Port InFrames [port1..port4]: %v (flow %s tx=%d)", portInFrames, encapFlow, txPkts)
+			verifyTrafficMetrics(t, args, txPkts, portInFrames, loadBalancePercent, wantLoss)
+		}
+
+		pcapBytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
+		pcapFile, err := os.CreateTemp("", "pcap")
+		if err != nil {
+			t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
+			continue
+		}
+		pcapName := pcapFile.Name()
+		t.Cleanup(func() {
+			os.Remove(pcapName)
+		})
+		if _, err := pcapFile.Write(pcapBytes); err != nil {
+			t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
+		}
+		pcapFile.Close()
+		pcapFileList = append(pcapFileList, pcapName)
+		validatePacketFile(t, pcapName, idx, checkEncap, headerDstIP)
+	}
+	return pcapFileList
+}
+
+func verifyTrafficMetrics(t *testing.T, args *testArgs, txPkts uint64, portInFrames []uint64, loadBalancePercent []float64, wantLoss bool) {
+	t.Helper()
 	if wantLoss {
 		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, float64(100-tolerancePct), 100)
+	} else if loadBalancePercent[0] > 0 {
+		// port1 is excluded from OTG flow RxNames because it is also the Tx port;
+		// account fallback packets via the per-run 4-port InFrames sum against txPkts.
+		if txPkts == 0 {
+			t.Errorf("Fallback traffic validation failed: txPkts=0 for flow %s (portInFrames=%v)", encapFlow, portInFrames)
+		} else {
+			_, totalRx := normalize(portInFrames)
+			var lossPct float64
+			if totalRx < txPkts {
+				lossPct = float64(txPkts-totalRx) * 100.0 / float64(txPkts)
+			}
+			t.Logf("Fallback traffic accounting for flow %s: tx=%d totalRx=%d portInFrames=%v lossPct=%.2f%%", encapFlow, txPkts, totalRx, portInFrames, lossPct)
+			if lossPct > float64(tolerancePct)+0.99 {
+				t.Errorf("Fallback traffic loss pct got %.2f%%, want <= %.2f%% (txPkts=%d, portInFrames=%v)", lossPct, float64(tolerancePct)+0.99, txPkts, portInFrames)
+			}
+		}
 	} else {
 		otgutils.ExpectedTrafficLoss(t, args.otg, encapFlow, 0, float64(tolerancePct)+0.99)
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
-	validateTrafficDistribution(t, args.ate, loadBalancePercent)
-	var pcapFileList []string
-	for _, capturePort := range capturePortList {
-		bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
-		pcapFileName, err := os.CreateTemp("", "pcap")
-		if err != nil {
-			t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
-		}
-		if _, err := pcapFileName.Write(bytes); err != nil {
-			t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
-		}
-		pcapFileName.Close()
-		pcapFileList = append(pcapFileList, pcapFileName.Name())
-	}
-	validatePackets(t, pcapFileList, checkEncap, headerDstIP)
-	args.otgConfig.Captures().Clear()
-	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
+	validateTrafficDistribution(t, portInFrames, loadBalancePercent)
 }
 
 // waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
@@ -863,25 +853,23 @@ func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, tim
 	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
 }
 
-func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
+func validatePacketFile(t *testing.T, file string, index int, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
-	for index, file := range filename {
-		fileStat, err := os.Stat(file)
+	fileStat, err := os.Stat(file)
+	if err != nil {
+		t.Errorf("Filestat for pcap file failed %s", err)
+		return
+	}
+	if fileStat.Size() > 0 {
+		handle, err := pcap.OpenOffline(file)
 		if err != nil {
-			t.Errorf("Filestat for pcap file failed %s", err)
+			t.Errorf("Unable to open the pcap file, error: %s", err)
+			return
 		}
-		fileSize := fileStat.Size()
-		if fileSize > 0 {
-			handle, err := pcap.OpenOffline(file)
-			if err != nil {
-				t.Errorf("Unable to open the pcap file, error: %s", err)
-			} else {
-				packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-				if checkEncap {
-					validateTrafficEncap(t, packetSource, headerDstIP, index)
-				}
-			}
-			defer handle.Close()
+		defer handle.Close()
+		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+		if checkEncap {
+			validateTrafficEncap(t, packetSource, headerDstIP, index)
 		}
 	}
 }
@@ -889,6 +877,12 @@ func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDst
 func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, headerDstIP map[string][]string, index int) {
 	t.Helper()
 	for packet := range packetSource.Packets() {
+		if ethLayer := packet.Layer(layers.LayerTypeEthernet); ethLayer != nil {
+			if eth, ok := ethLayer.(*layers.Ethernet); ok && eth.SrcMAC.String() == ateSrcPortMac {
+				// Ignore ATE port1's own transmitted packets on bidirectional port1 capture.
+				continue
+			}
+		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
@@ -916,7 +910,7 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 				t.Errorf("Packet is not encapsulated")
 			}
 		} else if index >= encapHeaderListLength || encapHeaderListLength == 0 {
-			if ipPacket.DstIP.String() == otgIsisPort8LoopV4 {
+			if ipPacket.DstIP.String() == otgIsisPort1LoopV4 || ipPacket.SrcIP.String() == otgIsisPort1LoopV4 {
 				continue
 			} else if ipPacket.DstIP.String() != headerDstIP["innerIP"][0] {
 				destIP := ipPacket.DstIP.String()
@@ -943,15 +937,14 @@ func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatu
 				return v == wantStatus
 			}
 			return false
-		},
-		)
+		})
 		if got, ok := operStatus.Await(t); !ok {
 			t.Errorf("Get(DUT %v oper status): got %v, want %v", port, got, wantStatus)
 		}
 	}
 }
 
-// setDUTInterfaceState sets the admin state on the dut interface
+// setDUTInterfaceWithState sets the admin state on the dut interface
 func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
 	dc := gnmi.OC()
 	i := &oc.Interface{}
@@ -992,29 +985,27 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 		sum += x
 	}
 	ys = make([]float64, len(xs))
+	if sum == 0 {
+		return ys, 0
+	}
 	for i, x := range xs {
 		ys[i] = float64(x) / float64(sum)
 	}
 	return ys, sum
 }
 
-func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeights []float64) {
-	inFramesAllPorts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Counters().InFrames().State())
-	// Skip source port, Port1.
-	gotWeights, _ := normalize(inFramesAllPorts[1:])
+func validateTrafficDistribution(t *testing.T, inFramesDeltas []uint64, wantWeights []float64) {
+	gotWeights, _ := normalize(inFramesDeltas)
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
 	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, tolerance)); diff != "" {
-		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
+		t.Errorf("Packet distribution ratios [port1..port4] -want,+got:\n%s", diff)
 	}
 }
 
 // validateEncapNHTelemetry verifies AFT telemetry for the encap next-hops used by
-// the 138.0.11.0/24 entry in ENCAP_TE_VRF_A. Each next-hop (NH#101 and NH#102)
-// is programmed via gRIBI with encapsulate_header IPV4, so telemetry is expected
-// to report next-hop/state/encapsulate-header as IPV4 and
-// next-hop/state/origin-protocol as GRIBI.
+// the 138.0.11.0/24 entry in ENCAP_TE_VRF_A.
 func validateEncapNHTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	pfx := gribiIPv4EntryEncapVRF + "/" + maskLen24
@@ -1063,16 +1054,15 @@ func validateEncapNHTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
+// TestEncapFrr is to test FRR behaviors with encapsulation scenarios on a 4-link testbed.
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
 	gribic := dut.RawAPIs().GRIBI(t)
 	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
-	dutPorts := sortPorts(dut.Ports())[0:8]
-	atePorts := sortPorts(ate.Ports())[0:8]
+	dutPorts := sortPorts(dut.Ports())[0:4]
+	atePorts := sortPorts(ate.Ports())[0:4]
 
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -1097,12 +1087,12 @@ func TestEncapFrr(t *testing.T) {
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
-		staticARPWithMagicUniversalIP(t, dut)
+		baseScenario.StaticARPWithMagicUniversalIP4Links(t, dut)
 	}
 
-	t.Log("Install BGP route resolved by ISIS.")
+	t.Log("Install BGP route resolved by ISIS on bidirectional DUT port-1.")
 	t.Log("Configure ISIS on DUT")
-	configureISIS(t, dut, dut.Port(t, "port8").Name(), dutAreaAddress, dutSysID)
+	configureISIS(t, dut, dut.Port(t, "port1").Name(), dutAreaAddress, dutSysID)
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
@@ -1113,11 +1103,9 @@ func TestEncapFrr(t *testing.T) {
 	otg := ate.OTG()
 	otgConfig := configureOTG(t, otg, atePorts)
 
-	verifyISISTelemetry(t, dut, dutPorts[7].Name())
+	verifyISISTelemetry(t, dut, dutPorts[0].Name())
 	verifyBgpTelemetry(t, dut)
 
-	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
-	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
 	client := fluent.NewClient()
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
@@ -1125,7 +1113,6 @@ func TestEncapFrr(t *testing.T) {
 	defer client.Stop(t)
 
 	defer func() {
-		// Flush all entries after test.
 		if err := gribi.FlushAll(client); err != nil {
 			t.Error(err)
 		}
@@ -1142,7 +1129,7 @@ func TestEncapFrr(t *testing.T) {
 		dut:        dut,
 		ate:        ate,
 		otgConfig:  otgConfig,
-		top:        top,
+		flowDestIP: ipv4InnerDst,
 		electionID: eID,
 		otg:        otg,
 	}
@@ -1151,22 +1138,22 @@ func TestEncapFrr(t *testing.T) {
 	testCases = append(testCases,
 		&baseScenario.TestCase{
 			Desc:                   "Test-8: no match in TE_VRF_222",
-			DownPortList:           []string{"port2", "port3", "port4", "port6"},
-			CapturePortList:        []string{atePortNamelist[7]},
+			DownPortList:           []string{"port2", "port3"},
+			CapturePortList:        []string{atePortNamelist[0]},
 			EncapHeaderOuterIPList: []string{},
 			EncapHeaderInnerIPList: []string{ipv4InnerDst},
 			TrafficDestIP:          ipv4InnerDst,
-			LoadBalancePercent:     []float64{0, 0, 0, 0, 0, 0, 1},
+			LoadBalancePercent:     []float64{1, 0, 0, 0},
 			TestID:                 "teVrf222NoMatch",
 		},
 		&baseScenario.TestCase{
 			Desc:                   "Test-9: no match in TE_VRF_111",
-			DownPortList:           []string{"port2", "port3", "port4", "port6"},
-			CapturePortList:        []string{atePortNamelist[7]},
+			DownPortList:           []string{"port2", "port3"},
+			CapturePortList:        []string{atePortNamelist[0]},
 			EncapHeaderOuterIPList: []string{},
 			EncapHeaderInnerIPList: []string{ipv4InnerDst},
 			TrafficDestIP:          ipv4InnerDst,
-			LoadBalancePercent:     []float64{0, 0, 0, 0, 0, 0, 1},
+			LoadBalancePercent:     []float64{1, 0, 0, 0},
 			TestID:                 "teVrf111NoMatch",
 		},
 	)
@@ -1180,22 +1167,24 @@ func TestEncapFrr(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")
-			portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
+			portList := []string{"port1", "port2", "port3", "port4"}
 			verifyPortStatus(t, args, portList, true)
 
 			t.Log("Flush existing gRIBI routes before test.")
 			if err := gribi.FlushAll(client); err != nil {
 				t.Fatal(err)
 			}
-			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
+			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[2]}
 			configureGribiRoute(ctx, t, dut, args.client)
-			createFlow(t, otgConfig, otg, ipv4InnerDst)
-			captureState := startCapture(t, args, baseCapturePortList)
-			defer otgutils.StopCapture(t, args.otg, captureState)
-			sendTraffic(t, args, baseCapturePortList, captureState)
+			createFlow(t, args, ipv4InnerDst)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
-			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
-			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
+			baseLoadBalancePercent := []float64{0, 0.25, 0.75, 0}
+			basePcaps := captureAndVerifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
+			if len(basePcaps) > 0 {
+				if err := baseScenario.ValidateTunnel1MACDistribution(basePcaps[0], tolerance); err != nil {
+					t.Errorf("Baseline port2 MAC distribution check failed: %v", err)
+				}
+			}
 
 			if tc.TestID == "primaryBackupRoutingSingle" {
 				args.client.Modify().AddEntry(t,
@@ -1227,7 +1216,7 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "encapNoMatch" {
-				createFlow(t, otgConfig, otg, noMatchEncapDest)
+				createFlow(t, args, noMatchEncapDest)
 			}
 			if tc.TestID == "teVrf222NoMatch" {
 				args.client.Modify().AddEntry(t,
@@ -1307,33 +1296,58 @@ func TestEncapFrr(t *testing.T) {
 				)
 			}
 
+			capturePortList := tc.CapturePortList
+			loadBalancePercent := tc.LoadBalancePercent
+			outerIPList := tc.EncapHeaderOuterIPList
+			innerIPList := tc.EncapHeaderInnerIPList
+
 			if deviations.ReducedEcmpSetOnMixedEncapDecapNh(dut) {
 				if tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
-					tc.CapturePortList = []string{atePortNamelist[5]}
-					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
+					capturePortList = []string{atePortNamelist[2]}
+					loadBalancePercent = []float64{0, 0, 1, 0}
+					outerIPList = []string{gribiIPv4EntryVRF1112}
+					innerIPList = []string{ipv4InnerDst}
 				}
 			}
-
-			captureState = startCapture(t, args, tc.CapturePortList)
-			defer otgutils.StopCapture(t, args.otg, captureState)
-			if len(tc.DownPortList) > 0 {
-				t.Logf("Bring down ports %s", tc.DownPortList)
-				portState(t, args, tc.DownPortList, false)
-				defer portState(t, args, tc.DownPortList, true)
-				t.Log("Verify the port status after bringing down the ports")
-				verifyPortStatus(t, args, tc.DownPortList, false)
-			}
-			sendTraffic(t, args, tc.CapturePortList, captureState)
-			headerDstIP := map[string][]string{"outerIP": tc.EncapHeaderOuterIPList, "innerIP": tc.EncapHeaderInnerIPList}
-
 			if deviations.EncapTunnelShutBackupNhgZeroTraffic(dut) {
 				if tc.TestID == "primarySingle" || tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
-					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
+					capturePortList = []string{atePortNamelist[2]}
+					loadBalancePercent = []float64{0, 0, 1, 0}
+					outerIPList = []string{gribiIPv4EntryVRF1112}
+					innerIPList = []string{ipv4InnerDst}
 				} else if tc.TestID == "primaryAll" {
-					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 0, 0, 1}
+					capturePortList = []string{atePortNamelist[0]}
+					loadBalancePercent = []float64{1, 0, 0, 0}
+					outerIPList = nil
+					innerIPList = []string{ipv4InnerDst}
 				}
 			}
-			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, !wantLoss, checkEncap, headerDstIP)
+
+			if len(tc.DownPortList) > 0 {
+				downPorts := tc.DownPortList
+				t.Logf("Bring down ports %s", downPorts)
+				portState(t, args, downPorts, false)
+				t.Cleanup(func() {
+					portState(t, args, downPorts, true)
+				})
+				t.Log("Verify the port status after bringing down the ports")
+				verifyPortStatus(t, args, downPorts, false)
+			}
+
+			if tc.TestID == "primaryAll" && !deviations.EncapTunnelShutBackupNhgZeroTraffic(dut) {
+				// In Test-4, both backup tunnels share port4; verify [0, 0, 0, 1] port share
+				// and the 25%:75% split across (203.0.113.100, MagicMAC1) and (.101/.102, MagicMAC2).
+				testPcaps := captureAndVerifyTraffic(t, args, capturePortList, loadBalancePercent, !wantLoss, false, nil)
+				if len(testPcaps) > 0 {
+					if err := baseScenario.ValidateBackupTunnelDistribution(testPcaps[0], ipv4InnerDst, true, tolerance); err != nil {
+						t.Errorf("Test-4 shared backup port4 distribution check failed: %v", err)
+					}
+				}
+				return
+			}
+
+			headerDstIP := map[string][]string{"outerIP": outerIPList, "innerIP": innerIPList}
+			captureAndVerifyTraffic(t, args, capturePortList, loadBalancePercent, !wantLoss, checkEncap, headerDstIP)
 		})
 	}
 }
